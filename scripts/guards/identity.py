@@ -5,6 +5,9 @@ import sys
 
 PATTERN_VARIABLE = "WILLITHARNESS_EMAIL_PATTERN"
 DEFAULT_PATTERN = r"^\d+\+andrey1souza@users\.noreply\.github\.com$"
+ACCOUNT_VARIABLE = "WILLITHARNESS_GH_ACCOUNT"
+DEFAULT_ACCOUNT = "andrey1souza"
+ACCOUNT_KEY = "credential.https://github.com.username"
 EXIT_CLEAN = 0
 EXIT_WRONG_IDENTITY = 1
 GIT_CONFIG_MISSING_KEY = 1
@@ -53,22 +56,69 @@ def identity_failure_message(email, pattern):
     )
 
 
+def configured_account(repo):
+    assert repo, (
+        "configured_account got repo %r. Rule: git config reads one repository. "
+        "Fix: pass the repository directory." % (repo,)
+    )
+    result = subprocess.run(
+        ["git", "config", "--local", "--get", ACCOUNT_KEY], cwd=repo, capture_output=True, text=True
+    )
+    assert result.returncode in (0, GIT_CONFIG_MISSING_KEY), (
+        "git config exited %r with %r. Rule: 0 means set and 1 means unset. "
+        "Fix: check that %r is a git repository." % (result.returncode, result.stderr, repo)
+    )
+    return result.stdout.strip()
+
+
+def account_failure_message(account, expected_account):
+    assert expected_account, (
+        "account_failure_message got expected account %r. Rule: the message names the expected account. "
+        "Fix: set %s or unset it." % (expected_account, ACCOUNT_VARIABLE)
+    )
+    assert account != expected_account, (
+        "account_failure_message was called with the expected account %r. Rule: only a wrong account "
+        "gets this message. Fix: call it when the accounts differ." % (account,)
+    )
+    shown = account if account else "(unset in this repo)"
+    return (
+        "identity: the GitHub account for gh in this repo is %s, expected %s. "
+        "Rule: only the repo-local %s counts, because the global value is the work account. "
+        "Fix: run git config %s %s in this repo."
+        % (shown, expected_account, ACCOUNT_KEY, ACCOUNT_KEY, expected_account)
+    )
+
+
+def identity_problems(email, pattern, account, expected_account):
+    assert pattern, (
+        "identity_problems got pattern %r. Rule: an empty pattern would accept anything. "
+        "Fix: set %s to a regex or unset it." % (pattern, PATTERN_VARIABLE)
+    )
+    assert expected_account, (
+        "identity_problems got expected account %r. Rule: an empty account would accept anything. "
+        "Fix: set %s or unset it." % (expected_account, ACCOUNT_VARIABLE)
+    )
+    problems = []
+    if not email_allowed(email, pattern):
+        problems.append(identity_failure_message(email, pattern))
+    if account != expected_account:
+        problems.append(account_failure_message(account, expected_account))
+    return problems
+
+
 def main(environment, repo):
     pattern = environment.get(PATTERN_VARIABLE, DEFAULT_PATTERN)
-    email = configured_email(repo)
-    allowed = email_allowed(email, pattern)
-    assert allowed in (True, False), (
-        "email_allowed returned %r for %r. Rule: the check answers yes or no. "
-        "Fix: return a bool." % (allowed, email)
+    expected_account = environment.get(ACCOUNT_VARIABLE, DEFAULT_ACCOUNT)
+    problems = identity_problems(configured_email(repo), pattern, configured_account(repo), expected_account)
+    assert isinstance(problems, list), (
+        "identity_problems returned %r. Rule: callers count the problems. Fix: return a list." % (problems,)
     )
-    assert allowed == bool(re.match(pattern, email)), (
-        "email %r and pattern %r gave allowed=%r. Rule: allowed means the pattern matches. "
-        "Fix: correct email_allowed." % (email, pattern, allowed)
+    assert all(isinstance(problem, str) for problem in problems), (
+        "problems %r must all be text. Rule: each problem is one message. Fix: build messages as text." % (problems,)
     )
-    if allowed:
-        return EXIT_CLEAN
-    print(identity_failure_message(email, pattern), file=sys.stderr)
-    return EXIT_WRONG_IDENTITY
+    for problem in problems:
+        print(problem, file=sys.stderr)
+    return EXIT_WRONG_IDENTITY if problems else EXIT_CLEAN
 
 
 if __name__ == "__main__":
