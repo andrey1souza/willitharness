@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly DELETED_REF='^0+$'
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "${repo_root}"
+
+python3 scripts/guards/push_window.py
+
+remote="$1"
+while read -r _local_ref local_sha _remote_ref _remote_sha; do
+  [[ "${local_sha}" =~ ${DELETED_REF} ]] && continue
+  commit_range=("${local_sha}" --not "--remotes=${remote}")
+  gitleaks git --redact --no-banner --log-opts="${local_sha} --not --remotes=${remote}" .
+  python3 scripts/guards/fix_needs_rule.py "${commit_range[@]}"
+  for commit in $(git rev-list "${commit_range[@]}"); do
+    python3 scripts/guards/private_names.py --rev "${commit}"
+  done
+done
+
+zanity check . --baseline zanity-baseline.json --new-only --fail-on warning --agent
+uv run pytest

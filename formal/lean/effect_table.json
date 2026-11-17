@@ -1,0 +1,14 @@
+[
+  {"noise": "NoiseUnmeasured", "verdict": "InconclusiveSmallN", "effect": "Invalid"},
+  {"noise": "NoiseUnmeasured", "verdict": "FirstHigher", "effect": "Invalid"},
+  {"noise": "NoiseUnmeasured", "verdict": "FirstLower", "effect": "Invalid"},
+  {"noise": "NoiseUnmeasured", "verdict": "Inconclusive", "effect": "Invalid"},
+  {"noise": "NoiseFloorTooHigh", "verdict": "InconclusiveSmallN", "effect": "Invalid"},
+  {"noise": "NoiseFloorTooHigh", "verdict": "FirstHigher", "effect": "Invalid"},
+  {"noise": "NoiseFloorTooHigh", "verdict": "FirstLower", "effect": "Invalid"},
+  {"noise": "NoiseFloorTooHigh", "verdict": "Inconclusive", "effect": "Invalid"},
+  {"noise": "NoiseOk", "verdict": "InconclusiveSmallN", "effect": "NotEnoughRuns"},
+  {"noise": "NoiseOk", "verdict": "FirstHigher", "effect": "RuleLowersViolations"},
+  {"noise": "NoiseOk", "verdict": "FirstLower", "effect": "RuleRaisesViolations"},
+  {"noise": "NoiseOk", "verdict": "Inconclusive", "effect": "NoMeasurableEffect"}
+]

@@ -1,0 +1,12 @@
+name = "willitharness"
+defaultTargets = ["Willitharness", "export_table"]
+
+[[lean_lib]]
+name = "Willitharness"
+
+[[lean_lib]]
+name = "WrongVariants"
+
+[[lean_exe]]
+name = "export_table"
+root = "Export"

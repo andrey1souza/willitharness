@@ -1,0 +1,10 @@
+check                                                              expected                                 actual
+lean runs                                                          exit 0                                   Lean (version 4.36.0, arm64-apple-darwin24.6.0, commit 611c117bfaf7b7ae1cfcf246ce6fba31e8f509e9, Release) [OK]
+lake build (proven libraries)                                      exit 0, 0 warnings                       exit 1, 1 warnings [MISMATCH]
+no sorry, axiom declaration or native_decide                       none                                     sorry in Decision.lean [MISMATCH]
+#print axioms covers every theorem, standard axioms only           all reported, none disallowed            0 of 75 reported, disallowed: none [MISMATCH]
+decision_table.json matches an independent reading of contract v0.2 45 rows, complete, 0 differences         export exit 1 [MISMATCH]
+effect_table.json matches an independent reading of contract v0.2  12 rows, complete, 0 differences         export exit 1 [MISMATCH]
+probe_table.json matches an independent reading of contract v0.2   140 rows, complete, 0 differences        export exit 1 [MISMATCH]
+guard_table.json matches an independent reading of contract v0.2   20 rows, complete, 0 differences         export exit 1 [MISMATCH]
+every deliberately wrong theorem fails                             build fails, each wrong theorem has an error exit 1, 7 wrong theorems, not failing: ['wrong_D1_masked_keep', 'wrong_D11_delete_when_rule_lowers', 'wrong_V2_no_small_n_guard', 'wrong_V4_non_strict_lower_bound', 'wrong_E1_unmeasured_maps_to_ok', 'wrong_P2_control_ignored', 'wrong_G1_bypass_ignored'] [MISMATCH]

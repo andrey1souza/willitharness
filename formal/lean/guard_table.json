@@ -1,0 +1,22 @@
+[
+  {"completed": "NoGuardArm", "blockCoverageFull": false, "bypassRateZero": false, "guard": "GuardUntested"},
+  {"completed": "NoGuardArm", "blockCoverageFull": false, "bypassRateZero": true, "guard": "GuardUntested"},
+  {"completed": "NoGuardArm", "blockCoverageFull": true, "bypassRateZero": false, "guard": "GuardUntested"},
+  {"completed": "NoGuardArm", "blockCoverageFull": true, "bypassRateZero": true, "guard": "GuardUntested"},
+  {"completed": "InconclusiveSmallN", "blockCoverageFull": false, "bypassRateZero": false, "guard": "GuardWorse"},
+  {"completed": "InconclusiveSmallN", "blockCoverageFull": false, "bypassRateZero": true, "guard": "GuardWorse"},
+  {"completed": "InconclusiveSmallN", "blockCoverageFull": true, "bypassRateZero": false, "guard": "GuardWorse"},
+  {"completed": "InconclusiveSmallN", "blockCoverageFull": true, "bypassRateZero": true, "guard": "GuardWorse"},
+  {"completed": "FirstHigher", "blockCoverageFull": false, "bypassRateZero": false, "guard": "GuardWorse"},
+  {"completed": "FirstHigher", "blockCoverageFull": false, "bypassRateZero": true, "guard": "GuardWorse"},
+  {"completed": "FirstHigher", "blockCoverageFull": true, "bypassRateZero": false, "guard": "GuardWorse"},
+  {"completed": "FirstHigher", "blockCoverageFull": true, "bypassRateZero": true, "guard": "GuardMatchesRule"},
+  {"completed": "FirstLower", "blockCoverageFull": false, "bypassRateZero": false, "guard": "GuardWorse"},
+  {"completed": "FirstLower", "blockCoverageFull": false, "bypassRateZero": true, "guard": "GuardWorse"},
+  {"completed": "FirstLower", "blockCoverageFull": true, "bypassRateZero": false, "guard": "GuardWorse"},
+  {"completed": "FirstLower", "blockCoverageFull": true, "bypassRateZero": true, "guard": "GuardWorse"},
+  {"completed": "Inconclusive", "blockCoverageFull": false, "bypassRateZero": false, "guard": "GuardWorse"},
+  {"completed": "Inconclusive", "blockCoverageFull": false, "bypassRateZero": true, "guard": "GuardWorse"},
+  {"completed": "Inconclusive", "blockCoverageFull": true, "bypassRateZero": false, "guard": "GuardWorse"},
+  {"completed": "Inconclusive", "blockCoverageFull": true, "bypassRateZero": true, "guard": "GuardMatchesRule"}
+]

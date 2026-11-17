@@ -1,0 +1,8 @@
+{
+  "gate": {
+    "inherited": "allow",
+    "protected_actions": [
+      { "tool": "Bash", "command": "\\bgit\\s+push\\b", "checks": ["zanity", "python"] }
+    ]
+  }
+}
