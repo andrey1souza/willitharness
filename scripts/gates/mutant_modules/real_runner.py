@@ -1,3 +1,4 @@
+PLATFORM = "darwin"
 TESTS = ("tests/gates/test_real_runner.py", "tests/gates/test_agent_tools.py", "tests/gates/test_plan_gate.py",)
 SOURCE = "src/willitharness/real_runner.py"
 

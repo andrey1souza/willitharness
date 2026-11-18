@@ -25,7 +25,7 @@ REQUIRED_RULES = {
 CODE_OWNER_PARAMETER = "require_code_owner_review"
 PULL_REQUEST_RULE = REQUIRED_RULES["pull request required"]
 STATUS_CHECKS_RULE = REQUIRED_RULES["status checks required"]
-REQUIRED_CHECKS = ("test", "zanity")
+REQUIRED_CHECKS = ("test", "zanity", "macos")
 ENABLED = "enabled"
 REQUIRED_ANALYSIS = {
     "secret scanning enabled": "secret_scanning",

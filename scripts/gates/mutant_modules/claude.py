@@ -1,3 +1,4 @@
+PLATFORM = "darwin"
 TESTS = (
     'tests/unit/test_claude_agent_unit.py',
     'tests/gates/test_agent_tools.py',

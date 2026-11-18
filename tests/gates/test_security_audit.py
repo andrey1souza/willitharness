@@ -4,7 +4,7 @@ import stat
 import security_audit
 from files import write_tree
 
-ALL_CHECKS = [{"context": "test"}, {"context": "zanity"}]
+ALL_CHECKS = [{"context": "test"}, {"context": "zanity"}, {"context": "macos"}]
 GOOD_RULES = [
     {"type": "pull_request", "parameters": {"require_code_owner_review": True}},
     {"type": "required_signatures"},
@@ -75,10 +75,13 @@ def test_code_owner_review_must_be_true():
 def test_each_required_status_check_is_needed():
     only_test = [*GOOD_RULES[:-1], {"type": "required_status_checks", "parameters": {"required_status_checks": [{"context": "test"}]}}]
     errors = security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": only_test}]))
-    assert errors == ["required status check 'zanity' is missing"], f"got {errors}"
+    assert errors == ["required status check 'zanity' is missing", "required status check 'macos' is missing"], f"got {errors}"
     only_zanity = [*GOOD_RULES[:-1], {"type": "required_status_checks", "parameters": {"required_status_checks": [{"context": "zanity"}]}}]
     errors = security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": only_zanity}]))
-    assert errors == ["required status check 'test' is missing"], f"got {errors}"
+    assert errors == ["required status check 'test' is missing", "required status check 'macos' is missing"], f"got {errors}"
+    without_macos = [*GOOD_RULES[:-1], {"type": "required_status_checks", "parameters": {"required_status_checks": ALL_CHECKS[:2]}}]
+    errors = security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": without_macos}]))
+    assert errors == ["required status check 'macos' is missing"], f"got {errors}"
 
 
 def test_an_inactive_or_wrong_target_ruleset_does_not_count():

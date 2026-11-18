@@ -8,7 +8,7 @@ TABLE_HEAD = "# Mistakes\n\n## Mistakes caught by a rule\n\n| Mistake | Category
 TABLE_TAIL = "\n## Mistakes with no rule yet\n"
 GOOD_ROW = "| m | c | r | `tests/gates/test_x.py::test_x` |\n"
 TEST_FILE = "def test_x():\n    assert True\n"
-FILE_CHECKS = {name: check for name, check in repo_checks.CHECKS.items() if name not in ("mutant-tables", "trace-pending", "no-tracked-generated", *workflow_checks.CHECKS)}
+FILE_CHECKS = {name: check for name, check in repo_checks.CHECKS.items() if name not in ("mutant-tables", "mutant-platforms", "trace-pending", "no-tracked-generated", *workflow_checks.CHECKS)}
 PENDING_GOOD = '[{"id": "S1", "place": "tests", "reason": "later"}]'
 
 
@@ -174,4 +174,3 @@ def test_files_outside_the_generated_folder_are_not_reported():
     errors = repo_checks.generated_errors_among(["formal/tla/WillItHarness.tla", "formal/tla/generated_notes.md", "src/x.py"])
     assert errors == [], f"only files under formal/tla/generated/ count, got {errors}"
     assert repo_checks.generated_errors_among([]) == [], "an empty list has nothing to report"
-

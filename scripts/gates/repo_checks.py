@@ -26,6 +26,8 @@ PLAN_DIRECTORY = Path("docs") / "plan"
 RETIRED_COMMAND = "behave features/"
 PENDING_FILE = Path("scripts") / "gates" / "trace_pending.json"
 GENERATED_DIRECTORY = Path("formal") / "tla" / "generated"
+DARWIN = "darwin"
+DARWIN_SKIP = re.compile(r"^pytestmark\s*=.*sys\.platform\s*!=\s*\"" + DARWIN + r"\"", re.MULTILINE)
 
 
 def mistakes_table_errors(root):
@@ -123,6 +125,28 @@ def mutant_table_errors(root, modules):
     return errors
 
 
+def darwin_only_tests(root, tests):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    located = [root / path for path in tests]
+    files = [file for path in located for file in (path.rglob("test_*.py") if path.is_dir() else [path])]
+    assert all(file.is_file() for file in files), f"a test path in {tests!r} does not exist under {root}. Fix: correct the mutant module."
+    return [file for file in files if DARWIN_SKIP.search(file.read_text())]
+
+
+def platform_errors(root, modules, platforms):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert set(modules) == set(platforms), f"modules {sorted(modules)} and platforms {sorted(platforms)} differ. Fix: pass both from mutant_tables."
+    errors = []
+    for module, (tests, _) in modules.items():
+        skipping = bool(darwin_only_tests(root, tests))
+        if skipping and platforms[module] != DARWIN:
+            errors.append(f"{module}: a test skips off {DARWIN}, so its mutants survive elsewhere. Fix: declare PLATFORM = {DARWIN!r} in the mutant module")
+        if platforms[module] == DARWIN and not skipping:
+            errors.append(f"{module}: declares PLATFORM = {DARWIN!r} but no test in TESTS skips off {DARWIN}. Fix: remove the declaration")
+    assert all(isinstance(error, str) for error in errors), f"errors must be text, got {errors!r}"
+    return errors
+
+
 def pending_errors(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     entries = trace_check.parse_pending((root / PENDING_FILE).read_text())
@@ -142,6 +166,12 @@ def registered_mutant_errors(root):
     return mutant_table_errors(root, mutant_tables.MODULES)
 
 
+def registered_platform_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert mutant_tables.PLATFORMS, "the mutant table lists no platforms. Rule: every module has one. Fix: add mutant modules."
+    return platform_errors(root, mutant_tables.MODULES, mutant_tables.PLATFORMS)
+
+
 CHECKS = {
     "mistakes-table": mistakes_table_errors,
     "gitignore": gitignore_errors,
@@ -149,6 +179,7 @@ CHECKS = {
     "zanity-config": zanity_config_errors,
     "plan-commands": plan_command_errors,
     "mutant-tables": registered_mutant_errors,
+    "mutant-platforms": registered_platform_errors,
     "trace-pending": pending_errors,
     "no-tracked-generated": tracked_generated_errors,
     **workflow_checks.CHECKS,

@@ -6,7 +6,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from mutant_tables import MODULES
+from mutant_tables import ANY_PLATFORM, MODULES, PLATFORMS
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EXIT_ALL_KILLED = 0
@@ -94,7 +94,19 @@ def run_module(module, tests_override):
     return EXIT_ALL_KILLED if killed == len(mutants) else EXIT_SURVIVED
 
 
-def main(argv):
+def skipped_modules(names, platform):
+    assert isinstance(names, list), f"names must be a list, got {names!r}. Fix: pass module names."
+    assert all(name in PLATFORMS for name in names), f"unknown module in {names!r}. Fix: use one of {sorted(PLATFORMS)}."
+    return [name for name in names if PLATFORMS[name] not in (ANY_PLATFORM, platform)]
+
+
+def skipped_line(skipped):
+    assert isinstance(skipped, list), f"skipped must be a list, got {skipped!r}. Fix: pass module names."
+    assert all(isinstance(name, str) for name in skipped), f"every skipped name must be text, got {skipped!r}"
+    return "skipped modules: " + ", ".join(skipped)
+
+
+def main(argv, platform=sys.platform):
     assert isinstance(argv, list), f"main needs a list of arguments, got {argv!r}. Fix: pass sys.argv[1:]."
     assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
     parser = argparse.ArgumentParser(prog="mutants")
@@ -102,12 +114,18 @@ def main(argv):
     parser.add_argument("--tests", nargs="+")
     arguments = parser.parse_args(argv)
     names = sorted(MODULES) if arguments.module == ALL_MODULES else [arguments.module]
+    skipped = skipped_modules(names, platform)
     codes = []
     for name in names:
         if arguments.module == ALL_MODULES:
             print(f"== {name}")
-        codes.append(run_module(name, arguments.tests))
-    return max(codes)
+        if name in skipped:
+            print(f"skipped {name}: needs {PLATFORMS[name]}")
+        else:
+            codes.append(run_module(name, arguments.tests))
+    if arguments.module == ALL_MODULES and skipped:
+        print(skipped_line(skipped))
+    return max(codes, default=EXIT_ALL_KILLED)
 
 
 if __name__ == "__main__":

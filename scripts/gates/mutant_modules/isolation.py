@@ -1,3 +1,4 @@
+PLATFORM = "darwin"
 TESTS = ("tests/unit/test_isolation_unit.py", "tests/gates/test_sandbox_gate.py")
 
 MUTANTS = (

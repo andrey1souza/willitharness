@@ -1,3 +1,4 @@
+PLATFORM = "darwin"
 TESTS = (
     'tests/unit/test_detectors_unit.py',
     'tests/bdd/test_detectors_scenarios.py',

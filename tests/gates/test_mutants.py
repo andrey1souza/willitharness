@@ -47,3 +47,10 @@ def test_tests_that_fail_on_unmutated_code_stop_the_gate(tmp_path, capsys):
     output = capsys.readouterr().out
     assert code == mutants.EXIT_BASELINE_BROKEN, f"expected exit {mutants.EXIT_BASELINE_BROKEN}, got {code}"
     assert "mutants killed" not in output, f"no mutant may run on a broken baseline, got {output!r}"
+
+
+def test_off_darwin_a_portable_module_still_runs_and_kills(capsys):
+    code = mutants.main(["stats"], "linux")
+    output = capsys.readouterr().out
+    assert code == mutants.EXIT_ALL_KILLED, f"stats must still kill every mutant on linux, got {code}; output {output!r}"
+    assert "mutants killed: %d/%d" % (STATS_MUTANT_COUNT, STATS_MUTANT_COUNT) in output, f"unexpected output {output!r}"

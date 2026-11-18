@@ -1,3 +1,4 @@
+PLATFORM = "darwin"
 TESTS = ("tests/gates/test_run_live.py",)
 SOURCE = "scripts/gates/run_live.py"
 
