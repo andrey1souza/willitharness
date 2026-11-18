@@ -14,7 +14,7 @@ def test_unrelated_secrets_never_reach_the_agent():
 
 def test_the_variables_the_agent_needs_are_kept():
     scrubbed = agent_environment({**NEEDED, **SECRETS})
-    assert scrubbed == NEEDED, f"expected exactly {NEEDED}, got {scrubbed}"
+    assert scrubbed == {**NEEDED, "SHELL": "/bin/bash"}, f"expected the needed variables plus the agent shell, got {scrubbed}"
 
 
 def test_an_environment_without_a_path_is_rejected_with_the_fix():
@@ -56,3 +56,9 @@ def test_a_path_with_a_quote_is_rejected(tmp_path):
 def test_the_wrapped_command_puts_the_profile_before_the_command():
     wrapped = sandboxed_command(["echo", "hi"], "(version 1)\n(allow default)")
     assert wrapped == ["sandbox-exec", "-p", "(version 1)\n(allow default)", "echo", "hi"], f"unexpected command {wrapped}"
+
+
+def test_the_agent_shell_is_bash_whatever_the_user_shell_is():
+    scrubbed = agent_environment({**NEEDED, "SHELL": "/bin/zsh"})
+    assert scrubbed["SHELL"] == "/bin/bash", f"the agent must not get the user's shell, got {scrubbed['SHELL']!r}"
+    assert agent_environment(NEEDED)["SHELL"] == "/bin/bash", "the agent shell is set even when the user has none"

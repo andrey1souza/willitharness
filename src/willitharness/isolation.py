@@ -2,10 +2,12 @@ import subprocess
 from pathlib import Path
 
 ALLOWED_VARIABLES = frozenset({
-    "PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG", "TERM", "TMPDIR",
+    "PATH", "HOME", "USER", "LOGNAME", "LANG", "TERM", "TMPDIR",
     "CLAUDE_CONFIG_DIR", "ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL",
     "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "SSL_CERT_FILE", "NODE_EXTRA_CA_CERTS",
 })
+SHELL_VARIABLE = "SHELL"
+AGENT_SHELL = "/bin/bash"
 ALLOWED_PREFIXES = ("LC_", "CLAUDE_CODE_")
 SECRET_DIRECTORIES = (".ssh", ".aws", ".gnupg", ".config/gh", ".netrc", ".docker")
 WRITABLE_DEVICES = ("/dev/null", "/dev/dtracehelper", "/dev/tty", "/dev/stdout", "/dev/stderr")
@@ -20,7 +22,9 @@ def agent_environment(environ):
         for name, value in environ.items()
         if name in ALLOWED_VARIABLES or name.startswith(ALLOWED_PREFIXES)
     }
-    assert kept.keys() <= environ.keys(), f"the scrubbed environment gained variables: {sorted(kept.keys() - environ.keys())}"
+    kept[SHELL_VARIABLE] = AGENT_SHELL
+    assert kept.keys() - {SHELL_VARIABLE} <= environ.keys(), f"the scrubbed environment gained variables: {sorted(kept.keys() - environ.keys())}"
+    assert kept[SHELL_VARIABLE] == AGENT_SHELL, f"the agent shell is {kept[SHELL_VARIABLE]!r}. Rule: the agent never loads the user's shell profile or aliases. Fix: set {SHELL_VARIABLE} to {AGENT_SHELL}."
     return kept
 
 
