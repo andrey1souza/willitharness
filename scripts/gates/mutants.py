@@ -12,6 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 EXIT_ALL_KILLED = 0
 EXIT_SURVIVED = 1
 EXIT_BASELINE_BROKEN = 2
+ALL_MODULES = "all"
 PYTEST_PASSED = 0
 PYTEST_TESTS_FAILED = 1
 PYTEST_NO_TESTS = 5
@@ -65,16 +66,13 @@ def is_killed(source_root, tests, mutant):
     return code == PYTEST_TESTS_FAILED
 
 
-def main(argv):
-    parser = argparse.ArgumentParser(prog="mutants")
-    parser.add_argument("module", choices=sorted(MODULES))
-    parser.add_argument("--tests", nargs="+")
-    arguments = parser.parse_args(argv)
-    default_tests, mutants = MODULES[arguments.module]
-    tests = arguments.tests or list(default_tests)
+def run_module(module, tests_override):
+    assert module in MODULES, f"unknown module {module!r}. Fix: use one of {sorted(MODULES)}."
+    default_tests, mutants = MODULES[module]
+    tests = tests_override or list(default_tests)
     missing = [path for path in tests if not (REPO_ROOT / path).exists()]
     assert not missing, f"test paths {missing} do not exist. Rule: a gate runs real tests. Fix: pass existing paths."
-    assert mutants, f"module {arguments.module} has no mutants. Rule: a gate with no mutants proves nothing. Fix: add them to the table."
+    assert mutants, f"module {module} has no mutants. Rule: a gate with no mutants proves nothing. Fix: add them to the table."
     with tempfile.TemporaryDirectory(prefix="mutants-baseline-") as directory:
         baseline = Path(directory)
         copy_sources(baseline)
@@ -92,6 +90,22 @@ def main(argv):
         killed += 0 if survived else 1
     print("mutants killed: %d/%d" % (killed, len(mutants)))
     return EXIT_ALL_KILLED if killed == len(mutants) else EXIT_SURVIVED
+
+
+def main(argv):
+    assert isinstance(argv, list), f"main needs a list of arguments, got {argv!r}. Fix: pass sys.argv[1:]."
+    assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
+    parser = argparse.ArgumentParser(prog="mutants")
+    parser.add_argument("module", choices=[*sorted(MODULES), ALL_MODULES])
+    parser.add_argument("--tests", nargs="+")
+    arguments = parser.parse_args(argv)
+    names = sorted(MODULES) if arguments.module == ALL_MODULES else [arguments.module]
+    codes = []
+    for name in names:
+        if arguments.module == ALL_MODULES:
+            print(f"== {name}")
+        codes.append(run_module(name, arguments.tests))
+    return max(codes)
 
 
 if __name__ == "__main__":

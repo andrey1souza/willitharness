@@ -52,4 +52,20 @@ PLAN_MUTANTS = (
     ("repeated-labels-allowed-once", PLAN, "labels.count(label) > 1", "labels.count(label) > 2"),
 )
 
-MODULES = {"stats": (STATS_TESTS, STATS_MUTANTS), "plan": (PLAN_TESTS, PLAN_MUTANTS)}
+FAKE_AGENT_TESTS = ("tests/gates/test_fakeagent.py",)
+FAKE_AGENT = "src/willitharness/fakeagent.py"
+
+FAKE_AGENT_MUTANTS = (
+    ("fallback-file-always-read", FAKE_AGENT, "chosen = primary or fallback", "chosen = primary + fallback"),
+    ("recall-ignored", FAKE_AGENT, "values[0] if values and draw < behavior.recall else", "values[0] if values else"),
+    ("walk-passes-the-boundary", FAKE_AGENT, "while chain[-1] != boundary:", "while chain[-1] != chain[-1].parent:"),
+    ("seed-ignored", FAKE_AGENT, 'random.Random(f"{behavior.seed}:{run_index}")', "random.Random()"),
+    ("seed-message-changed", FAKE_AGENT, '"seed required; pass --seed N"', '"seed needed"'),
+    ("claude-file-not-read", FAKE_AGENT, 'CONTEXT_FILE = "CLAUDE.md"', 'CONTEXT_FILE = "CLAUDE.txt"'),
+)
+
+MODULES = {
+    "stats": (STATS_TESTS, STATS_MUTANTS),
+    "plan": (PLAN_TESTS, PLAN_MUTANTS),
+    "fakeagent": (FAKE_AGENT_TESTS, FAKE_AGENT_MUTANTS),
+}

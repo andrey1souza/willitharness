@@ -9,8 +9,7 @@ zanity:
 	zanity check . --baseline zanity-baseline.json --new-only --fail-on warning
 
 mutants:
-	uv run python scripts/gates/mutants.py stats
-	uv run python scripts/gates/mutants.py plan
+	uv run python scripts/gates/mutants.py all
 
 trace:
 	uv run python scripts/gates/trace_check.py
