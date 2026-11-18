@@ -1,6 +1,6 @@
 # 07. Task backlog
 
-53 tasks in dependency order (contract v0.3). Each is a BDD story with Given, When,
+58 tasks in dependency order (contract v0.3). Each is a BDD story with Given, When,
 Then acceptance, the contract IDs it covers, a gate from file 03, a size and its
 dependencies. Sizes: S under half a day, M about a day, L two or three days. A task
 is done when its gate passes with its bad input rejected.
@@ -359,3 +359,36 @@ As a user, I want each arm to say how its rule text reaches the agent, so that a
 - Done in M2: `plan.py` reads `channel` (file, skill, hook, system_prompt; default file) and rejects another value with the fix. `features/plan-arms.feature` runs under pytest-bdd.
 - Later: the probe runs per channel, and Q5 (comparing channels) is a v0.4 contract item with its own tables.
 - IDs: none (glossary). Gate: G1.8. Deps: T11.
+
+## Added from the testing-techniques review
+
+### T54. Threat model of the runner (S, before M3)
+As a user, I want to know what a plan run can touch, so that running a third-party agent on my directory is a decision I can make.
+- Given the runner design, when the threat model is written, then each threat names a check that fails when the mitigation is missing (scrubbed environment, no network for stubs, writes only inside the world, no access to the user's home).
+- Given a task prompt that tells the agent to read outside the world, then the run is recorded unusable or the read is denied, and a test shows it.
+- IDs: W2. Gate: G3.3. Deps: T20.
+
+### T55. Fuzz the two parsers (M)
+As a maintainer, I want the stream parser and the guard's command parser fed with hostile input, so that odd agent output cannot crash a run or fake a result.
+- Given Hypothesis-generated JSONL lines, including strings where objects are expected, then the parser returns a run record or marks the run unusable, and never raises.
+- Given generated shell commands, then the command parser never raises and every segment is classified.
+- IDs: L6, G1. Gates: G3.2, G5.2. Deps: T21, T39.
+
+### T56. Shadow run of the analysis (S)
+As a maintainer, I want the new analysis code run against stored run records next to the previous version, so that a refactor cannot change a verdict unseen.
+- Given a stored set of run records, when the previous and the new analysis run on it, then every verdict, effect result and decision is equal, or the difference is printed and the gate exits 1.
+- Given a mutant that changes one verdict, then the gate exits 1.
+- IDs: V1, E1, D9. Gate: G6.4. Deps: T47.
+
+### T57. Chaos run of the lifecycle and the store (M)
+As a maintainer, I want random sequences of starts, records, aborts, timeouts and world changes replayed against the code, so that the lifecycle rules hold outside the cases I thought of.
+- Given random sequences and a fixed seed, then L1 to L9 hold after every step.
+- Given three deliberately broken versions, then each is caught.
+- Given a TLA+ schedule from the model, then the code reaches the same states (trace replay).
+- IDs: L1 to L9, T1, T2a. Gates: G3.5, G7.1. Deps: T27, T28, T50.
+
+### T58. Clean the old examples (M)
+As a maintainer, I want the inherited zanity findings removed, so that no agent copies the old pattern.
+- Given the 30 baseline findings in the legacy formal helper scripts, when each is fixed or its script deleted, then the baseline file holds fewer entries and the ceiling in `repo_checks` drops to the new count.
+- Given a baseline above the ceiling, then `repo_checks` fails.
+- IDs: none. Gate: repo checks. Deps: none.
