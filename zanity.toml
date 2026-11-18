@@ -247,3 +247,6 @@ disable = ["filesystem-in-test", "process-in-test"]
 
 [paths."tests/repo/"]
 disable = ["filesystem-in-test"]
+
+[paths."tests/gates/"]
+disable = ["filesystem-in-test", "process-in-test"]

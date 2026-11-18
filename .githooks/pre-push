@@ -21,3 +21,4 @@ done
 
 zanity check . --baseline zanity-baseline.json --new-only --fail-on warning --agent
 uv run pytest
+uv run python scripts/gates/mutants.py stats

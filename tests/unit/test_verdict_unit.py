@@ -1,10 +1,29 @@
 import pytest
 
 from willitharness.counts import Counts
-from willitharness.verdict import MIN_RUNS, flip, noise_status_of, verdict_of
+from willitharness.verdict import MIN_RUNS, flip, noise_status_of, verdict_from_interval, verdict_of
 from willitharness.vocabulary import NoiseStatus, Verdict
 
+INTERVAL_EDGE = 0.0
+INTERVAL_REACH = 0.5
 ENOUGH_RUNS = 20
+
+
+def test_V1_an_interval_that_starts_at_zero_is_inconclusive():
+    result = verdict_from_interval(INTERVAL_EDGE, INTERVAL_REACH)
+    assert result is Verdict.INCONCLUSIVE, f"{result=} for the interval ({INTERVAL_EDGE}, {INTERVAL_REACH})"
+
+
+def test_V1_an_interval_that_ends_at_zero_is_inconclusive():
+    result = verdict_from_interval(-INTERVAL_REACH, INTERVAL_EDGE)
+    assert result is Verdict.INCONCLUSIVE, f"{result=} for the interval ({-INTERVAL_REACH}, {INTERVAL_EDGE})"
+
+
+def test_V1_an_interval_clear_of_zero_decides_the_direction():
+    above = verdict_from_interval(INTERVAL_REACH / 2, INTERVAL_REACH)
+    below = verdict_from_interval(-INTERVAL_REACH, -INTERVAL_REACH / 2)
+    assert above is Verdict.FIRST_HIGHER, f"{above=} for an interval above zero"
+    assert below is Verdict.FIRST_LOWER, f"{below=} for an interval below zero"
 TOO_FEW_RUNS = MIN_RUNS - 1
 EXPECTED_MIN_RUNS = 5
 

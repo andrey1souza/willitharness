@@ -18,6 +18,7 @@ test that does not exist.
 | A fix could ship with no check, so the same error could return unseen. | A fix shipped without a lasting guard | `scripts/guards/fix_needs_rule.py`, called by `.githooks/pre-push` | `tests/guards/test_fix_needs_rule.py::test_fix_without_a_check_is_rejected` |
 | The raw Wilson formula broke the interval invariant by up to 2.2e-16 for some inputs (for example 6 of 6). A property test found it. | A numeric formula that breaks its own invariant by rounding | `willitharness.intervals.wilson` clamps the bounds to the rate | `tests/unit/test_intervals_unit.py::test_V5_all_successes_at_six_runs_keeps_the_upper_bound_at_the_rate` |
 | The overwatch pytest watcher writes `.testmondata` files that git did not ignore. The tree stayed dirty, so TCR could not judge any edit. Found in the first TCR trial. | A file written by a check that git does not ignore | `.gitignore` lists `.testmondata*` | `tests/repo/test_gitignore.py::test_files_written_by_the_overwatch_python_watcher_are_ignored` |
+| The verdict boundary `low > 0` could change to `low >= 0` and no test failed, because a float interval almost never lands on exactly zero. The first run of the mutation gate found it. | A boundary no test could reach | `verdict_from_interval` is a separate function, and `scripts/gates/mutants.py stats` runs in the pre-push hook and in CI | `tests/unit/test_verdict_unit.py::test_V1_an_interval_that_starts_at_zero_is_inconclusive` |
 
 ## Mistakes with no rule yet
 

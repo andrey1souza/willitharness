@@ -13,6 +13,12 @@ NOISE_STATUS_BY_VERDICT = {
 }
 
 
+def verdict_from_interval(low: float, high: float) -> Verdict:
+    assert low <= high, f"an interval needs low <= high, got {low} and {high}"
+    assert -1.0 <= low and high <= 1.0, f"a difference interval lies within [-1, 1], got {low} and {high}"
+    return Verdict.FIRST_HIGHER if low > 0 else Verdict.FIRST_LOWER if high < 0 else Verdict.INCONCLUSIVE
+
+
 def verdict_of(first: Counts, second: Counts) -> Verdict:
     assert first.runs >= 0 and second.runs >= 0, f"run counts must not be negative: {first.runs}, {second.runs}"
     assert MIN_RUNS >= 1, f"MIN_RUNS must keep intervals defined, got {MIN_RUNS}"
@@ -21,7 +27,7 @@ def verdict_of(first: Counts, second: Counts) -> Verdict:
         result = Verdict.INCONCLUSIVE_SMALL_N
     else:
         low, high = difference_interval(first, second)
-        result = Verdict.FIRST_HIGHER if low > 0 else Verdict.FIRST_LOWER if high < 0 else Verdict.INCONCLUSIVE
+        result = verdict_from_interval(low, high)
     assert (result is Verdict.INCONCLUSIVE_SMALL_N) == small, (
         f"V2 broken: small-n rule gave {result} for runs {first.runs}, {second.runs}"
     )
