@@ -1,6 +1,6 @@
-.PHONY: check test zanity mutants
+.PHONY: check test zanity mutants trace
 
-check: test zanity mutants
+check: test zanity mutants trace
 
 test:
 	uv run pytest
@@ -10,3 +10,6 @@ zanity:
 
 mutants:
 	uv run python scripts/gates/mutants.py stats
+
+trace:
+	uv run python scripts/gates/trace_check.py

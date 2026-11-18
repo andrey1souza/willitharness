@@ -1,0 +1,37 @@
+[
+  {
+    "id": "DI-1",
+    "place": "lean",
+    "reason": "the class field is named diff_ordered; rename to DI1_ordered after a Lean rebuild"
+  },
+  {
+    "id": "DI-2",
+    "place": "lean",
+    "reason": "the class field is named diff_swap; rename to DI2_swap after a Lean rebuild"
+  },
+  {
+    "id": "S1",
+    "place": "tests",
+    "reason": "side-effect tests arrive in M6"
+  },
+  {
+    "id": "S2",
+    "place": "tests",
+    "reason": "side-effect tests arrive in M6"
+  },
+  {
+    "id": "W1",
+    "place": "tests",
+    "reason": "world-validation tests arrive in M3"
+  },
+  {
+    "id": "W2",
+    "place": "tests",
+    "reason": "world-validation tests arrive in M3"
+  },
+  {
+    "id": "W3",
+    "place": "tests",
+    "reason": "world-validation tests arrive in M3"
+  }
+]
