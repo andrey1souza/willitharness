@@ -12,7 +12,7 @@ verdict numbers or agent behavior.
 | `Probes.tla` | 23 probes. Each says "this never happens". TLC must violate each one. |
 | `nominal.cfg` `budget_tight.cfg` `unusable.cfg` `unknown_reach.cfg` `abort.cfg` `world_change.cfg` `two_tasks.cfg` `resume.cfg` `resume_big.cfg` `resume_world.cfg` `resume_abort.cfg` | One scenario each. |
 | `check_models.py` | Runs every scenario, probe and mutant. Compares each result with what it must say. |
-| `generated/` | Files the runner writes: the 17 mutant specs and every probe and mutant `.cfg`. Safe to delete. |
+| `generated/` | Files the runner writes: the 17 mutant specs and every probe and mutant `.cfg`. Safe to delete. Not tracked by git; `repo_checks.py` fails if a file there is tracked. |
 | `contract-issues.md` | Status of the 12 earlier issues, 9 new gaps and the resume items. |
 | `last_run.txt` | Output of the last full run. |
 
@@ -160,7 +160,7 @@ python3 check_models.py --list
 ```
 
 It needs a JDK and the TLC jar. Defaults: Java at `/opt/homebrew/opt/openjdk/bin/java`
-and the jar at `~/.cache/tlalings/tla2tools.jar`. Override with `--java` and `--jar`.
+and the jar at `~/.cache/tlalings/tla2tools.jar`. Override with `--java` and `--jar`. The runner refuses a jar whose sha256 is not the pinned one (tlaplus release v1.7.4, digest in `check_models.py`).
 The runner exits with 1 on any mismatch. `two_tasks` takes 140.7 s of the 318 s because of
 its liveness check.
 

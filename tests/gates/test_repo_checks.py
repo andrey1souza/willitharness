@@ -7,7 +7,7 @@ TABLE_HEAD = "# Mistakes\n\n## Mistakes caught by a rule\n\n| Mistake | Category
 TABLE_TAIL = "\n## Mistakes with no rule yet\n"
 GOOD_ROW = "| m | c | r | `tests/gates/test_x.py::test_x` |\n"
 TEST_FILE = "def test_x():\n    assert True\n"
-FILE_CHECKS = {name: check for name, check in repo_checks.CHECKS.items() if name not in ("mutant-tables", "trace-pending")}
+FILE_CHECKS = {name: check for name, check in repo_checks.CHECKS.items() if name not in ("mutant-tables", "trace-pending", "no-tracked-generated")}
 PENDING_GOOD = '[{"id": "S1", "place": "tests", "reason": "later"}]'
 
 
@@ -161,3 +161,15 @@ def test_a_pending_entry_with_an_unknown_place_or_an_empty_reason_is_reported(tm
     write_tree(tmp_path, {"scripts/gates/trace_pending.json": entries})
     errors = repo_checks.pending_errors(tmp_path)
     assert len(errors) == 2, f"both entries must be reported, got {errors}"
+
+
+def test_a_tracked_generated_file_is_reported():
+    errors = repo_checks.generated_errors_among(["formal/tla/generated/Mutant_L1.tla", "formal/tla/WillItHarness.tla"])
+    assert len(errors) == 1, f"only the generated file must be reported, got {errors}"
+    assert "formal/tla/generated/Mutant_L1.tla" in errors[0], f"the error must name the file, got {errors}"
+
+
+def test_files_outside_the_generated_folder_are_not_reported():
+    errors = repo_checks.generated_errors_among(["formal/tla/WillItHarness.tla", "formal/tla/generated_notes.md", "src/x.py"])
+    assert errors == [], f"only files under formal/tla/generated/ count, got {errors}"
+    assert repo_checks.generated_errors_among([]) == [], "an empty list has nothing to report"

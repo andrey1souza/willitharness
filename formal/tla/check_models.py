@@ -6,6 +6,7 @@ Mutants must be violated on exactly the invariant they break, which proves the
 invariant can fail. Exit code 1 on any mismatch.
 """
 import argparse
+import hashlib
 import re
 import subprocess
 import sys
@@ -14,11 +15,14 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from willitharness.paths import PathOutsideRoot, inside
+
 HERE = Path(__file__).resolve().parent
 GENERATED = HERE / "generated"
 SPEC_MODULE = "WillItHarness"
 PROBES_MODULE = "Probes"
 DEFAULT_JAR = Path.home() / ".cache/tlalings/tla2tools.jar"
+TLA_JAR_SHA256 = "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
 DEFAULT_JAVA = "/opt/homebrew/opt/openjdk/bin/java"
 TLC_HEAP = "-Xmx1g"
 TLC_WORKERS = "2"
@@ -238,6 +242,19 @@ def describe_result(result):
     return result.verdict if result.verdict != VIOLATION else f"violation of {result.property_name}"
 
 
+def jar_error(jar, expected):
+    assert jar.is_file(), f"the TLA tools jar {jar} does not exist. Fix: pass --jar with the path of tla2tools.jar."
+    assert len(expected) == len(TLA_JAR_SHA256), f"{expected!r} is not a sha256 digest. Fix: pass 64 hex digits."
+    try:
+        resolved = inside(jar.parent, jar.name)
+    except PathOutsideRoot as error:
+        return f"the TLA tools jar {jar} is a link that leaves its folder: {error}"
+    actual = hashlib.sha256(resolved.read_bytes()).hexdigest()
+    if actual == expected:
+        return ""
+    return f"the TLA tools jar {jar} has sha256 {actual}, expected {expected}. Rule: the model checker is pinned (tlaplus release v1.7.4). Fix: download tla2tools.jar from that release."
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--jar", type=Path, default=DEFAULT_JAR)
@@ -251,6 +268,10 @@ def main():
         print("\n".join(run.name for run in runs))
         return 0
     assert args.jar.is_file(), f"the TLA tools jar {args.jar} does not exist"
+    pin_error = jar_error(args.jar, TLA_JAR_SHA256)
+    if pin_error:
+        print(pin_error, file=sys.stderr)
+        return 1
     failures = 0
     print(f"{'run':52} {'expected':26} {'got':26} {'states':>8} {'distinct':>8} {'secs':>6}  ok")
     for run in runs:
