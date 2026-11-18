@@ -52,7 +52,7 @@ def test_a_call_matches_by_the_first_words_of_a_segment_or_by_tool_name(call, ac
 
 def test_calls_come_in_transcript_order_with_every_tool_and_skip_other_events():
     lines = [bash_call_line("ls"), edit_call_line("a.py"), '{"type": "user"}', "not json", final_result_line()]
-    assert calls_of(lines) == (Call("Bash", "ls"), Call("Edit", "")), f"got {calls_of(lines)}"
+    assert calls_of(lines) == (Call("Bash", "ls"), Call("Edit", "", "a.py")), f"got {calls_of(lines)}"
 
 
 def test_forbidden_a_matching_command_is_a_violation_and_a_clean_run_is_not():

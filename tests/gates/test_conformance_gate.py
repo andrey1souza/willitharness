@@ -59,3 +59,16 @@ def test_a_copy_with_a_valid_but_wrong_classification_names_both_answers(tmp_pat
     errors = capsys.readouterr().err
     assert code == conformance.MISMATCH_EXIT_CODE, f"expected exit 1, got {code}; stderr {errors!r}"
     assert f"lean={wrong} python={original}" in errors, f"expected both answers named, got {errors!r}"
+
+
+def test_a_guard_copy_with_one_valid_wrong_result_names_the_case_and_both_answers(tmp_path, capsys):
+    rows = conformance.load_rows("guard")
+    original = rows[0]["guard"]
+    wrong = "GuardWorse" if original != "GuardWorse" else "GuardUntested"
+    rows[0]["guard"] = wrong
+    target = tmp_path / "guard_table.json"
+    target.write_text(json.dumps(rows))
+    code = conformance.main(["guard", str(target)])
+    errors = capsys.readouterr().err
+    assert code == conformance.MISMATCH_EXIT_CODE, f"expected exit 1, got {code}; stderr {errors!r}"
+    assert errors == f"guard {rows[0]}: lean={wrong} python={original}\n", f"expected one line naming the case, got {errors!r}"

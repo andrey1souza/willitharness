@@ -9,12 +9,14 @@ EXECUTED_KEY = "executed"
 EDIT_TOOLS = frozenset({"Edit", "Write", "MultiEdit", "NotebookEdit"})
 SEGMENT_SEPARATORS = re.compile(r"&&|\|\||;|\||\n")
 NO_COMMAND = ""
+FILE_PATH_FIELD = "file_path"
 
 
 @dataclass(frozen=True)
 class Call:
     tool: str
     command: str
+    path: str = ""
 
 
 @dataclass(frozen=True)
@@ -28,7 +30,8 @@ def call_of(block):
     name = entry.get("name")
     command = dict_of(entry.get("input")).get(COMMAND_FIELD)
     is_call = entry.get("type") == TOOL_USE_BLOCK and isinstance(name, str) and bool(name)
-    call = Call(name, command if isinstance(command, str) else NO_COMMAND) if is_call else None
+    path = dict_of(entry.get("input")).get(FILE_PATH_FIELD)
+    call = Call(name, command if isinstance(command, str) else NO_COMMAND, path if isinstance(path, str) else NO_COMMAND) if is_call else None
     assert call is None or call.tool == name, f"call_of changed the tool name {name!r} into {call!r}"
     assert call is None or isinstance(call.command, str), f"call_of built a non-text command in {call!r}. Rule: commands are text."
     return call

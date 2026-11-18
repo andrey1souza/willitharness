@@ -1,0 +1,10 @@
+[
+  {
+    "message": "Blocked by guard (bare-cp-rm): bare cp and rm are aliased and ask for confirmation; use `command cp -f SOURCE TARGET` and `unlink PATH`",
+    "offered_alternatives": ["command cp -f SOURCE TARGET", "unlink PATH"]
+  },
+  {
+    "message": "Blocked by guard (pkill): pkill and pgrep -f are not allowed because they can stop other agents' processes; list the processes with `ps -axo pid,command | grep '[p]attern'`, then run `kill PID...` on exactly the PIDs listed",
+    "offered_alternatives": ["ps -axo pid,command | grep '[p]attern'", "kill PID..."]
+  }
+]
