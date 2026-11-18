@@ -1,0 +1,1 @@
+Check which files changed in the working tree and which processes are running.

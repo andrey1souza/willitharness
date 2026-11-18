@@ -24,7 +24,7 @@ Java with TLC, and Lean 4 with `lake`. Contract: v0.2.
 | `decision.py` | Decision table | D1 to D12 |
 | `probe.py` | Probe classification (pure) and the probe command | P1 to P4, L7 |
 | `guard.py` | Guard hook, block messages, G1 result, bypass detection | G1 |
-| `world.py` | Stub templates, world validation, world hash | W1 to W3, L1 |
+| `world.py` | Stub templates, world validation, world hash | W1 to W5, L1 |
 | `lifecycle.py` | Plan state machine, budget with reservation, abort | L1, L2, L5, L9, T2, T2a |
 | `store.py` | Append-only run store, resume, retry accounting | L3, L4, L9 |
 | `plan.py` | Plan, Arm, Task, Rule data, defaults and validation | L1, L8, V6 |
@@ -144,7 +144,7 @@ until it is final. The loaders live in `src/willitharness/conformance.py`.
 |---|---|---|
 | `willitharness init <dir>` | Writes a starter plan | 0, 2 |
 | `willitharness plan check <plan>` | Validates the plan (arms, noise pair repeats the LOO arm, budget) | 0, 1, 2 |
-| `willitharness world check <world-dir>` | Validates the world (W1 to W3) and stores the hash | 0, 1 |
+| `willitharness world check <world-dir>` | Validates the world (W1 to W5) and stores the hash | 0, 1 |
 | `willitharness probe <plan>` | Runs the reachability probe (P1 to P4) | 0, 1, 2, 3 |
 | `willitharness run <plan> --agent fake\|claude [--timeout-seconds S] [--model M]` | Runs cells, resumes, retries, stops at budget; reps come from the plan | 0, 1, 4 |
 | `willitharness abort <plan>` | Aborts; records in-flight runs unusable and charges RUN_CAP | 0, 1 |

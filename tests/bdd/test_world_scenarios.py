@@ -42,9 +42,27 @@ def test_a_changed_world_hash_ends_the_validation():
     assert FEATURE_FILE.is_file(), f"the feature file {FEATURE_FILE} is missing. Fix: restore it"
 
 
+PLAIN_PROMPT = "Do the work this task describes.\n"
+
+
+def write_prompts(tmp_path, names):
+    write_tree(tmp_path / "world", {f"prompts/{name}.txt": PLAIN_PROMPT for name in names})
+
+
 def add_task(world, tmp_path, command):
     world["tasks"] = world.get("tasks", []) + [command]
     write_tree(tmp_path / "world", {"tasks.txt": "".join(f"task{index}: {name}\n" for index, name in enumerate(world["tasks"]))})
+    write_prompts(tmp_path, [f"task{index}" for index in range(len(world["tasks"]))])
+
+
+@scenario(FEATURE, "A task without a prompt file is invalid")
+def test_W4_a_task_without_a_prompt_file_is_invalid():
+    assert FEATURE_FILE.is_file(), f"the feature file {FEATURE_FILE} is missing. Fix: restore it"
+
+
+@scenario(FEATURE, "A prompt that names a measurement word is invalid")
+def test_W5_a_prompt_that_names_a_measurement_word_is_invalid():
+    assert FEATURE_FILE.is_file(), f"the feature file {FEATURE_FILE} is missing. Fix: restore it"
 
 
 def add_stub(tmp_path, command, output):
@@ -59,6 +77,26 @@ def task_stops_a_process(world, tmp_path, command):
 @given(parsers.parse('a task whose prompt asks the agent to run "{command_line}"'))
 def task_runs_a_command_line(world, tmp_path, command_line):
     add_task(world, tmp_path, command_line.split()[0])
+
+
+@given(parsers.parse('a task "{task}" that runs "{command}" and has no prompt file'))
+def task_without_prompt(tmp_path, task, command):
+    write_tree(tmp_path / "world", {"tasks.txt": f"{task}: {command}\n", f"stubs/{command}/output.txt": "done\n"})
+
+
+@given(parsers.parse('a task "{task}" that runs "{command}" and whose prompt says "{text}"'))
+def task_with_prompt_text(tmp_path, task, command, text):
+    write_tree(tmp_path / "world", {"tasks.txt": f"{task}: {command}\n", f"stubs/{command}/output.txt": "done\n", f"prompts/{task}.txt": f"{text}\n"})
+
+
+@then(parsers.parse('the message ends with a fix that says to write "{path}"'))
+def message_fix_writes_prompt(world, path):
+    assert world["message"].strip().endswith(f"Fix: write {path}."), f"message {world['message']!r} must end with the fix naming {path}"
+
+
+@then(parsers.parse('the message ends with a fix that says to remove "{word}"'))
+def message_fix_removes_word(world, word):
+    assert world["message"].strip().endswith(f"Fix: remove '{word}' from prompts/stop.txt."), f"message {world['message']!r} must end with the fix naming {word}"
 
 
 @given(parsers.parse('a world with a "{command}" stub'))
@@ -83,6 +121,7 @@ def world_with_six_stubs(world, tmp_path, first, second, third, fourth, fifth, s
     for command in world["stubbed"]:
         add_stub(tmp_path, command, f"{command} done src/a.js\n")
     write_tree(tmp_path / "world", {"tasks.txt": "".join(f"use-{name}: {name}\n" for name in world["stubbed"])})
+    write_prompts(tmp_path, [f"use-{name}" for name in world["stubbed"]])
 
 
 @given("every stub output refers only to paths inside the world")
@@ -94,6 +133,7 @@ def stub_output_is_inside(tmp_path):
 def stub_prints(world, tmp_path, command, text):
     add_stub(tmp_path, command, f"{text}\n")
     write_tree(tmp_path / "world", {"tasks.txt": f"list: {command}\n"})
+    write_prompts(tmp_path, ["list"])
     world["stub"] = command
 
 
@@ -105,6 +145,7 @@ def world_root_is(world, root):
 @given(parsers.parse('a plan in the state "{state}" with world hash "{label}"'))
 def plan_in_state(world, tmp_path, state, label):
     write_tree(tmp_path / "world", {"tasks.txt": "stop: pkill\n", "stubs/pkill/output.txt": "killed\n"})
+    write_prompts(tmp_path, ["stop"])
     world["state"] = state
     world["label"] = label
 

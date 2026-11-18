@@ -1,4 +1,4 @@
-# 05. Traceability matrix (contract v0.4)
+# 05. Traceability matrix (contract v0.5)
 
 Every contract ID maps to features, tests, a TLA+ item, a Lean item and a gate.
 All cells are `planned`. Owners: features and tests belong to the plan fork's
@@ -9,7 +9,7 @@ in progress). The naming convention for formal items is the ID as a name prefix,
 for example `L9_...` or `P2_...`. Gate G1.6 checks it.
 
 Legend: F = feature file. n/a = not the right tool for this ID. Contract section 8
-decides which tool covers which group. 47 IDs in total.
+decides which tool covers which group. 49 IDs in total.
 
 ## Verdict properties and assumptions
 | ID | Feature scenarios | Python tests | TLA+ | Lean | Gate |
@@ -58,6 +58,8 @@ decides which tool covers which group. 47 IDs in total.
 | W1 | F world-validation: task command with a stub, declared real, no stub | `test_world.py::test_w1` | n/a | n/a | G3.3 |
 | W2 | F world-validation: valid world, stub outside the world, stub never changes real files | `test_world.py::test_w2` | n/a | n/a | G3.3 |
 | W3 | F world-validation: "A changed world hash ends the validation", "Runs do not start after a world change ..." | `test_world.py::test_w3`, `test_lifecycle.py::test_world_invalidation` | world invalidation is modeled by the TLA+ fork (item name chosen by that fork; not checked by G1.6) | n/a | G3.9 |
+| W4 | F world-validation: "A task without a prompt file is invalid" | `test_world_unit.py::test_W4_...`, `test_world_gate.py::test_W4_...` | n/a | n/a | G3.3 |
+| W5 | F world-validation: "A prompt that names a measurement word is invalid" | `test_world_unit.py::test_W5_...`, `test_world_gate.py::test_W5_...` | n/a | n/a | G3.3 |
 
 ## Lifecycle safety and liveness
 | ID | Feature scenarios | Python tests | TLA+ | Lean | Gate |
@@ -89,6 +91,6 @@ decides which tool covers which group. 47 IDs in total.
 | Abort records in-flight runs unusable and charges RUN_CAP | `budget-and-resume.feature` | `test_abort.py` | G3.11 |
 
 ## Coverage check
-Gate G1.6 reads the 47 contract IDs from the contract and fails if one is missing
+Gate G1.6 reads the 49 contract IDs from the contract and fails if one is missing
 from the features or the tests, or (for V, E, P, G, D, DI) from the Lean files, or
 (for L and T) from the TLA+ files. Remove an ID and the gate must fail.

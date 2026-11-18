@@ -77,6 +77,8 @@ markers = [
   "W1: tag from the features directory",
   "W2: tag from the features directory",
   "W3: tag from the features directory",
+  "W4: tag from the features directory",
+  "W5: tag from the features directory",
   "live: tag from the features directory",
 ]
 pythonpath = ["src", "scripts", "scripts/gates", "tests/support", "formal/tla", "formal/lean"]

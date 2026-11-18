@@ -8,7 +8,7 @@ from willitharness import cli
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURE_WORLDS = REPO_ROOT / "fixtures" / "worlds"
-GOOD_TREE = {"tasks.txt": "stop: pkill\n", "stubs/pkill/output.txt": "killed\n"}
+GOOD_TREE = {"tasks.txt": "stop: pkill\n", "stubs/pkill/output.txt": "killed\n", "prompts/stop.txt": "Stop the running process.\n"}
 
 
 def copy_fixture(tmp_path, name):
@@ -88,3 +88,29 @@ def test_an_edit_after_the_check_changes_the_next_hash(tmp_path, capsys, monkeyp
     plant(tmp_path / "w" / "stubs" / "pkill", "output.txt", "edited\n")
     _, second, _ = run_cli(capsys, ["world", "check", "w"])
     assert first != second, f"hash stayed the same after an edit: {first!r}"
+
+
+def test_W4_the_no_prompt_fixture_exits_one_naming_the_task_and_the_file(tmp_path, capsys, monkeypatch):
+    monkeypatch.chdir(copy_fixture(tmp_path, "no-prompt"))
+    code, output, errors = run_cli(capsys, ["world", "check", "no-prompt"])
+    assert code == 1, f"expected exit 1, got {code}"
+    assert "task stop-process has no prompt text" in errors and "Rule: W4" in errors, f"stderr {errors!r}"
+    assert errors.strip().endswith("Fix: write prompts/stop-process.txt.") and output == "", f"stdout {output!r} stderr {errors!r}"
+    assert not (tmp_path / ".willitharness").exists(), "an invalid world must leave no record"
+
+
+def test_W5_the_measured_prompt_fixture_exits_one_naming_the_word(tmp_path, capsys, monkeypatch):
+    monkeypatch.chdir(copy_fixture(tmp_path, "measured-prompt"))
+    code, output, errors = run_cli(capsys, ["world", "check", "measured-prompt"])
+    assert code == 1, f"expected exit 1, got {code}"
+    assert "prompts/stop-process.txt contains the measurement word 'benchmark'" in errors and "Rule: W5" in errors, f"stderr {errors!r}"
+    assert "Fix: remove 'benchmark' from prompts/stop-process.txt." in errors and output == "", f"stdout {output!r} stderr {errors!r}"
+
+
+def test_an_edit_to_a_prompt_after_the_check_changes_the_next_hash(tmp_path, capsys, monkeypatch):
+    write_tree(tmp_path / "w", GOOD_TREE)
+    monkeypatch.chdir(tmp_path)
+    _, first, _ = run_cli(capsys, ["world", "check", "w"])
+    plant(tmp_path / "w" / "prompts", "stop.txt", "Stop the other process.\n")
+    _, second, _ = run_cli(capsys, ["world", "check", "w"])
+    assert first != second, f"hash stayed the same after a prompt edit: {first!r}"

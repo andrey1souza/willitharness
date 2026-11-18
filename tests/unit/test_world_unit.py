@@ -5,11 +5,16 @@ import pytest
 from files import plant, write_tree
 
 from willitharness.world import (
+    MEASUREMENT_WORDS,
     WorldError,
+    allowed_commands,
     check_commands,
+    check_prompt_words,
+    check_prompts_exist,
     check_stub_paths,
     declared_real,
     path_tokens,
+    prompt_text,
     stored_hash,
     store_path,
     store_validation,
@@ -20,7 +25,7 @@ from willitharness.world import (
     world_hash,
 )
 
-PKILL_TREE = {"tasks.txt": "stop: pkill\n", "stubs/pkill/output.txt": "killed\n"}
+PKILL_TREE = {"tasks.txt": "stop: pkill\n", "stubs/pkill/output.txt": "killed\n", "prompts/stop.txt": "Stop the running process.\n"}
 
 
 def test_the_hash_of_a_known_tree_is_pinned(tmp_path):
@@ -153,7 +158,7 @@ def test_validate_world_fails_w1_before_it_returns(tmp_path):
 
 
 def test_validate_world_fails_w2_before_it_returns(tmp_path):
-    write_tree(tmp_path, {"tasks.txt": "list: ps\n", "stubs/ps/output.txt": "/etc/passwd\n"})
+    write_tree(tmp_path, {"tasks.txt": "list: ps\n", "stubs/ps/output.txt": "/etc/passwd\n", "prompts/list.txt": "List the processes.\n"})
     with pytest.raises(WorldError) as raised:
         validate_world(tmp_path)
     assert "Rule: W2" in str(raised.value), f"expected W2 to stop validation, got {str(raised.value)!r}"
@@ -200,3 +205,91 @@ def test_W3_an_edited_world_is_changed(tmp_path):
 def test_W3_a_world_never_validated_is_not_reported_as_changed(tmp_path):
     write_tree(tmp_path / "w", PKILL_TREE)
     assert world_changed(tmp_path, tmp_path / "w") is False, f"no record under {tmp_path} means not validated, not changed"
+
+
+def test_the_measurement_word_list_is_the_contract_list():
+    expected = ("benchmark", "evaluation", "grader", "rubric", "score", "detector", "verdict", "noise", "leave-one-out")
+    assert MEASUREMENT_WORDS == expected, f"the word list is {MEASUREMENT_WORDS!r}. Rule: W5 names these nine words. Fix: restore the list"
+
+
+def test_W4_a_task_with_a_prompt_file_passes(tmp_path):
+    write_tree(tmp_path, PKILL_TREE)
+    assert check_prompts_exist(tmp_path) is None, f"a task with a prompt must pass W4 in {tmp_path}"
+
+
+def test_W4_a_task_without_a_prompt_file_fails_with_name_rule_and_fix(tmp_path):
+    write_tree(tmp_path, {"tasks.txt": "stop: pkill\n"})
+    with pytest.raises(WorldError) as raised:
+        check_prompts_exist(tmp_path)
+    message = str(raised.value)
+    assert message.startswith("task stop has no prompt text."), f"W4 text is missing, message is {message!r}. Fix: name the task first"
+    assert "Rule: W4" in message and message.endswith("Fix: write prompts/stop.txt."), f"W4 rule or fix is missing, message is {message!r}. Fix: end with the fix"
+
+
+def test_W4_a_blank_prompt_file_counts_as_missing(tmp_path):
+    write_tree(tmp_path, {"tasks.txt": "stop: pkill\n", "prompts/stop.txt": "  \n\n"})
+    with pytest.raises(WorldError) as raised:
+        check_prompts_exist(tmp_path)
+    assert "Rule: W4" in str(raised.value), f"a blank prompt must fail W4, got {str(raised.value)!r}"
+
+
+def test_W4_the_second_task_without_a_prompt_is_named(tmp_path):
+    write_tree(tmp_path, {"tasks.txt": "one: ps\ntwo: ps\n", "prompts/one.txt": "Do one."})
+    with pytest.raises(WorldError) as raised:
+        check_prompts_exist(tmp_path)
+    assert "task two has no prompt text" in str(raised.value), f"message {str(raised.value)!r}"
+
+
+def test_W4_a_task_name_that_escapes_the_world_is_refused(tmp_path):
+    write_tree(tmp_path / "world", {"tasks.txt": "../../x: ps\n"})
+    with pytest.raises(WorldError) as raised:
+        prompt_text(tmp_path / "world", "../../x")
+    assert "outside the world" in str(raised.value) and "Fix:" in str(raised.value), f"message {str(raised.value)!r}"
+
+
+@pytest.mark.parametrize("word", MEASUREMENT_WORDS)
+def test_W5_each_measurement_word_is_refused_in_any_case(tmp_path, word):
+    write_tree(tmp_path, {"tasks.txt": "stop: pkill\n", "prompts/stop.txt": f"Stop the process. {word.upper()} matters here.\n"})
+    with pytest.raises(WorldError) as raised:
+        check_prompt_words(tmp_path)
+    message = str(raised.value)
+    assert f"prompts/stop.txt contains the measurement word '{word.upper()}'" in message, f"W5 text is missing for {word}, message is {message!r}"
+    assert "Rule: W5" in message and message.endswith(f"Fix: remove '{word.upper()}' from prompts/stop.txt."), f"W5 rule or fix is missing, message is {message!r}"
+
+
+def test_W5_a_longer_word_that_holds_a_measurement_word_passes(tmp_path):
+    write_tree(tmp_path, {"tasks.txt": "stop: pkill\n", "prompts/stop.txt": "Stop it. The scoreboard is noisy and scores differ, so rescore nothing.\n"})
+    assert check_prompt_words(tmp_path) is None, f"W5 matches whole words only, so scoreboard, noisy, scores and rescore pass in {tmp_path}"
+
+
+def test_W5_a_measurement_word_next_to_punctuation_is_refused(tmp_path):
+    write_tree(tmp_path, {"tasks.txt": "stop: pkill\n", "prompts/stop.txt": "Stop it (noise), now.\n"})
+    with pytest.raises(WorldError) as raised:
+        check_prompt_words(tmp_path)
+    assert "measurement word 'noise'" in str(raised.value), f"message {str(raised.value)!r}"
+
+
+def test_validate_world_fails_w4_before_it_returns(tmp_path):
+    write_tree(tmp_path, {"tasks.txt": "stop: pkill\n", "stubs/pkill/output.txt": "x\n"})
+    with pytest.raises(WorldError) as raised:
+        validate_world(tmp_path)
+    assert "Rule: W4" in str(raised.value), f"expected W4 to stop validation, got {str(raised.value)!r}"
+
+
+def test_validate_world_fails_w5_before_it_returns(tmp_path):
+    write_tree(tmp_path, {**PKILL_TREE, "prompts/stop.txt": "Pass the rubric.\n"})
+    with pytest.raises(WorldError) as raised:
+        validate_world(tmp_path)
+    assert "Rule: W5" in str(raised.value), f"expected W5 to stop validation, got {str(raised.value)!r}"
+
+
+def test_the_hash_changes_when_a_prompt_changes(tmp_path):
+    write_tree(tmp_path, PKILL_TREE)
+    before = world_hash(tmp_path)
+    plant(tmp_path / "prompts", "stop.txt", "Stop the other process.\n")
+    assert world_hash(tmp_path) != before, f"hash stayed {before!r} after a prompt edit. Rule: the world hash covers the prompts"
+
+
+def test_the_allowed_commands_are_the_task_commands_and_the_real_ones_sorted_once(tmp_path):
+    write_tree(tmp_path, {"tasks.txt": "a: ps pkill\nb: ps\n", "real.txt": "git\nps\n"})
+    assert allowed_commands(tmp_path) == ("git", "pkill", "ps"), f"got {allowed_commands(tmp_path)!r}"

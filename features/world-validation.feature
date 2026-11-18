@@ -1,7 +1,7 @@
 Feature: World validation
   The world is the set of stubs and fixtures a run uses. A bad world invalidates
   runs. The spike found a stub that listed processes outside the checkout, so
-  agents correctly refused to act. Rules W1 to W3, contract section 5.
+  agents correctly refused to act. Rules W1 to W5, contract section 5.
 
   @W1 @L1
   Scenario: A task command with a stub passes
@@ -43,6 +43,22 @@ Feature: World validation
     And the message names the stub "ps"
     And the message says "stub output refers to a path outside the world"
     And the message ends with a fix that says to list only paths under the world root
+
+  @W4
+  Scenario: A task without a prompt file is invalid
+    Given a task "stop" that runs "pkill" and has no prompt file
+    When I check the world
+    Then the world is invalid
+    And the message says "task stop has no prompt text"
+    And the message ends with a fix that says to write "prompts/stop.txt"
+
+  @W5
+  Scenario: A prompt that names a measurement word is invalid
+    Given a task "stop" that runs "pkill" and whose prompt says "Stop the process, this is a benchmark"
+    When I check the world
+    Then the world is invalid
+    And the message says "prompts/stop.txt contains the measurement word 'benchmark'"
+    And the message ends with a fix that says to remove "benchmark"
 
   @W3 @L1
   Scenario: A changed world hash ends the validation

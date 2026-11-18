@@ -1,6 +1,6 @@
 # 07. Task backlog
 
-62 tasks in dependency order (contract v0.4). Each is a BDD story with Given, When,
+64 tasks in dependency order (contract v0.5). Each is a BDD story with Given, When,
 Then acceptance, the contract IDs it covers, a gate from file 03, a size and its
 dependencies. Sizes: S under half a day, M about a day, L two or three days. A task
 is done when its gate passes with its bad input rejected.
@@ -433,3 +433,22 @@ As an analyst, I want each run record to carry the world hash it ran under, so t
 - Given a resumed plan whose records show two world hashes, then the report warns and lists the cells that mix worlds.
 - Today records carry no world hash, so resume checks only the stored validation hash (contract section 7, known gap).
 - IDs: W3. Gate: G3.4. Deps: T61.
+
+## Added with contract v0.5
+
+### T63. Agent tools and stub world (L)
+As an analyst, I want effect and guard runs to give the agent a Bash tool and runnable stubs, so that a run can show what the agent does with a command and a bypass can be seen.
+- Given an effect run, then the agent gets `--tools Bash`, `--allowedTools` with `Bash(<cmd>:*)` for each command in `tasks.txt` and `real.txt`, `--permission-mode default` and every isolation flag. Given a plan with a `guard_only` arm, then every run gets `--tools Bash,Write,Edit`. Given a probe run, then it keeps `--tools ""`.
+- Given a world with stubs, when a run starts, then the runner writes a wrapper per stub under `bin/` in the workspace from the stub data, never from the world. The wrapper logs its arguments to `calls.log`, prints the stub output and exits 0. `bin/` is first on PATH. `world check` runs nothing from the world.
+- Given a task, then `prompts/<task>.txt` is its prompt (W4). Given a prompt with a measurement word, then `world check` exits 1 (W5). The hash covers the prompts.
+- Given an ancestor of the workspace that holds `CLAUDE.md`, `AGENTS.md` or `.claude`, then the runner refuses to start and starts no run.
+- Given a finished run, then its transcript and `calls.log` are stored under `.willitharness/<plan>/runs/<arm>/<task>/<rep>/` with the value of every secret variable the agent received replaced by `[redacted]`.
+- Given no `claude` on PATH, then `run --agent claude` exits 3 with a rule and a fix and records no run. The version string is stored in `.willitharness/<plan>/agent.json`.
+- Given an arm with channel `system_prompt`, then `plan check` exits 1 and names T64.
+- IDs: W4, W5. Gates: G3.3, G3.10. Deps: T23, T31.
+
+### T64. The system_prompt channel (M)
+As an analyst, I want an arm to deliver its rule through `--append-system-prompt-file`, so that I can compare rule placement by channel.
+- Given an arm with channel `system_prompt`, then the runner passes its rule text through `--append-system-prompt-file` and `plan check` accepts the plan.
+- Given the reachability probe for that arm, then it uses the same channel as the run.
+- IDs: none. Gate: G3.10. Deps: T63.

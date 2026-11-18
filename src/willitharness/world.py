@@ -1,8 +1,9 @@
 import hashlib
 import json
+import re
 from pathlib import Path
 
-from willitharness.paths import inside
+from willitharness.paths import PathOutsideRoot, inside
 
 STUBS_DIR = "stubs"
 STUB_OUTPUT_NAME = "output.txt"
@@ -18,6 +19,10 @@ RECORD_HASH_KEY = "hash"
 RECORD_VALIDATED_KEY = "validated"
 STORE_DIR = ".willitharness"
 STORE_NAME = "world.json"
+PROMPTS_DIR = "prompts"
+PROMPT_SUFFIX = ".txt"
+MEASUREMENT_WORDS = ("benchmark", "evaluation", "grader", "rubric", "score", "detector", "verdict", "noise", "leave-one-out")
+MEASUREMENT_PATTERN = re.compile(r"\b(" + "|".join(re.escape(word) for word in MEASUREMENT_WORDS) + r")\b", re.IGNORECASE)
 
 
 class WorldError(Exception):
@@ -84,6 +89,58 @@ def task_commands(world_dir):
     return tasks
 
 
+def allowed_commands(world_dir):
+    assert isinstance(world_dir, Path), f"allowed_commands needs a Path, got {world_dir!r}. Fix: pass pathlib.Path."
+    assert world_dir.is_dir(), f"{world_dir} is not a directory. Rule: a world is a directory. Fix: pass the world directory."
+    named = {command for commands in task_commands(world_dir).values() for command in commands}
+    allowed = tuple(sorted(named | declared_real(world_dir)))
+    assert all(command for command in allowed), f"allowed_commands found an empty command in {allowed!r}"
+    return allowed
+
+
+def prompt_name(task):
+    assert task, "prompt_name needs a task name. Fix: pass a task from tasks.txt."
+    assert PROMPT_SUFFIX.startswith("."), f"the prompt suffix {PROMPT_SUFFIX!r} must start with a dot"
+    return f"{PROMPTS_DIR}/{task}{PROMPT_SUFFIX}"
+
+
+def prompt_text(world_dir, task):
+    assert isinstance(world_dir, Path), f"prompt_text needs a Path, got {world_dir!r}. Fix: pass pathlib.Path."
+    assert world_dir.is_dir(), f"{world_dir} is not a directory. Rule: a world is a directory. Fix: pass the world directory."
+    try:
+        path = inside(world_dir, prompt_name(task))
+    except PathOutsideRoot as error:
+        raise WorldError(f"task {task} names a prompt outside the world. Rule: W4, a prompt file sits under {PROMPTS_DIR}/ in the world. Fix: rename task {task}.") from error
+    text = path.read_text().strip() if path.is_file() else ""
+    assert text == text.strip(), f"prompt_text returned padded text {text!r}"
+    return text
+
+
+def check_prompts_exist(world_dir):
+    assert isinstance(world_dir, Path), f"check_prompts_exist needs a Path, got {world_dir!r}. Fix: pass pathlib.Path."
+    assert world_dir.is_dir(), f"{world_dir} is not a directory. Rule: a world is a directory. Fix: pass the world directory."
+    for task in task_commands(world_dir):
+        if not prompt_text(world_dir, task):
+            raise WorldError(
+                f"task {task} has no prompt text. Rule: W4, every task has a prompt file with text. "
+                f"Fix: write {prompt_name(task)}."
+            )
+    assert all(prompt_text(world_dir, task) for task in task_commands(world_dir)), f"check_prompts_exist let an empty prompt pass in {world_dir}"
+
+
+def check_prompt_words(world_dir):
+    assert isinstance(world_dir, Path), f"check_prompt_words needs a Path, got {world_dir!r}. Fix: pass pathlib.Path."
+    assert world_dir.is_dir(), f"{world_dir} is not a directory. Rule: a world is a directory. Fix: pass the world directory."
+    for task in task_commands(world_dir):
+        found = MEASUREMENT_PATTERN.search(prompt_text(world_dir, task))
+        if found:
+            raise WorldError(
+                f"{prompt_name(task)} contains the measurement word {found.group(0)!r}. "
+                f"Rule: W5, a prompt never tells the agent it is measured. Fix: remove {found.group(0)!r} from {prompt_name(task)}."
+            )
+    assert not any(MEASUREMENT_PATTERN.search(prompt_text(world_dir, task)) for task in task_commands(world_dir)), f"check_prompt_words let a measurement word pass in {world_dir}"
+
+
 def check_commands(world_dir):
     assert isinstance(world_dir, Path), f"check_commands needs a Path, got {world_dir!r}. Fix: pass pathlib.Path."
     assert world_dir.is_dir(), f"{world_dir} is not a directory. Rule: a world is a directory. Fix: pass the world directory."
@@ -125,6 +182,8 @@ def validate_world(world_dir):
     assert world_dir.is_dir(), f"{world_dir} is not a directory. Rule: a world is a directory. Fix: pass the world directory."
     check_commands(world_dir)
     check_stub_paths(world_dir)
+    check_prompts_exist(world_dir)
+    check_prompt_words(world_dir)
     validated = world_hash(world_dir)
     assert len(validated) == HASH_LENGTH, f"validate_world returned {validated!r}. Rule: the hash has {HASH_LENGTH} characters."
     return validated

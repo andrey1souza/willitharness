@@ -17,4 +17,7 @@ MUTANTS = (
     ('world-presence-check-dropped', 'src/willitharness/plan.py', 'if not isinstance(world, str) or not world:', 'if False:'),
     ('world-escape-check-dropped', 'src/willitharness/plan.py', '        inside(root, loaded.world)\n', '        pass\n'),
     ('default-channel-changed', 'src/willitharness/plan.py', 'DEFAULT_CHANNEL = "file"', 'DEFAULT_CHANNEL = "hook"'),
+    ('guard-arm-never-found', 'src/willitharness/plan.py', 'found = any(arm.role == ROLE_GUARD_ONLY for arm in plan.arms)', 'found = False'),
+    ('guard-arm-always-found', 'src/willitharness/plan.py', 'found = any(arm.role == ROLE_GUARD_ONLY for arm in plan.arms)', 'found = True'),
+    ('guard-arm-first-only', 'src/willitharness/plan.py', 'found = any(arm.role == ROLE_GUARD_ONLY for arm in plan.arms)', 'found = any(arm.role == ROLE_GUARD_ONLY for arm in plan.arms[:1])'),
 )

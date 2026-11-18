@@ -3,6 +3,11 @@ import os
 import stat
 import sys
 
+FAKE_VERSION = "9.9.9 (Fake Claude)"
+COMMANDS_FILE = "fake-commands.txt"
+COMMANDS_VARIABLE = "CLAUDE_CODE_FAKE_COMMANDS"
+DENIED_COMMAND = "rm important.txt"
+
 BEHAVIOR_FILE = "fake-behavior.txt"
 PID_FILE = "agent.pid"
 ESCAPE_TARGET_FILE = "fake-escape-target.txt"
@@ -12,11 +17,14 @@ NORMAL_USD = 0.01
 HANG_SECONDS = 60
 
 SCRIPT = f'''#!{sys.executable}
-import json, os, sys, time
-behavior = open("{BEHAVIOR_FILE}").read().strip() if os.path.exists("{BEHAVIOR_FILE}") else "ok"
+import json, os, subprocess, sys, time
+if sys.argv[1:] == ["--version"]:
+    print("{FAKE_VERSION}")
+    sys.exit(0)
+behaviors = open("{BEHAVIOR_FILE}").read().split() if os.path.exists("{BEHAVIOR_FILE}") else ["ok"]
 arguments = sys.argv[1:]
 config = os.environ["CLAUDE_CONFIG_DIR"]
-if behavior == "hang":
+if "hang" in behaviors:
     open(os.path.join(config, "{PID_FILE}"), "w").write(str(os.getpid()))
     time.sleep({HANG_SECONDS})
 def write_allowed(path):
@@ -34,9 +42,22 @@ report = {{
     "wrote_inside": write_allowed("inside.txt"),
     "wrote_outside": write_allowed(open("{ESCAPE_TARGET_FILE}").read().strip() if os.path.exists("{ESCAPE_TARGET_FILE}") else "/nonexistent/none"),
 }}
-cost = {OVERSPEND_USD} if behavior == "overspend" else {NORMAL_USD}
+commands = open("{COMMANDS_FILE}").read().splitlines() if "tools" in behaviors and os.path.exists("{COMMANDS_FILE}") else []
+commands += [os.environ["{COMMANDS_VARIABLE}"]] if "{COMMANDS_VARIABLE}" in os.environ else []
 print(json.dumps({{"type": "system", "subtype": "init"}}))
-print(json.dumps({{"type": "result", "subtype": "success", "is_error": False, "result": json.dumps(report), "total_cost_usd": cost}}))
+outputs = []
+for command in commands:
+    block = {{"type": "tool_use", "name": "Bash", "input": {{"command": command}}}}
+    print(json.dumps({{"type": "assistant", "message": {{"content": [block]}}}}))
+    done = subprocess.run(command, shell=True, capture_output=True, text=True)
+    outputs.append(done.stdout + done.stderr)
+    print(json.dumps({{"type": "user", "message": {{"content": [{{"type": "tool_result", "content": outputs[-1]}}]}}}}))
+report["tool_outputs"] = outputs
+report["path"] = os.environ.get("PATH")
+report["secret_values"] = sorted(value for name, value in os.environ.items() if any(marker in name for marker in ("KEY", "TOKEN", "SECRET")))
+denials = [{{"tool_name": "Bash", "tool_input": {{"command": "{DENIED_COMMAND}"}}}}] if "deny" in behaviors else []
+cost = {OVERSPEND_USD} if "overspend" in behaviors else {NORMAL_USD}
+print(json.dumps({{"type": "result", "subtype": "success", "is_error": False, "result": json.dumps(report), "total_cost_usd": cost, "permission_denials": denials}}))
 '''
 
 

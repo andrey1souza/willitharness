@@ -7,10 +7,10 @@ from dataclasses import replace
 
 import pytest
 
+from agent_site import ONE_RUN, TWO_RUNS, prepare_project_with_fake_agent, run_one
 from cli_runner import run_cli
-from fake_claude import ESCAPE_TARGET_FILE, PID_FILE, SECRET_VARIABLE, install_fake_claude, report_of
-from files import write_tree
-from lifecycle_site import SiteSpec, TASK_NAME, ready_site, run_setup, stored_final_runs
+from fake_claude import ESCAPE_TARGET_FILE, PID_FILE, SECRET_VARIABLE, report_of
+from lifecycle_site import TASK_NAME, TASK_PROMPT, run_setup, stored_final_runs
 
 from willitharness.lifecycle import TIMED_OUT, PlanState, RunSetup, abort_plan, execute_plan, lifecycle_dir, read_state, start_running
 from willitharness.plan import PlanError
@@ -18,34 +18,11 @@ from willitharness.real_runner import claude_runner
 from willitharness.store import Cell, RunState
 
 pytestmark = pytest.mark.skipif(sys.platform != "darwin", reason="the real runner uses macOS sandbox-exec")
-ONE_RUN = SiteSpec(arm_count=1, budget_usd=1.0, run_cap_usd=0.02, reps=1, max_retries=0)
-TWO_RUNS = SiteSpec(arm_count=1, budget_usd=1.0, run_cap_usd=0.02, reps=2, max_retries=0)
 CELL = Cell("A", TASK_NAME)
 HUNG_TIMEOUT_SECONDS = 1.0
 ABORT_TIMEOUT_SECONDS = 30.0
 WAIT_SECONDS = 10.0
 POLL_SECONDS = 0.02
-
-
-def prepare_project_with_fake_agent(tmp_path, monkeypatch, spec, behavior):
-    site = ready_site(tmp_path / "project", spec)
-    outside = tmp_path / "outside"
-    write_tree(site.root, {"A.md/fake-behavior.txt": behavior, "A.md/rule.txt": "the rule text", f"A.md/{ESCAPE_TARGET_FILE}": str(outside / "escaped.txt")})
-    outside.mkdir()
-    config = tmp_path / "config"
-    config.mkdir()
-    bin_dir = install_fake_claude(tmp_path / "bin")
-    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
-    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(config))
-    monkeypatch.setenv(SECRET_VARIABLE, "leak")
-    assert (bin_dir / "claude").is_file(), f"the fake agent is missing in {bin_dir}"
-    return site
-
-
-def run_one(site):
-    setup = run_setup(site)
-    start_running(site)
-    return claude_runner(setup, "haiku")(CELL, 1, 1)
 
 
 def wait_for(path):
@@ -71,7 +48,7 @@ def assert_process_gone(pid):
 def test_the_agent_gets_the_plan_flags_and_the_run_cap_as_its_budget(tmp_path, monkeypatch):
     site = prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok")
     arguments = report_of(run_one(site).transcript)["arguments"]
-    assert arguments[:2] == ["-p", "Do the task stop-server. It uses these commands: ls. Reply when it is done."], f"unexpected start {arguments[:2]}"
+    assert arguments[:2] == ["-p", TASK_PROMPT.strip()], f"unexpected start {arguments[:2]}"
     assert arguments[arguments.index("--max-budget-usd") + 1] == "0.02", f"budget flag wrong in {arguments}"
     assert arguments[arguments.index("--setting-sources") + 1] == "project,local", f"setting sources wrong in {arguments}"
 
@@ -79,7 +56,7 @@ def test_the_agent_gets_the_plan_flags_and_the_run_cap_as_its_budget(tmp_path, m
 def test_the_workspace_holds_the_world_and_the_arm_overlay_and_not_the_original_folders(tmp_path, monkeypatch):
     site = prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok")
     report = report_of(run_one(site).transcript)
-    assert report["files"] == ["fake-behavior.txt", "fake-escape-target.txt", "real.txt", "rule.txt", "tasks.txt"], f"unexpected workspace files {report['files']}"
+    assert report["files"] == ["bin", "calls.log", "fake-behavior.txt", "fake-escape-target.txt", "prompts", "real.txt", "rule.txt", "stubs", "tasks.txt"], f"unexpected workspace files {report['files']}"
     assert not report["cwd"].startswith(str(site.root)), f"the workspace {report['cwd']} sits under the project {site.root}. Rule: a project instruction file must not reach the agent."
 
 
@@ -175,7 +152,7 @@ def test_an_arm_on_the_system_prompt_channel_is_refused(tmp_path, monkeypatch):
     refused = replace(site, plan=replace(site.plan, arms=(arm,)))
     with pytest.raises(PlanError) as raised:
         claude_runner(run_setup(refused), "haiku")
-    assert "channel system_prompt" in str(raised.value) and "Fix:" in str(raised.value), f"unexpected message {str(raised.value)!r}"
+    assert "channel system_prompt" in str(raised.value) and "T64" in str(raised.value) and "Fix:" in str(raised.value), f"unexpected message {str(raised.value)!r}"
 
 
 def test_the_run_command_runs_the_claude_agent_and_prints_the_spend(tmp_path, monkeypatch, capsys):

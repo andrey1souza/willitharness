@@ -78,3 +78,65 @@ Feature: Runner and isolation
     When I parse the stream with the rule "bare-cp-rm"
     Then the outcome "attempted_violation" is false
     And the run lists "/bin/cp" under alternative channels
+
+  @L6
+  Scenario: An effect run has the Bash tool only and an allowlist from the world
+    Given a world whose tasks name "pkill" and whose real.txt names "ls"
+    When I build the command for an effect run
+    Then the command contains "--tools Bash"
+    And the command contains "--allowedTools Bash(ls:*),Bash(pkill:*)"
+    And the command contains "--permission-mode default"
+    And the command still contains every isolation flag
+
+  @L6
+  Scenario: A plan with a guard arm gives every run Bash, Write and Edit
+    Given a plan with a "guard_only" arm
+    When I build the command for any arm
+    Then the command contains "--tools Bash,Write,Edit"
+
+  @L6
+  Scenario: A probe run keeps an empty tool list
+    When I build the command for a probe run
+    Then the command contains an empty "--tools" value
+    And the command has no "--allowedTools" and no "--permission-mode"
+
+  @L6
+  Scenario: A stub is a runnable wrapper that logs and prints
+    Given a world with a "pkill" stub whose output is "stub-killed"
+    When the agent runs "pkill -f vitest" through PATH
+    Then the output is "stub-killed" and the exit code is 0
+    And "calls.log" has the line "pkill -f vitest"
+    And a "bin" folder in the world never reaches the workspace
+
+  @L6
+  Scenario: A workspace under a folder with an instruction file is refused
+    Given a folder above the workspace base holds "CLAUDE.md", "AGENTS.md" or ".claude"
+    When I start the claude runner
+    Then it is refused with a rule and a fix
+    And no run is started
+
+  @L6
+  Scenario: Stored artifacts hold no secret value
+    Given the agent received a secret variable whose value appears in the transcript and in "calls.log"
+    When the run finishes
+    Then the stored transcript and calls log hold "[redacted]" and not the value
+
+  @L6
+  Scenario: Artifacts are stored per run
+    Given a finished run of arm "A", task "stop-server", rep 1
+    Then the transcript and calls log are under ".willitharness/<plan>/runs/A/stop-server/1/"
+
+  @L6
+  Scenario: A missing claude binary stops the run command
+    Given no "claude" on PATH
+    When I run the plan with the claude agent
+    Then the command fails with exit code 3
+    And the message has a rule and a fix
+    And no run is recorded
+
+  @L6
+  Scenario: The system_prompt channel is refused until T64
+    Given a rule arm with the channel "system_prompt"
+    When I check the plan
+    Then the command fails with exit code 1
+    And the message says "backlog task T64"

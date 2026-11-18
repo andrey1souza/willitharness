@@ -4,7 +4,7 @@ import json
 import pytest
 
 from willitharness import plan
-from willitharness.plan import PlanError, load_plan, read_plan
+from willitharness.plan import PlanError, has_guard_arm, load_plan, read_plan
 
 EXPECTED_DEFAULT_REPS = 20
 EXPECTED_MAX_RETRIES = 2
@@ -162,3 +162,13 @@ def test_a_plan_whose_world_stays_inside_the_root_is_read(tmp_path):
     loaded = read_plan(tmp_path, "plan.json")
     assert loaded.world == VALID["world"], f"got {loaded.world!r}"
     assert loaded.name == VALID["name"], f"got {loaded.name!r}"
+
+
+def test_a_plan_with_a_guard_only_arm_has_a_guard_arm():
+    data = copy.deepcopy(VALID)
+    data["arms"].append({"label": "G", "role": "guard_only", "overlay": "arms/G"})
+    assert has_guard_arm(load_plan(data)) is True, f"an arm with role guard_only makes the plan a guard plan: {data}"
+
+
+def test_a_plan_without_a_guard_only_arm_has_no_guard_arm():
+    assert has_guard_arm(load_plan(VALID)) is False, f"rule, leave_one_out and noise arms are not guard arms: {VALID}"

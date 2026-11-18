@@ -50,6 +50,14 @@ def plan_fingerprint(plan):
     return hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()
 
 
+def has_guard_arm(plan):
+    assert isinstance(plan, Plan), f"has_guard_arm needs a Plan, got {plan!r}. Fix: load the plan."
+    assert plan.arms, f"plan {plan.name} has no arms. Rule: a plan needs arms. Fix: load the plan with load_plan."
+    found = any(arm.role == ROLE_GUARD_ONLY for arm in plan.arms)
+    assert isinstance(found, bool), f"has_guard_arm returned {found!r}, not a bool"
+    return found
+
+
 def noise_target(role):
     assert isinstance(role, str), f"a role is text, got {role!r}. Fix: write the role as a string in the plan."
     assert role, "a role cannot be empty. Fix: use one of rule, leave_one_out, guard_only or noise_of:<label>."

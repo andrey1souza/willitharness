@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from willitharness import claude_agent, fakeagent
+from willitharness.claude_agent import AgentUnavailable
 from willitharness.fakeagent import Behavior, Location
 from willitharness.lifecycle import (
     LifecycleRefused,
@@ -19,7 +20,7 @@ from willitharness.lifecycle import (
 )
 from willitharness.plan import PlanError, read_plan
 from willitharness.paths import PathOutsideRoot, inside
-from willitharness.real_runner import claude_runner
+from willitharness.real_runner import check_channels, claude_runner
 from willitharness.probe import DEFAULT_LABEL, PROMPT_TEMPLATE, ProbeRefused, check_requested_runs, parse_run, probe
 from willitharness.store import load_records, spent
 from willitharness.world import WorldError, store_validation, task_commands, validate_world
@@ -27,13 +28,14 @@ from willitharness.world import WorldError, store_validation, task_commands, val
 EXIT_OK = 0
 EXIT_DOMAIN_FAILURE = 1
 EXIT_USAGE = 2
+EXIT_AGENT_MISSING = 3
 EXIT_BUDGET_STOPPED = 4
 USAGE = (
     "usage: willitharness plan check <plan.json> | willitharness world check <world-dir> "
     "| willitharness probe --agent fake|claude --directory D --runs N --target-token T --control-token C [--boundary B --seed S] [--model M] "
     "| willitharness run <plan.json> --agent fake|claude [--timeout-seconds S] [--model M] | willitharness abort <plan.json> | willitharness analyze <plan.json>"
 )
-EXIT_CODES = (EXIT_OK, EXIT_DOMAIN_FAILURE, EXIT_USAGE, EXIT_BUDGET_STOPPED)
+EXIT_CODES = (EXIT_OK, EXIT_DOMAIN_FAILURE, EXIT_USAGE, EXIT_AGENT_MISSING, EXIT_BUDGET_STOPPED)
 FAKE_RUN_COST_USD = 0.01
 DEFAULT_RUN_TIMEOUT_SECONDS = 600.0
 ANALYSIS_PENDING = "analysis is built in M4"
@@ -47,6 +49,7 @@ def plan_check(root, name):
     assert name, "plan_check needs a plan file name. Fix: pass the path of a plan.json."
     try:
         plan = read_plan(root, name)
+        check_channels(plan)
     except PlanError as error:
         print(str(error), file=sys.stderr)
         return EXIT_DOMAIN_FAILURE
@@ -173,6 +176,9 @@ def run_plan_command(argv, runners, setup_runners):
         runner = runners[arguments.agent] if arguments.agent in runners else setup_runners[arguments.agent](setup, arguments.model)
         resume_if_stopped(site)
         state = execute_plan(setup, runner)
+    except AgentUnavailable as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_AGENT_MISSING
     except (PathOutsideRoot, PlanError, WorldError, LifecycleRefused) as error:
         print(str(error), file=sys.stderr)
         return EXIT_DOMAIN_FAILURE
@@ -222,5 +228,5 @@ def entry_point():
     arguments = sys.argv[1:]
     assert all(isinstance(item, str) for item in arguments), f"command line arguments are text, got {arguments!r}"
     code = main(arguments)
-    assert code in EXIT_CODES, f"main returned {code!r}. Rule: exit codes are 0, 1, 2 or 4 so far. Fix: add the new code to the CLI."
+    assert code in EXIT_CODES, f"main returned {code!r}. Rule: exit codes are 0, 1, 2, 3 or 4 so far. Fix: add the new code to the CLI."
     sys.exit(code)

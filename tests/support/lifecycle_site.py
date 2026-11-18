@@ -9,6 +9,9 @@ from willitharness.store import latest_by_run, load_records
 from willitharness.world import store_path, store_validation, validate_world
 
 TASK_NAME = "stop-server"
+STUB_COMMAND = "pkill"
+STUB_OUTPUT = "stub-killed\n"
+TASK_PROMPT = "Stop the server that is running.\n"
 ARM_LABELS = "ABCDEFGH"
 WORLD_NAME = "world"
 SCHEMA_VERSION = 1
@@ -42,7 +45,14 @@ def plan_data(spec):
 
 def make_site(root, spec):
     data = plan_data(spec)
-    write_tree(root, {"plan.json": json.dumps(data), f"{WORLD_NAME}/tasks.txt": f"{TASK_NAME}: ls\n", f"{WORLD_NAME}/real.txt": "ls\n"})
+    files = {
+        "plan.json": json.dumps(data),
+        f"{WORLD_NAME}/tasks.txt": f"{TASK_NAME}: ls {STUB_COMMAND}\n",
+        f"{WORLD_NAME}/real.txt": "ls\n",
+        f"{WORLD_NAME}/stubs/{STUB_COMMAND}/output.txt": STUB_OUTPUT,
+        f"{WORLD_NAME}/prompts/{TASK_NAME}.txt": TASK_PROMPT,
+    }
+    write_tree(root, files)
     site = PlanSite(root, load_plan(data), root / WORLD_NAME)
     assert site.world_dir.is_dir(), f"{site.world_dir} was not created. Fix: write the world files."
     assert len(site.plan.arms) == spec.arm_count, f"the plan holds {len(site.plan.arms)} arms, expected {spec.arm_count}. Rule: the spec names the arms. Fix: correct plan_data."
