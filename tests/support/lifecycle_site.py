@@ -1,11 +1,12 @@
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from files import plant, write_tree
-from willitharness.lifecycle import PlanSite, RunSetup, finished, record_reachability
+from willitharness.lifecycle import PlanSite, PlanState, RunSetup, execute_plan, finished, lifecycle_dir, read_state, record_reachability
 from willitharness.plan import load_plan
 from willitharness.vocabulary import Reach
-from willitharness.world import store_validation, validate_world
+from willitharness.store import latest_by_run, load_records
+from willitharness.world import store_path, store_validation, validate_world
 
 TASK_NAME = "stop-server"
 ARM_LABELS = "ABCDEFGH"
@@ -102,3 +103,35 @@ def costing_runner(cost_usd):
 
     assert callable(runner), f"costing_runner returned {runner!r} for cost {cost_usd}. Fix: return the runner function."
     return runner
+
+
+def with_budget(site, budget):
+    assert budget > 0, f"a budget must be above 0, got {budget}. Fix: pass a positive budget."
+    raised = replace(site, plan=replace(site.plan, budget_usd=budget))
+    assert raised.plan.budget_usd == budget, f"the plan holds budget {raised.plan.budget_usd}, expected {budget}. Rule: replace sets the budget. Fix: pass a plan with a budget_usd field."
+    return raised
+
+
+def forget_validation(site):
+    store_path(site.root, site.world_dir).unlink()
+    assert not store_path(site.root, site.world_dir).exists(), f"the validation record of {site.world_dir} is still stored"
+    return site
+
+
+def stop_at_budget(site):
+    outcome = execute_plan(run_setup(site), costing_runner(0.01))
+    assert outcome is PlanState.BUDGET_STOPPED, f"the plan must stop at the budget, got {outcome}. Fix: use a spec whose budget runs out."
+    stored = read_state(lifecycle_dir(site.root, site.plan))
+    assert stored is PlanState.BUDGET_STOPPED, f"the stored state of {site.plan.name} is {stored}, expected BudgetStopped. Rule: the state is persisted. Fix: check conclude."
+    return site
+
+
+def folder_of(site):
+    assert isinstance(site, PlanSite), f"folder_of needs a PlanSite, got {site!r}. Fix: build one with make_site."
+    return lifecycle_dir(site.root, site.plan)
+
+
+def stored_final_runs(site):
+    runs = tuple(latest_by_run(load_records(folder_of(site))).values())
+    assert all(run.run_id for run in runs), f"a stored run has no id: {runs}. Rule: every record has a run id."
+    return runs

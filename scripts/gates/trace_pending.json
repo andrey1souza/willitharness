@@ -23,20 +23,5 @@
     "id": "R1",
     "place": "tests",
     "reason": "the detector module arrives in M3"
-  },
-  {
-    "id": "L10",
-    "place": "tests",
-    "reason": "resume is implemented in backlog T61"
-  },
-  {
-    "id": "L11",
-    "place": "tests",
-    "reason": "resume is implemented in backlog T61"
-  },
-  {
-    "id": "L12",
-    "place": "tests",
-    "reason": "resume is implemented in backlog T61"
   }
 ]

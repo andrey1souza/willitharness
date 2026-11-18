@@ -148,3 +148,48 @@ def test_G3_7_a_runner_that_never_returns_is_recorded_unusable_at_run_cap_throug
     release.set()
     assert outcome.value == "Complete", f"got {outcome}"
     assert [(run.state.value, run.cost_usd) for run in gate_final_runs(site)] == [("RecordedUnusable", 0.02)], f"got {gate_final_runs(site)}"
+
+
+def raise_budget(site, budget):
+    data = json.loads((site.root / "plan.json").read_text())
+    data["budget_usd"] = budget
+    (site.root / "plan.json").write_text(json.dumps(data))
+    assert json.loads((site.root / "plan.json").read_text())["budget_usd"] == budget, "the plan file must keep the new budget"
+
+
+def test_L10_run_on_a_budget_stopped_plan_with_a_raised_budget_resumes_it(tmp_path, monkeypatch, capsys):
+    site = ready_site(tmp_path, TIGHT)
+    monkeypatch.chdir(tmp_path)
+    run_cli(capsys, RUN_ARGUMENTS)
+    raise_budget(site, 0.10)
+    code, out, err = run_cli(capsys, RUN_ARGUMENTS)
+    assert code == 4 and len(gate_final_runs(site)) == 9, f"expected exit 4 and 9 runs, got {code} and {len(gate_final_runs(site))}; err {err!r}"
+    assert "spent $0.09" in out and state_file(site) == "BudgetStopped", f"got {out!r} and {state_file(site)}"
+
+
+def test_L11_run_on_a_budget_stopped_plan_with_the_same_budget_exits_one_and_changes_nothing(tmp_path, monkeypatch, capsys):
+    site = ready_site(tmp_path, TIGHT)
+    monkeypatch.chdir(tmp_path)
+    run_cli(capsys, RUN_ARGUMENTS)
+    before = gate_final_runs(site)
+    code, out, err = run_cli(capsys, RUN_ARGUMENTS)
+    assert code == 1 and "Rule: L11" in err and "Fix:" in err, f"got {code} {err!r}"
+    assert gate_final_runs(site) == before and state_file(site) == "BudgetStopped", f"got {state_file(site)}"
+
+
+def test_L10_run_on_a_complete_plan_exits_one_and_says_there_is_nothing_to_resume(tmp_path, monkeypatch, capsys):
+    site = ready_site(tmp_path, ROOMY)
+    monkeypatch.chdir(tmp_path)
+    run_cli(capsys, RUN_ARGUMENTS)
+    code, out, err = run_cli(capsys, RUN_ARGUMENTS)
+    assert code == 1 and "nothing to resume" in err, f"got {code} {err!r}"
+    assert state_file(site) == "Complete", f"got {state_file(site)}"
+
+
+def test_L10_analyze_on_a_budget_stopped_plan_warns_that_it_ends_resume_and_keeps_exit_two(tmp_path, monkeypatch, capsys):
+    site = ready_site(tmp_path, TIGHT)
+    monkeypatch.chdir(tmp_path)
+    run_cli(capsys, RUN_ARGUMENTS)
+    code, out, err = run_cli(capsys, ["analyze", "plan.json"])
+    assert code == 2 and "analysis is built in M4" in err, f"got {code} {err!r}"
+    assert "analyze ends resume" in err and state_file(site) == "Analyzed", f"got {err!r} and {state_file(site)}"

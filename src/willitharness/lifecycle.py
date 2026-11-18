@@ -1,6 +1,6 @@
 import json
 import threading
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
@@ -8,7 +8,7 @@ from pathlib import Path
 from willitharness.budget import Ledger, abort_records, capped_record, timed_out_record, to_money
 from willitharness.claude_agent import transcript_cost
 from willitharness.paths import inside
-from willitharness.plan import Plan
+from willitharness.plan import Plan, plan_fingerprint
 from willitharness.store import (
     EMPTY_COUNTERS,
     Cell,
@@ -29,6 +29,8 @@ from willitharness.world import STORE_DIR, stored_hash, world_changed
 
 STATE_FILE = "state.json"
 REACH_FILE = "reach.json"
+RESUME_FILE = "resume.json"
+NOT_ENDED = "none"
 STATE_KEY = "state"
 MAX_PARALLEL_RUNNERS = 4
 WORLD_NOT_VALIDATED = "world not validated; run: willitharness world check"
@@ -36,6 +38,11 @@ WORLD_CHANGED = "world changed since validation; run: willitharness world check"
 ABORT_AFTER_ANALYSIS = "plan already analyzed; abort is not possible"
 ANALYZE_AFTER_ABORT = "plan aborted; no verdict"
 ANALYZE_WHILE_RUNNING = "plan still running; analyze after Complete or BudgetStopped"
+RESUME_WORLD_REFUSED = "world not validated or changed since validation. Rule: L10, the world must be validated again before a resume. Fix: run willitharness world check."
+RESUME_NO_RECORD = "plan has no stored budget and fingerprint. Rule: L10, a plan stores both when it first runs. Fix: start the plan with run before resuming."
+RESUME_PLAN_CHANGED = "plan differs from the stored plan in more than budget_usd. Rule: A-FP, a resume changes only the budget. Fix: restore the plan and raise only budget_usd."
+NOTHING_TO_RESUME = "plan is Complete; there is nothing to resume. Rule: L10, only a BudgetStopped plan resumes. Fix: run willitharness analyze."
+ANALYZE_ENDS_RESUME = "warning: analyze ends resume; a BudgetStopped plan cannot get more budget after it"
 ANALYZE_BEFORE_RUN = "plan has not run yet; analyze after Complete or BudgetStopped"
 STORE_LOCK = threading.Lock()
 
@@ -65,11 +72,18 @@ LEGAL_MOVES = {
     PlanState.REACHABILITY_CHECKED: frozenset({PlanState.RUNNING, PlanState.DRAFTED, PlanState.ABORTED}),
     PlanState.RUNNING: frozenset({PlanState.COMPLETE, PlanState.BUDGET_STOPPED, PlanState.ABORTED}),
     PlanState.COMPLETE: frozenset({PlanState.ANALYZED, PlanState.ABORTED}),
-    PlanState.BUDGET_STOPPED: frozenset({PlanState.ANALYZED, PlanState.ABORTED}),
+    PlanState.BUDGET_STOPPED: frozenset({PlanState.ANALYZED, PlanState.ABORTED, PlanState.RUNNING}),
     PlanState.ABORTED: frozenset(),
     PlanState.ANALYZED: frozenset({PlanState.REPORTED}),
     PlanState.REPORTED: frozenset(),
 }
+
+
+@dataclass(frozen=True)
+class ResumeRecord:
+    budget_usd: float
+    fingerprint: str
+    ended_by: str
 
 
 @dataclass(frozen=True)
@@ -160,6 +174,20 @@ def read_reach(folder):
     return reach
 
 
+def read_resume(folder):
+    assert isinstance(folder, Path), f"read_resume needs the plan folder as a Path, got {folder!r}. Fix: use lifecycle_dir."
+    path = folder / RESUME_FILE
+    record = ResumeRecord(**json.loads(path.read_text())) if path.is_file() else None
+    assert record is None or record.fingerprint, f"{path} holds no fingerprint. Rule: the fingerprint is stored with the budget."
+    return record
+
+
+def write_resume(folder, record):
+    assert isinstance(record, ResumeRecord), f"write_resume needs a ResumeRecord, got {record!r}. Fix: build one with the budget, fingerprint and ended marker."
+    (folder / RESUME_FILE).write_text(json.dumps(asdict(record)))
+    assert read_resume(folder) == record, f"{folder / RESUME_FILE} did not keep {record}. Rule: the stored budget, fingerprint and ended marker persist."
+
+
 def missing_arms(site):
     assert isinstance(site, PlanSite), f"missing_arms needs a PlanSite, got {site!r}. Fix: build one with the root, plan and world directory."
     recorded = read_reach(lifecycle_dir(site.root, site.plan))
@@ -229,6 +257,8 @@ def start_running(site):
         raise LifecycleRefused(f"no reachability result for arm {absent[0]} of plan {site.plan.name} (missing: {', '.join(absent)}); probe the arm and record the result")
     if state is not PlanState.RUNNING and state is not PlanState.REACHABILITY_CHECKED:
         raise LifecycleRefused(f"plan is {state}; a run can start only from ReachabilityChecked or Running")
+    if state is PlanState.REACHABILITY_CHECKED:
+        write_resume(folder, ResumeRecord(site.plan.budget_usd, plan_fingerprint(site.plan), NOT_ENDED))
     running = move_to(folder, PlanState.RUNNING)
     assert running is PlanState.RUNNING, f"start_running ended in {running}. Rule: L1, runs start only in Running."
     assert not absent and world_is_validated(site), f"start_running passed for plan {site.plan.name} with missing arms {absent}. Rule: L1. Fix: check the world and the arms first."
@@ -353,7 +383,42 @@ def conclude(context):
         pending = any(count > 0 for count in runs_to_start(facts, load_records(folder)).values())
         target = PlanState.BUDGET_STOPPED if pending else PlanState.COMPLETE
         assert target in (PlanState.COMPLETE, PlanState.BUDGET_STOPPED), f"conclude chose {target}. Rule: a finished Running plan is Complete or BudgetStopped."
-        return move_to(folder, target)
+        concluded = move_to(folder, target)
+        write_resume(folder, replace(read_resume(folder), ended_by=target.value))
+        return concluded
+
+
+def resume_plan(site):
+    assert isinstance(site, PlanSite), f"resume_plan needs a PlanSite, got {site!r}. Fix: build one with the root, plan and world directory."
+    folder = lifecycle_dir(site.root, site.plan)
+    with STORE_LOCK:
+        state = read_state(folder)
+        if state is not PlanState.BUDGET_STOPPED:
+            raise LifecycleRefused(f"plan is {state}; only a BudgetStopped plan resumes. Rule: L10. Fix: run willitharness run on a BudgetStopped plan.")
+        stored = read_resume(folder)
+        if stored is None:
+            raise LifecycleRefused(RESUME_NO_RECORD)
+        if not world_is_validated(site):
+            raise LifecycleRefused(RESUME_WORLD_REFUSED)
+        if plan_fingerprint(site.plan) != stored.fingerprint:
+            raise LifecycleRefused(RESUME_PLAN_CHANGED)
+        if to_money(site.plan.budget_usd) <= to_money(stored.budget_usd):
+            raise LifecycleRefused(f"budget_usd {site.plan.budget_usd} is not above the stored budget {stored.budget_usd}. Rule: L11, a resume raises the budget. Fix: set budget_usd above {stored.budget_usd} in the plan.")
+        write_resume(folder, ResumeRecord(site.plan.budget_usd, stored.fingerprint, NOT_ENDED))
+        resumed = move_to(folder, PlanState.RUNNING)
+    assert resumed is PlanState.RUNNING, f"resume_plan ended in {resumed}. Rule: L10, a resume ends in Running."
+    assert read_resume(folder).ended_by == NOT_ENDED, f"plan {site.plan.name} is Running but marked as ended. Rule: L12. Fix: reset the ended marker on resume."
+    return resumed
+
+
+def resume_if_stopped(site):
+    assert isinstance(site, PlanSite), f"resume_if_stopped needs a PlanSite, got {site!r}. Fix: build one with the root, plan and world directory."
+    state = read_state(lifecycle_dir(site.root, site.plan))
+    if state is PlanState.COMPLETE:
+        raise LifecycleRefused(NOTHING_TO_RESUME)
+    resumed = resume_plan(site) if state is PlanState.BUDGET_STOPPED else state
+    assert resumed in PlanState, f"resume_if_stopped returned {resumed!r}, not a plan state"
+    return resumed
 
 
 def execute_plan(setup, runner):
@@ -402,4 +467,15 @@ def analyze_gate(root, plan):
     if state not in ANALYZABLE:
         raise LifecycleRefused(ANALYZE_BEFORE_RUN)
     assert state in ANALYZABLE, f"analyze_gate let state {state} pass. Rule: L5, a verdict needs Complete or BudgetStopped."
+    return state
+
+
+def end_plan_by_analysis(root, plan):
+    state = analyze_gate(root, plan)
+    folder = lifecycle_dir(root, plan)
+    with STORE_LOCK:
+        if state in (PlanState.COMPLETE, PlanState.BUDGET_STOPPED):
+            move_to(folder, PlanState.ANALYZED)
+    assert read_state(folder) in ANALYZABLE, f"end_plan_by_analysis left plan {plan.name} in {read_state(folder)}. Rule: L5, an analyzed plan stays analyzable."
+    assert state in ANALYZABLE, f"end_plan_by_analysis got {state}. Rule: L5, a verdict needs Complete or BudgetStopped."
     return state

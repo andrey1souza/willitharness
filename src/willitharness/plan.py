@@ -1,5 +1,6 @@
+import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from willitharness.paths import PathOutsideRoot, inside
@@ -16,6 +17,7 @@ FIXED_ROLES = frozenset({ROLE_LEAVE_ONE_OUT, ROLE_RULE, ROLE_GUARD_ONLY})
 CHANNELS = ("file", "hook", "skill", "system_prompt")
 DEFAULT_CHANNEL = "file"
 ARM_KEYS = ("label", "role", "overlay")
+BUDGET_KEY = "budget_usd"
 
 
 class PlanError(Exception):
@@ -39,6 +41,13 @@ class Plan:
     max_retries: int
     world: str
     arms: tuple[Arm, ...]
+
+
+def plan_fingerprint(plan):
+    assert isinstance(plan, Plan), f"plan_fingerprint needs a Plan, got {plan!r}. Fix: load the plan."
+    content = {key: value for key, value in asdict(plan).items() if key != BUDGET_KEY}
+    assert BUDGET_KEY not in content, f"the fingerprint of plan {plan.name} still holds {BUDGET_KEY}. Rule: A-FP, the fingerprint leaves the budget out."
+    return hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()
 
 
 def noise_target(role):

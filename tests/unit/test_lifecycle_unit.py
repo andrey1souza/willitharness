@@ -3,7 +3,7 @@ import threading
 from dataclasses import replace
 
 import pytest
-from lifecycle_site import SiteSpec, costing_runner, edit_world, make_site, ready_site, reach_every_arm, run_setup, success_transcript, validate_site
+from lifecycle_site import SiteSpec, folder_of, stored_final_runs, costing_runner, edit_world, make_site, ready_site, reach_every_arm, run_setup, success_transcript, validate_site
 
 from willitharness.lifecycle import (
     TIMED_OUT,
@@ -52,16 +52,9 @@ LEGAL_PAIRS = {
     ("Complete", "Aborted"),
     ("BudgetStopped", "Analyzed"),
     ("BudgetStopped", "Aborted"),
+    ("BudgetStopped", "Running"),
     ("Analyzed", "Reported"),
 }
-
-
-def folder_of(site):
-    return lifecycle_dir(site.root, site.plan)
-
-
-def stored_final_runs(site):
-    return tuple(latest_by_run(load_records(folder_of(site))).values())
 
 
 def stored_run(index, state, cost):

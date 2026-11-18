@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
@@ -12,13 +12,18 @@ from willitharness.lifecycle import (
     RunContext,
     abort_plan,
     claim_next_job,
+    conclude,
+    end_plan_by_analysis,
     finish_job,
     finished,
     ledger_from_records,
     lifecycle_dir,
+    read_resume,
     read_state,
     record_reachability,
+    resume_if_stopped,
     start_running,
+    world_is_validated,
 )
 from willitharness.store import EMPTY_COUNTERS, Cell, RunState, cell_counters, latest_by_run, load_records, spent
 from willitharness.vocabulary import Reach
@@ -26,7 +31,9 @@ from willitharness.vocabulary import Reach
 EXAMPLES = 60
 STEPS = 30
 SPEC = SiteSpec(arm_count=2, budget_usd=0.10, run_cap_usd=0.02, reps=2, max_retries=1)
-OPERATIONS = ("start", "claim", "usable", "unusable", "timeout", "overcap", "abort", "edit_world", "validate", "reach")
+OPERATIONS = ("start", "claim", "usable", "unusable", "timeout", "overcap", "abort", "edit_world", "validate", "reach", "conclude", "resume", "resume", "analyze")
+BUDGETS = (0.05, 0.10, 0.15, 0.20)
+RESUMABLE_FROM = frozenset({PlanState.BUDGET_STOPPED})
 RESULTS = {
     "usable": lambda: success_transcript(0.01),
     "unusable": lambda: finished(()),
@@ -41,9 +48,10 @@ class Step:
     operation: str
     arm_index: int
     reach: Reach
+    budget: float
 
 
-step_strategy = st.builds(Step, st.sampled_from(OPERATIONS), st.integers(min_value=0, max_value=1), st.sampled_from(list(Reach)))
+step_strategy = st.builds(Step, st.sampled_from(OPERATIONS), st.integers(min_value=0, max_value=1), st.sampled_from(list(Reach)), st.sampled_from(BUDGETS))
 steps = st.lists(step_strategy, min_size=1, max_size=STEPS)
 
 
@@ -58,16 +66,36 @@ def snapshot(site):
     cells = [Cell(arm.label, "stop-server") for arm in site.plan.arms]
     per_cell = {cell: (counters.get(cell, EMPTY_COUNTERS).usable, counters.get(cell, EMPTY_COUNTERS).attempts) for cell in cells}
     in_flight = sum(1 for run in runs if run.state is RunState.STARTED)
-    return {"runs": runs, "spent": spent(runs), "reserved": SPEC.run_cap_usd * in_flight, "per_cell": per_cell, "stored": len(load_records(lifecycle_dir(site.root, site.plan)))}
+    stored = read_resume(lifecycle_dir(site.root, site.plan))
+    return {"state": read_state(lifecycle_dir(site.root, site.plan)), "budget": stored.budget_usd if stored else SPEC.budget_usd, "ended_by": stored.ended_by if stored else "none", "runs": runs, "spent": spent(runs), "reserved": SPEC.run_cap_usd * in_flight, "per_cell": per_cell, "stored": len(load_records(lifecycle_dir(site.root, site.plan)))}
+
+
+def apply_end_step(site, step):
+    assert step.operation in ("resume", "analyze", "conclude"), f"{step.operation} is not an end step. Fix: route resume, analyze and conclude here."
+    raised = replace(site, plan=replace(site.plan, budget_usd=step.budget))
+    try:
+        if step.operation == "resume":
+            resume_if_stopped(raised)
+            return raised
+        if step.operation == "analyze":
+            end_plan_by_analysis(site.root, site.plan)
+    except LifecycleRefused:
+        return site
+    if step.operation == "conclude":
+        conclude(fresh_context(site))
+    assert read_state(lifecycle_dir(site.root, site.plan)) in PlanState, f"{step.operation} left an unknown state. Rule: only legal states are stored."
+    return site
 
 
 def apply_step(site, held, step):
     operation = step.operation
+    if operation in ("resume", "analyze", "conclude"):
+        return apply_end_step(site, step)
     if operation == "start":
         try:
             start_running(site)
         except LifecycleRefused:
-            return
+            return site
     elif operation == "claim":
         job = claim_next_job(fresh_context(site))
         if job is not None:
@@ -83,12 +111,18 @@ def apply_step(site, held, step):
         validate_site(site)
     elif operation == "reach":
         record_reachability(site, site.plan.arms[step.arm_index].label, step.reach)
+    return site
 
 
 def check_invariants(site, before, ever_running):
     after = snapshot(site)
     assert ever_running or not after["runs"], f"L1 broken: runs {after['runs']} exist before the plan was ever Running"
-    assert after["spent"] + after["reserved"] <= SPEC.budget_usd + 1e-9, f"L2 broken: spent {after['spent']} plus reserved {after['reserved']} above {SPEC.budget_usd}"
+    assert after["spent"] + after["reserved"] <= after["budget"] + 1e-9, f"L2 broken: spent {after['spent']} plus reserved {after['reserved']} above {after['budget']}"
+    assert after["budget"] >= before["budget"], f"L11 broken: the budget fell from {before['budget']} to {after['budget']}"
+    assert after["state"] is not PlanState.RUNNING or after["ended_by"] == "none", f"L12 broken: a Running plan is marked as ended by {after['ended_by']}"
+    resumed = after["state"] is PlanState.RUNNING and before["state"] in RESUMABLE_FROM
+    assert not resumed or (world_is_validated(site) and after["budget"] > before["budget"]), f"L10 broken: a resume from {before['state']} ran with world validated {world_is_validated(site)} and budget {before['budget']} to {after['budget']}"
+    assert after["state"] is not PlanState.RUNNING or before["state"] not in (PlanState.COMPLETE, PlanState.ANALYZED, PlanState.ABORTED, PlanState.REPORTED), f"L10 broken: the plan went from {before['state']} to Running"
     for cell, (usable, attempts) in after["per_cell"].items():
         assert usable <= SPEC.reps, f"L4 broken: {usable} usable runs in {cell}, reps {SPEC.reps}"
         assert attempts <= SPEC.reps + SPEC.max_retries, f"L9 broken: {attempts} attempts in {cell}, cap {SPEC.reps + SPEC.max_retries}"
@@ -99,14 +133,14 @@ def check_invariants(site, before, ever_running):
 
 @chaos_settings
 @given(steps)
-def test_L1_to_L9_hold_after_every_step_of_a_random_sequence(tmp_path, sequence):
+def test_L1_to_L12_hold_after_every_step_of_a_random_sequence(tmp_path, sequence):
     site = make_site(tmp_path / f"example-{len(list(tmp_path.iterdir()))}", SPEC)
     held = []
     before = snapshot(site)
     ever_running = False
     checked = 0
     for step in sequence:
-        apply_step(site, held, step)
+        site = apply_step(site, held, step)
         ever_running = ever_running or read_state(lifecycle_dir(site.root, site.plan)) is PlanState.RUNNING
         before = check_invariants(site, before, ever_running)
         checked += 1

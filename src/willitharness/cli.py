@@ -11,7 +11,9 @@ from willitharness.lifecycle import (
     PlanState,
     RunSetup,
     abort_plan,
-    analyze_gate,
+    ANALYZE_ENDS_RESUME,
+    end_plan_by_analysis,
+    resume_if_stopped,
     finished,
     lifecycle_dir,
     execute_plan,
@@ -165,6 +167,7 @@ def run_plan_command(argv, runners):
         tasks = tuple(sorted(task_commands(site.world_dir)))
         if not tasks:
             raise WorldError(NO_TASKS)
+        resume_if_stopped(site)
         state = execute_plan(RunSetup(site, tasks, arguments.timeout_seconds), runners[arguments.agent])
     except (PathOutsideRoot, PlanError, WorldError, LifecycleRefused) as error:
         print(str(error), file=sys.stderr)
@@ -185,7 +188,9 @@ def plan_command(argv, name):
             abort_plan(root, plan)
             print(f"plan {PlanState.ABORTED}")
             return EXIT_OK
-        analyze_gate(root, plan)
+        analyzed_from = end_plan_by_analysis(root, plan)
+        if analyzed_from is PlanState.BUDGET_STOPPED:
+            print(ANALYZE_ENDS_RESUME, file=sys.stderr)
     except (PlanError, LifecycleRefused) as error:
         print(str(error), file=sys.stderr)
         return EXIT_DOMAIN_FAILURE

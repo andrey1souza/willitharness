@@ -1,17 +1,23 @@
 import math
 import re
+from dataclasses import replace
 
 from cli_runner import run_cli
-from lifecycle_site import TASK_NAME, SiteSpec, costing_runner, edit_world, make_site, ready_site, reach_every_arm, run_setup, validate_site
+from lifecycle_site import TASK_NAME, SiteSpec, costing_runner, edit_world, make_site, ready_site, reach_every_arm, run_setup, validate_site, with_budget
 from pytest_bdd import given, parsers, scenario, then, when
 
 from willitharness import cli
-from willitharness.lifecycle import Job, LifecycleRefused, PlanState, abort_plan, begin_run, lifecycle_dir, move_to, read_state, record_reachability, refresh_state, execute_plan, start_running
+from willitharness.lifecycle import Job, LifecycleRefused, PlanState, abort_plan, begin_run, lifecycle_dir, move_to, read_reach, read_resume, read_state, record_reachability, refresh_state, execute_plan, resume_if_stopped, start_running
+from willitharness.plan import plan_fingerprint
+from willitharness.world import world_changed
 from willitharness.store import Cell, Record, RunState, append_record, latest_by_run, load_records, spent
 from willitharness.vocabulary import Reach
 
 BUDGET_FEATURE = "../../features/budget-and-resume.feature"
 WORLD_FEATURE = "../../features/world-validation.feature"
+STOPPING_BUDGET = 0.05
+STOPPING_REPS = 100
+RAISED_BUDGET = 0.10
 RUN_ARGUMENTS = ["plan.json", "--agent", "fake"]
 ROOMY_BUDGET = 1.0
 DEFAULT_COST = 0.01
@@ -70,6 +76,49 @@ def test_an_aborted_plan_gets_no_verdict(world):
 @scenario(BUDGET_FEATURE, "No verdict before the plan is Complete or BudgetStopped")
 def test_no_verdict_before_the_plan_is_complete_or_budget_stopped(world):
     assert world["exit_code"] == 1 and "still running" in world["message"], f"got {world['exit_code']} and {world['message']!r}. Rule: L5. Fix: refuse analyze while Running."
+
+
+@scenario(BUDGET_FEATURE, "A BudgetStopped plan resumes with a higher budget")
+def test_L10_a_budget_stopped_plan_resumes_with_a_higher_budget(world):
+    assert world["resumed"] is PlanState.RUNNING, f"the resume must end Running, got {world['resumed']}. Rule: L10. Fix: resume a BudgetStopped plan with a higher budget."
+    assert world["reach_after"] == world["reach_before"] and world["reach_before"], f"reachability must be kept, got {world['reach_before']} then {world['reach_after']}"
+
+
+@scenario(BUDGET_FEATURE, "A Complete plan cannot resume")
+def test_L10_a_complete_plan_cannot_resume(world):
+    assert world["exit_code"] == 1 and "nothing to resume" in world["message"], f"got {world['exit_code']} and {world['message']!r}. Rule: L10. Fix: refuse a resume from Complete."
+
+
+@scenario(BUDGET_FEATURE, "A BudgetStopped plan with a changed world cannot resume")
+def test_L10_a_budget_stopped_plan_with_a_changed_world_cannot_resume(world):
+    assert world["exit_code"] == 1 and world_changed(world["site"].root, world["site"].world_dir), f"the resume must fail on a changed world, got {world['exit_code']}. Rule: L10. Fix: check the world hash."
+
+
+@scenario(BUDGET_FEATURE, "A plan that differs from the stored plan in more than the budget cannot resume")
+def test_L10_a_plan_that_differs_from_the_stored_plan_in_more_than_the_budget_cannot_resume(world):
+    assert world["exit_code"] == 1 and "A-FP" in world["message"], f"got {world['exit_code']} and {world['message']!r}. Rule: A-FP. Fix: compare the fingerprint."
+
+
+@scenario(BUDGET_FEATURE, "An analyzed plan cannot resume")
+def test_L10_an_analyzed_plan_cannot_resume(world):
+    assert world["exit_code"] == 1 and "plan is Analyzed" in world["message"], f"got {world['exit_code']} and {world['message']!r}. Rule: L10. Fix: refuse a resume after analyze."
+
+
+@scenario(BUDGET_FEATURE, "Analyze on a BudgetStopped plan warns that it ends resume")
+def test_L10_analyze_on_a_budget_stopped_plan_warns_that_it_ends_resume(world):
+    assert "analyze ends resume" in world["message"], f"the warning is missing, got {world['message']!r}. Rule: L10. Fix: warn before analyze ends resume."
+    assert world["exit_code"] == 2, f"analyze keeps its exit code, got {world['exit_code']}"
+
+
+@scenario(BUDGET_FEATURE, "A resume with a budget that is not higher is refused")
+def test_L11_a_resume_with_a_budget_that_is_not_higher_is_refused(world):
+    assert world["exit_code"] == 1 and "L11" in world["message"], f"got {world['exit_code']} and {world['message']!r}. Rule: L11. Fix: require a strictly higher budget."
+
+
+@scenario(BUDGET_FEATURE, "A resumed plan is not marked as ended")
+def test_L12_a_resumed_plan_is_not_marked_as_ended(world):
+    assert read_resume(folder_in(world)).ended_by == "none", f"a Running plan is marked as ended: {read_resume(folder_in(world))}. Rule: L12. Fix: reset the ended marker on resume."
+    assert world["resumed"] is PlanState.RUNNING, f"got {world['resumed']}"
 
 
 @scenario(WORLD_FEATURE, "Runs do not start after a world change until the world is validated again")
@@ -236,6 +285,7 @@ def abort_the_plan(world, monkeypatch, capsys):
 def run_analyze(world, monkeypatch, capsys):
     monkeypatch.chdir(world["site"].root)
     world["exit_code"], _, world["message"] = run_cli(capsys, ["analyze", "plan.json"])
+    world["states_seen"].add(read_state(folder_in(world)).value)
 
 
 @then("the start is refused")
@@ -303,3 +353,115 @@ def no_new_run_is_started(world):
 @then("no run is started")
 def no_run_is_started(world):
     assert world["runs"] == (), f"no run may start, got {world['runs']}"
+
+
+def stopped_world(world, tmp_path):
+    world["site"] = ready_site(tmp_path, spec_in(world, 1, STOPPING_BUDGET, STOPPING_REPS))
+    outcome = execute_plan(run_setup(world["site"]), observing_runner(world))
+    assert outcome is PlanState.BUDGET_STOPPED, f"the plan must stop at the budget, got {outcome}"
+    world["reach_before"] = read_reach(folder_in(world))
+
+
+def resume_with(world, budget):
+    site = with_budget(world["site"], budget)
+    try:
+        resume_if_stopped(site)
+        world["resumed"] = start_running(site)
+        world["exit_code"] = 0
+        world["message"] = ""
+    except LifecycleRefused as refusal:
+        world["resumed"] = None
+        world["exit_code"] = cli.EXIT_DOMAIN_FAILURE
+        world["message"] = str(refusal)
+    world["reach_after"] = read_reach(folder_in(world))
+
+
+@given(parsers.parse('the plan state is "BudgetStopped" with a budget of {budget:f}'))
+def budget_stopped_with_budget(world, tmp_path, budget):
+    assert math.isclose(budget, STOPPING_BUDGET), f"the scenario budget {budget} must stop the plan, expected {STOPPING_BUDGET}"
+    stopped_world(world, tmp_path)
+
+
+@given('the plan state is "BudgetStopped"')
+def budget_stopped(world, tmp_path):
+    stopped_world(world, tmp_path)
+    assert read_state(folder_in(world)) is PlanState.BUDGET_STOPPED, f"got {read_state(folder_in(world))}"
+
+
+@given('the plan state is "Complete"')
+def complete_plan(world, tmp_path):
+    world["site"] = ready_site(tmp_path, spec_in(world, 1, ROOMY_BUDGET, 2))
+    execute_plan(run_setup(world["site"]), observing_runner(world))
+    assert read_state(folder_in(world)) is PlanState.COMPLETE, f"got {read_state(folder_in(world))}"
+
+
+@given('the plan state is "BudgetStopped" and the plan is marked as ended by the budget')
+def budget_stopped_and_ended(world, tmp_path):
+    stopped_world(world, tmp_path)
+    assert read_resume(folder_in(world)).ended_by == "BudgetStopped", f"got {read_resume(folder_in(world))}"
+
+
+@given("the world hash is unchanged since validation")
+def world_hash_unchanged(world):
+    assert not world_changed(world["site"].root, world["site"].world_dir), f"the world {world['site'].world_dir} changed since validation"
+
+
+@given("the plan is identical except for budget_usd")
+def plan_identical_except_budget(world):
+    assert plan_fingerprint(with_budget(world["site"], RAISED_BUDGET).plan) == read_resume(folder_in(world)).fingerprint, f"the plan {world['site'].plan.name} differs from the stored fingerprint {read_resume(folder_in(world)).fingerprint}"
+
+
+@given("the world hash changed since validation")
+def world_hash_changed(world):
+    edit_world(world["site"])
+    assert world_changed(world["site"].root, world["site"].world_dir), f"the edit of {world['site'].world_dir} left the world hash unchanged"
+
+
+@given("the plan fingerprint differs from the stored fingerprint")
+def fingerprint_differs(world):
+    world["site"] = replace(world["site"], plan=replace(world["site"].plan, reps=world["site"].plan.reps + 1))
+    assert plan_fingerprint(world["site"].plan) != read_resume(folder_in(world)).fingerprint, f"reps {world['site'].plan.reps} left the plan matching the stored fingerprint {read_resume(folder_in(world)).fingerprint}"
+
+
+@given("a BudgetStopped plan that I analyzed")
+def analyzed_budget_stopped_plan(world, tmp_path):
+    stopped_world(world, tmp_path)
+    move_to(folder_in(world), PlanState.ANALYZED)
+    assert read_state(folder_in(world)) is PlanState.ANALYZED, f"got {read_state(folder_in(world))}"
+
+
+@when(parsers.parse("I resume the plan with a budget of {budget:f}"))
+def resume_with_budget(world, budget):
+    resume_with(world, budget)
+
+
+@when("I resume the plan with a higher budget")
+def resume_with_higher_budget(world):
+    resume_with(world, RAISED_BUDGET)
+
+
+@then("the reachability results are kept")
+def reachability_kept(world):
+    assert world["reach_after"] == world["reach_before"], f"reachability changed from {world['reach_before']} to {world['reach_after']}"
+    assert world["reach_after"], "the plan must hold reachability results"
+
+
+@then(parsers.re(r"the plan is (?:no longer|not) marked as ended"))
+def plan_not_marked_as_ended(world):
+    assert read_resume(folder_in(world)).ended_by == "none", f"the plan is marked as ended: {read_resume(folder_in(world))}"
+    assert read_state(folder_in(world)) is PlanState.RUNNING, f"got {read_state(folder_in(world))}"
+
+
+@then("the message says the world must be validated again")
+def message_says_validate_again(world):
+    assert "must be validated again" in world["message"], f"got {world['message']!r}"
+
+
+@then("the output warns that analyze ends resume")
+def output_warns_analyze_ends_resume(world):
+    assert "analyze ends resume" in world["message"], f"got {world['message']!r}"
+
+
+@then(parsers.parse("the budget stays {budget:f}"))
+def budget_stays(world, budget):
+    assert math.isclose(read_resume(folder_in(world)).budget_usd, budget), f"the stored budget is {read_resume(folder_in(world)).budget_usd}, expected {budget}"

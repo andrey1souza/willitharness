@@ -1,5 +1,6 @@
 TESTS = (
     'tests/unit/test_lifecycle_unit.py',
+    'tests/unit/test_resume_unit.py',
     'tests/gates/test_lifecycle_gate.py',
     'tests/property/test_lifecycle_chaos.py',
     'tests/bdd/test_lifecycle_scenarios.py',
@@ -33,4 +34,10 @@ MUTANTS = (
     ('aborted-plan-may-leave-aborted', SOURCE, 'PlanState.ABORTED: frozenset(),', 'PlanState.ABORTED: frozenset({PlanState.RUNNING}),'),
     ('analyzed-plan-may-be-aborted', SOURCE, 'PlanState.ANALYZED: frozenset({PlanState.REPORTED}),', 'PlanState.ANALYZED: frozenset({PlanState.REPORTED, PlanState.ABORTED}),'),
     ('finish-after-abort-writes-again', SOURCE, 'if started is None or started.state is not RunState.STARTED:', 'if started is None:'),
+    ('resume-from-complete', SOURCE, '        if state is not PlanState.BUDGET_STOPPED:\n            raise LifecycleRefused(f"plan is {state}; only a BudgetStopped plan resumes.', '        if False:\n            raise LifecycleRefused(f"plan is {state}; only a BudgetStopped plan resumes.'),
+    ('resume-budget-not-required-higher', SOURCE, '        if to_money(site.plan.budget_usd) <= to_money(stored.budget_usd):', '        if False:'),
+    ('resume-equal-budget-allowed', SOURCE, '        if to_money(site.plan.budget_usd) <= to_money(stored.budget_usd):', '        if to_money(site.plan.budget_usd) < to_money(stored.budget_usd):'),
+    ('resume-keeps-ended-marker', SOURCE, 'write_resume(folder, ResumeRecord(site.plan.budget_usd, stored.fingerprint, NOT_ENDED))', 'write_resume(folder, ResumeRecord(site.plan.budget_usd, stored.fingerprint, stored.ended_by))'),
+    ('resume-without-world-check', SOURCE, '        if not world_is_validated(site):\n            raise LifecycleRefused(RESUME_WORLD_REFUSED)', '        if False:\n            raise LifecycleRefused(RESUME_WORLD_REFUSED)'),
+    ('resume-without-fingerprint-check', SOURCE, '        if plan_fingerprint(site.plan) != stored.fingerprint:', '        if False:'),
 )
