@@ -139,7 +139,7 @@ def test_attempts_in_flight_count_toward_the_attempt_cap():
 
 
 def test_a_plan_without_reps_resumes_to_twenty_runs_per_cell():
-    plan = load_plan({"schema": 1, "name": "p", "budget_usd": 1.0, "run_cap_usd": 0.02, "arms": [{"label": "B", "role": "rule", "overlay": "o"}]})
+    plan = load_plan({"schema": 1, "name": "p", "budget_usd": 1.0, "run_cap_usd": 0.02, "world": "world/", "arms": [{"label": "B", "role": "rule", "overlay": "o"}]})
     facts = facts_from_plan(plan, ("stop-server",))
     assert facts.reps == 20, f"a plan with no reps must default to 20, got {facts.reps}"
     assert facts.max_retries == 2, f"a plan with no max_retries must default to 2, got {facts.max_retries}"

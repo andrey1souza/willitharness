@@ -3,6 +3,7 @@
   "name": "pilot-no-pkill",
   "budget_usd": 2.0,
   "run_cap_usd": 0.5,
+  "world": "world/",
   "arms": [
     {
       "label": "C",

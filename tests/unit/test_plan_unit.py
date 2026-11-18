@@ -1,9 +1,10 @@
 import copy
+import json
 
 import pytest
 
 from willitharness import plan
-from willitharness.plan import PlanError, load_plan
+from willitharness.plan import PlanError, load_plan, read_plan
 
 EXPECTED_DEFAULT_REPS = 20
 EXPECTED_MAX_RETRIES = 2
@@ -15,6 +16,7 @@ VALID = {
     "name": "pilot",
     "budget_usd": BUDGET,
     "run_cap_usd": RUN_CAP,
+    "world": "world/",
     "arms": [
         {"label": "C", "role": "leave_one_out", "overlay": "arms/C"},
         {"label": "C2", "role": "noise_of:C", "overlay": "arms/C"},
@@ -131,3 +133,32 @@ def test_zero_reps_are_rejected():
 def test_another_schema_version_is_rejected():
     message = rejection(changed({"schema": 2}))
     assert "schema is 2" in message, f"unexpected message {message!r}"
+
+
+def test_a_plan_without_a_world_is_rejected_with_a_rule_and_a_fix():
+    data = changed({})
+    del data["world"]
+    message = rejection(data)
+    assert "world" in message and "Rule:" in message and "Fix:" in message, f"got {message!r}"
+
+
+def test_a_plan_with_an_empty_or_non_text_world_is_rejected():
+    for bad_world in ("", 7, None):
+        message = rejection(changed({"world": bad_world}))
+        assert "Rule:" in message and "Fix:" in message, f"world {bad_world!r} gave {message!r}"
+
+
+def test_a_plan_whose_world_escapes_the_root_is_refused_when_read(tmp_path):
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "plan.json").write_text(json.dumps(changed({"world": "../elsewhere"})))
+    with pytest.raises(PlanError) as raised:
+        read_plan(project, "plan.json")
+    assert "outside" in str(raised.value) and "Fix:" in str(raised.value), f"got {raised.value}"
+
+
+def test_a_plan_whose_world_stays_inside_the_root_is_read(tmp_path):
+    (tmp_path / "plan.json").write_text(json.dumps(VALID))
+    loaded = read_plan(tmp_path, "plan.json")
+    assert loaded.world == VALID["world"], f"got {loaded.world!r}"
+    assert loaded.name == VALID["name"], f"got {loaded.name!r}"

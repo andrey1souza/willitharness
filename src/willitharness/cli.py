@@ -29,7 +29,7 @@ EXIT_BUDGET_STOPPED = 4
 USAGE = (
     "usage: willitharness plan check <plan.json> | willitharness world check <world-dir> "
     "| willitharness probe --agent fake|claude --directory D --runs N --target-token T --control-token C [--boundary B --seed S] [--model M] "
-    "| willitharness run <plan.json> --world <world-dir> --agent fake | willitharness abort <plan.json> | willitharness analyze <plan.json>"
+    "| willitharness run <plan.json> --agent fake | willitharness abort <plan.json> | willitharness analyze <plan.json>"
 )
 EXIT_CODES = (EXIT_OK, EXIT_DOMAIN_FAILURE, EXIT_USAGE, EXIT_BUDGET_STOPPED)
 FAKE_RUN_COST_USD = 0.01
@@ -131,13 +131,14 @@ def fake_cell_runner(cell, rep, attempt):
 RUN_RUNNERS = {"fake": fake_cell_runner}
 
 
-def plan_site_from(root, plan_name, world_name):
+def plan_site_from(root, plan_name):
     assert isinstance(root, Path), f"plan_site_from needs a Path root, got {root!r}. Fix: pass the project directory."
-    assert plan_name and world_name, f"plan_site_from needs a plan and a world, got {plan_name!r} and {world_name!r}. Fix: pass both."
-    world_dir = inside(root, world_name)
+    assert plan_name, "plan_site_from needs a plan file name. Fix: pass the path of a plan.json."
+    plan = read_plan(root, plan_name)
+    world_dir = inside(root, plan.world)
     if not world_dir.is_dir():
-        raise WorldError(f"world directory {world_dir} does not exist. Rule: a world is a directory of stubs. Fix: pass the path of a world directory.")
-    return PlanSite(root, read_plan(root, plan_name), world_dir)
+        raise WorldError(f"world directory {world_dir} does not exist. Rule: a world is a directory of stubs. Fix: create the directory the plan names in world.")
+    return PlanSite(root, plan, world_dir)
 
 
 def run_report(site, state):
@@ -156,12 +157,11 @@ def run_plan_command(argv, runners):
     assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
     parser = argparse.ArgumentParser(prog="willitharness run")
     parser.add_argument("plan")
-    parser.add_argument("--world", required=True)
     parser.add_argument("--agent", choices=sorted(runners), required=True)
     parser.add_argument("--timeout-seconds", type=float, default=DEFAULT_RUN_TIMEOUT_SECONDS)
     arguments = parser.parse_args(argv)
     try:
-        site = plan_site_from(Path.cwd(), arguments.plan, arguments.world)
+        site = plan_site_from(Path.cwd(), arguments.plan)
         tasks = tuple(sorted(task_commands(site.world_dir)))
         if not tasks:
             raise WorldError(NO_TASKS)

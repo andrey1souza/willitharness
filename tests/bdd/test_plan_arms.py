@@ -5,7 +5,7 @@ from willitharness.plan import PlanError, load_plan
 
 scenarios("../../features/plan-arms.feature")
 
-BASE_PLAN = {"schema": 1, "name": "channels", "budget_usd": 2.0, "run_cap_usd": 0.5}
+BASE_PLAN = {"schema": 1, "name": "channels", "budget_usd": 2.0, "run_cap_usd": 0.5, "world": "world/"}
 
 
 @given(parsers.parse('a plan with a leave-one-out arm "{label}"'))

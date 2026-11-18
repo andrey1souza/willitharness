@@ -37,6 +37,7 @@ class Plan:
     run_cap_usd: float
     reps: int
     max_retries: int
+    world: str
     arms: tuple[Arm, ...]
 
 
@@ -120,6 +121,9 @@ def load_plan(data):
     name = data.get("name")
     if not isinstance(name, str) or not name:
         raise PlanError(f"name is {name!r}. Rule: a plan has a name. Fix: set name in the plan.")
+    world = data.get("world")
+    if not isinstance(world, str) or not world:
+        raise PlanError(f"world is {world!r}. Rule: a plan names its world directory. Fix: set world in the plan, for example \"world/\".")
     budget = positive_number(data, "budget_usd")
     run_cap = positive_number(data, "run_cap_usd")
     if run_cap > budget:
@@ -135,6 +139,7 @@ def load_plan(data):
         run_cap_usd=run_cap,
         reps=whole_number(data, "reps", DEFAULT_REPS, 1),
         max_retries=whole_number(data, "max_retries", MAX_RETRIES, 0),
+        world=world,
         arms=arms,
     )
     assert loaded.run_cap_usd <= loaded.budget_usd, f"load_plan built {loaded!r}, but one run may not cost more than the budget"
@@ -156,5 +161,9 @@ def read_plan(root, name):
     except json.JSONDecodeError as error:
         raise PlanError(f"{path} is not valid JSON ({error}). Rule: a plan is JSON. Fix: correct the file.") from error
     loaded = load_plan(data)
+    try:
+        inside(root, loaded.world)
+    except PathOutsideRoot as error:
+        raise PlanError(f"world {loaded.world!r} is outside the project. Rule: a plan's world stays inside the project root. Fix: point world at a directory under the project.") from error
     assert isinstance(loaded, Plan), f"load_plan returned {loaded!r}, not a Plan"
     return loaded

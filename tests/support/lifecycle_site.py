@@ -30,6 +30,7 @@ def plan_data(spec):
     return {
         "schema": SCHEMA_VERSION,
         "name": "demo",
+        "world": WORLD_NAME,
         "budget_usd": spec.budget_usd,
         "run_cap_usd": spec.run_cap_usd,
         "reps": spec.reps,

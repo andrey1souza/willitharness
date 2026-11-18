@@ -13,7 +13,7 @@ TIGHT = SiteSpec(arm_count=1, budget_usd=0.05, run_cap_usd=0.02, reps=100, max_r
 ROOMY = SiteSpec(arm_count=2, budget_usd=1.0, run_cap_usd=0.02, reps=2, max_retries=0)
 FOUR_ARMS = SiteSpec(arm_count=4, budget_usd=1.0, run_cap_usd=0.02, reps=1, max_retries=0)
 PARALLEL = SiteSpec(arm_count=1, budget_usd=0.10, run_cap_usd=0.02, reps=20, max_retries=0)
-RUN_ARGUMENTS = ["run", "plan.json", "--world", "world", "--agent", "fake"]
+RUN_ARGUMENTS = ["run", "plan.json", "--agent", "fake"]
 
 
 def state_file(site):

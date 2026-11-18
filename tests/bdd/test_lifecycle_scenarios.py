@@ -12,7 +12,7 @@ from willitharness.vocabulary import Reach
 
 BUDGET_FEATURE = "../../features/budget-and-resume.feature"
 WORLD_FEATURE = "../../features/world-validation.feature"
-RUN_ARGUMENTS = ["plan.json", "--world", "world", "--agent", "fake"]
+RUN_ARGUMENTS = ["plan.json", "--agent", "fake"]
 ROOMY_BUDGET = 1.0
 DEFAULT_COST = 0.01
 DEFAULT_RUN_CAP = 0.02

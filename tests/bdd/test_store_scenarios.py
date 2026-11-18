@@ -201,7 +201,7 @@ def the_exit_code_is(world, code):
 
 @given("a plan that sets no reps")
 def plan_without_reps(world):
-    world["data"] = {"schema": 1, "name": "p", "budget_usd": 1.0, "run_cap_usd": 0.02, "arms": [{"label": "B", "role": "rule", "overlay": "o"}]}
+    world["data"] = {"schema": 1, "name": "p", "budget_usd": 1.0, "run_cap_usd": 0.02, "world": "world/", "arms": [{"label": "B", "role": "rule", "overlay": "o"}]}
     assert "reps" not in world["data"], f"the plan sets reps: {world['data']}"
 
 

@@ -69,7 +69,8 @@ Plan (`plan.json`):
 }
 ```
 Rules for the plan loader: `reps` defaults to 20; `max_retries` defaults to 2; a
-`noise_of:<label>` arm must repeat the arm with role `leave_one_out`; a plan with
+`noise_of:<label>` arm must repeat the arm with role `leave_one_out`; `world` is required and
+names a directory inside the project root (`run` takes no `--world` flag); a plan with
 an effect question must have the noise repeat (L8).
 
 Run record (one line of `runs.jsonl`, append only). States: Started,

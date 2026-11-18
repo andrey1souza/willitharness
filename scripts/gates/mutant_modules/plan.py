@@ -14,5 +14,7 @@ MUTANTS = (
     ('two-loo-arms-allowed', 'src/willitharness/plan.py', 'if len(leave_one_out) > 1:', 'if len(leave_one_out) > 2:'),
     ('repeated-labels-allowed-once', 'src/willitharness/plan.py', 'labels.count(label) > 1', 'labels.count(label) > 2'),
     ('unknown-channel-accepted', 'src/willitharness/plan.py', 'if channel not in CHANNELS:', 'if False:'),
+    ('world-presence-check-dropped', 'src/willitharness/plan.py', 'if not isinstance(world, str) or not world:', 'if False:'),
+    ('world-escape-check-dropped', 'src/willitharness/plan.py', '        inside(root, loaded.world)\n', '        pass\n'),
     ('default-channel-changed', 'src/willitharness/plan.py', 'DEFAULT_CHANNEL = "file"', 'DEFAULT_CHANNEL = "hook"'),
 )
