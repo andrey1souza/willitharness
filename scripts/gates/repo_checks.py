@@ -9,6 +9,7 @@ from pathlib import Path
 
 import mutant_tables
 import trace_check
+import workflow_checks
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EXIT_PASSED = 0
@@ -150,6 +151,7 @@ CHECKS = {
     "mutant-tables": registered_mutant_errors,
     "trace-pending": pending_errors,
     "no-tracked-generated": tracked_generated_errors,
+    **workflow_checks.CHECKS,
 }
 
 
