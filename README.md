@@ -18,6 +18,13 @@ being built milestone by milestone (see `docs/plan/03-milestones-and-checkpoints
 3. **Guard.** Would a script that blocks the command do as well?
 4. **Side effects.** What else changed?
 
+## How work lands (trunk-based development)
+`main` is the trunk. Nobody commits on it. Work happens on a short-lived branch named
+`type/slug` (`feat`, `fix`, `chore`, `docs`, `test`), at most 10 commits and 24 hours
+old. `python3 scripts/guards/integrate.py` rebases the branch on `main`, runs
+`make check`, fast-forwards `main` and deletes the branch, so the history stays
+linear and `main` stays green. The hooks enforce this: `scripts/guards/trunk.py`.
+
 ## What is here
 | Path | What |
 |---|---|

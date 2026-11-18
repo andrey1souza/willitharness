@@ -1,6 +1,6 @@
 # 07. Task backlog
 
-58 tasks in dependency order (contract v0.3). Each is a BDD story with Given, When,
+59 tasks in dependency order (contract v0.3). Each is a BDD story with Given, When,
 Then acceptance, the contract IDs it covers, a gate from file 03, a size and its
 dependencies. Sizes: S under half a day, M about a day, L two or three days. A task
 is done when its gate passes with its bad input rejected.
@@ -392,3 +392,10 @@ As a maintainer, I want the inherited zanity findings removed, so that no agent 
 - Done: the 30 findings in the legacy formal helper scripts were fixed, the baseline file was deleted, and CI, both hooks and the Makefile run `zanity check . --fail-on warning` with no baseline and no disabled rule.
 - Given a `zanity-baseline.json` in the tree, then `repo_checks` fails.
 - IDs: none. Gate: repo checks. Deps: none.
+
+### T59. Trunk-based development (S)
+As a maintainer, I want every change to reach `main` through a short-lived branch and one script, so that `main` is always green and the history is linear.
+- Given a commit on `main`, then the pre-commit hook refuses it and names the fix.
+- Given a branch older than 24 hours or more than 10 commits ahead, then the commit and the push are refused.
+- Given a branch with green checks, when I run `scripts/guards/integrate.py`, then `main` fast-forwards to it and the branch is deleted. Given failing checks or a rebase conflict, then `main` and the branch stay untouched.
+- IDs: none. Gate: guard tests. Deps: none.

@@ -111,6 +111,26 @@ GUARD_MUTANTS = (
     ("lower-completed-verdict-accepted", GUARD, "NOT_MATCHING_COMPLETED_VERDICTS = frozenset({Verdict.FIRST_LOWER})", "NOT_MATCHING_COMPLETED_VERDICTS = frozenset()"),
 )
 
+TRUNK_TESTS = ("tests/guards/test_trunk.py", "tests/guards/test_integrate.py")
+TRUNK = "scripts/guards/trunk.py"
+INTEGRATE = "scripts/guards/integrate.py"
+
+TRUNK_MUTANTS = (
+    ("commit-on-main-allowed", TRUNK, "    if branch == TRUNK:\n        return [", "    if False:\n        return ["),
+    ("branch-size-limit-off-by-one", TRUNK, "if len(timestamps) > MAX_BRANCH_COMMITS:", "if len(timestamps) > MAX_BRANCH_COMMITS + 1:"),
+    ("branch-age-limit-doubled", TRUNK, "MAX_BRANCH_AGE_HOURS = 24", "MAX_BRANCH_AGE_HOURS = 48"),
+    ("merge-commits-allowed", TRUNK, '["rev-list", "--merges", TRUNK]', '["rev-list", "--max-count=0", TRUNK]'),
+    ("any-branch-name-accepted", TRUNK, "if not BRANCH_PATTERN.match(branch):", "if False:"),
+    ("any-ref-pushable", TRUNK, "if name == TRUNK or BRANCH_PATTERN.match(name):", "if True:"),
+)
+
+INTEGRATE_MUTANTS = (
+    ("checks-skipped", INTEGRATE, "    run_branch_checks(repo, command)\n", "    pass\n"),
+    ("rebase-skipped", INTEGRATE, "    rebase_on_trunk(repo, branch)\n", "    pass\n"),
+    ("dirty-tree-allowed", INTEGRATE, "    if dirty:\n", "    if False:\n"),
+    ("branch-kept-after-merge", INTEGRATE, '    run_checked(repo, ["git", "branch", "-d", branch])\n', "    pass\n"),
+)
+
 MODULES = {
     "stats": (STATS_TESTS, STATS_MUTANTS),
     "plan": (PLAN_TESTS, PLAN_MUTANTS),
@@ -119,4 +139,6 @@ MODULES = {
     "arms": (ARMS_TESTS, ARMS_MUTANTS),
     "analysis": (ANALYSIS_TESTS, ANALYSIS_MUTANTS),
     "guard": (GUARD_TESTS, GUARD_MUTANTS),
+    "trunk": (TRUNK_TESTS, TRUNK_MUTANTS),
+    "integrate": (TRUNK_TESTS, INTEGRATE_MUTANTS),
 }

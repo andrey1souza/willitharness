@@ -9,6 +9,11 @@ def run_git(repo, arguments):
     subprocess.run(["git"] + arguments, cwd=repo, check=True, capture_output=True)
 
 
+def git_output(repo, arguments):
+    result = subprocess.run(["git"] + arguments, cwd=repo, check=True, capture_output=True, text=True)
+    return result.stdout.strip()
+
+
 def init_repo(directory, email):
     run_git(directory, ["init", "-q", "-b", "main"])
     run_git(directory, ["config", "user.email", email])

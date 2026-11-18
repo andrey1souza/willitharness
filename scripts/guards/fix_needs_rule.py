@@ -1,25 +1,16 @@
 import re
-import subprocess
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from guards.gitcommand import git_lines
 
 FIX_SUBJECT = re.compile(r"^fix(\([^)]*\))?!?:")
 CHECK_PREFIXES = ("tests/", "features/", "formal/")
 EXIT_CLEAN = 0
 EXIT_MISSING_CHECK = 1
 SHORT_SHA_LENGTH = 10
-
-
-def git_lines(repo, arguments):
-    assert isinstance(arguments, list) and arguments, (
-        "git_lines needs a non-empty list but got %r. Rule: git needs a subcommand. "
-        "Fix: pass a list such as ['rev-list', 'HEAD']." % (arguments,)
-    )
-    result = subprocess.run(["git"] + arguments, cwd=repo, capture_output=True, text=True)
-    assert result.returncode == 0, (
-        "git %s exited %r with %r. Rule: the guard reads history and cannot continue on an error. "
-        "Fix: check the revision range and the repository path." % (arguments[0], result.returncode, result.stderr)
-    )
-    return [line for line in result.stdout.splitlines() if line.strip()]
 
 
 def is_fix(subject):

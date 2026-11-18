@@ -5,6 +5,7 @@ repo_root="$(git rev-parse --show-toplevel)"
 cd "${repo_root}"
 
 python3 scripts/guards/identity.py
+python3 scripts/guards/trunk.py commit
 gitleaks git --staged --redact --no-banner
 python3 scripts/guards/private_names.py --staged
 zanity check . --fail-on warning --agent
