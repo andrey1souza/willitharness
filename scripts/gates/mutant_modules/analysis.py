@@ -31,4 +31,9 @@ MUTANTS = (
     ('warnings-always-on', 'src/willitharness/analysis.py', ', *row_warnings(rows)) if with_warnings else ()', ', *row_warnings(rows))'),
     ('pooled-rows-always-built', 'src/willitharness/analysis.py', 'if inputs.pooled else counts', 'if True else counts'),
     ('pooled-label-dropped', 'src/willitharness/analysis.py', 'label = f" {POOLED_LABEL}" if row.pooled else ""', 'label = ""'),
+    ('denied-completed-row-keeps-its-verdict', 'src/willitharness/analysis.py', 'noise, None, None, None, True)', 'noise, verdict, None, None, True)'),
+    ('denial-not-informational', 'src/willitharness/analysis.py', '    elif completed_is_informational(source, key):', '    elif False:'),
+    ('informational-tag-not-printed', 'src/willitharness/analysis.py', 'verdict = INFORMATIONAL_DENIALS if row.informational else', 'verdict = "no verdict" if row.informational else'),
+    ('only-rule-arm-denial-counts', 'src/willitharness/analysis.py', 'arms = {source.loo, key.rule}', 'arms = {key.rule}'),
+    ('denial-in-any-task-counts', 'src/willitharness/analysis.py', '(key.pooled or cell.task == key.task)', '(key.pooled or True)'),
 )

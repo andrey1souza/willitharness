@@ -42,4 +42,8 @@ MUTANTS = (
     ('prompt-edit-keeps-the-hash', 'src/willitharness/world.py', 'files = sorted(path for path in world_dir.rglob("*") if path.is_file())', 'files = sorted(path for path in world_dir.rglob("*") if path.is_file() and PROMPTS_DIR not in path.parts)'),
     ('allowlist-ignores-real-commands', 'src/willitharness/world.py', 'allowed = tuple(sorted(named | declared_real(world_dir)))', 'allowed = tuple(sorted(named))'),
     ('allowlist-ignores-task-commands', 'src/willitharness/world.py', 'allowed = tuple(sorted(named | declared_real(world_dir)))', 'allowed = tuple(sorted(declared_real(world_dir)))'),
+    ('tasks-file-not-a-control-name', 'src/willitharness/world.py', 'frozenset({TASKS_FILE, REAL_FILE, STUBS_DIR, PROMPTS_DIR})', 'frozenset({REAL_FILE, STUBS_DIR, PROMPTS_DIR})'),
+    ('real-file-not-a-control-name', 'src/willitharness/world.py', 'frozenset({TASKS_FILE, REAL_FILE, STUBS_DIR, PROMPTS_DIR})', 'frozenset({TASKS_FILE, STUBS_DIR, PROMPTS_DIR})'),
+    ('stubs-folder-not-a-control-name', 'src/willitharness/world.py', 'frozenset({TASKS_FILE, REAL_FILE, STUBS_DIR, PROMPTS_DIR})', 'frozenset({TASKS_FILE, REAL_FILE, PROMPTS_DIR})'),
+    ('prompts-folder-not-a-control-name', 'src/willitharness/world.py', 'frozenset({TASKS_FILE, REAL_FILE, STUBS_DIR, PROMPTS_DIR})', 'frozenset({TASKS_FILE, REAL_FILE, STUBS_DIR})'),
 )

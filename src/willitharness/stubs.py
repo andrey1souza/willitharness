@@ -4,10 +4,11 @@ from functools import partial
 from pathlib import Path
 
 from willitharness.paths import inside
-from willitharness.world import stub_outputs
+from willitharness.world import CONTROL_NAMES, stub_outputs
 
 BIN_NAME = "bin"
 CALLS_LOG = "calls.log"
+RESERVED_NAMES = CONTROL_NAMES | {BIN_NAME, CALLS_LOG}
 WRAPPER_MODE = 0o755
 WRAPPER_TEMPLATE = (
     "#!/bin/sh\n"
@@ -28,8 +29,8 @@ def wrapper_text(command, output, log):
 def reserved_at_top(source, directory, names):
     assert source.is_absolute(), f"{source} is not absolute. Rule: the copy compares resolved folders. Fix: pass a resolved source."
     assert isinstance(names, (list, set, tuple)), f"names is {type(names).__name__}, not a collection of entries. Fix: use this function as a copytree ignore."
-    reserved = {BIN_NAME, CALLS_LOG} & set(names) if Path(directory) == source else set()
-    assert reserved <= {BIN_NAME, CALLS_LOG}, f"reserved_at_top invented the names {reserved!r}"
+    reserved = RESERVED_NAMES & set(names) if Path(directory) == source else set()
+    assert reserved <= RESERVED_NAMES, f"reserved_at_top invented the names {reserved!r}"
     return reserved
 
 
@@ -41,16 +42,30 @@ def copy_without_reserved(source, destination):
     assert destination.is_dir(), f"{destination} was not created"
 
 
-def write_stub_wrappers(world_dir, work):
+def stub_folder(run_root):
+    assert run_root.is_absolute(), f"{run_root} is not absolute. Rule: PATH names an absolute folder. Fix: pass the resolved run folder."
+    folder = run_root / BIN_NAME
+    assert folder.parent == run_root, f"the stub folder {folder} is not directly under {run_root}"
+    return folder
+
+
+def calls_path(run_root):
+    assert run_root.is_absolute(), f"{run_root} is not absolute. Rule: the wrappers log to an absolute path. Fix: pass the resolved run folder."
+    path = run_root / CALLS_LOG
+    assert path.parent == run_root, f"the calls log {path} is not directly under {run_root}"
+    return path
+
+
+def write_stub_wrappers(world_dir, run_root):
     assert world_dir.is_dir(), f"{world_dir} is not a directory. Rule: stubs come from the world. Fix: pass the world directory."
-    assert work.is_absolute() and work.is_dir(), f"{work} must be an existing absolute directory. Rule: wrappers live in the workspace. Fix: build the workspace first."
-    bin_dir = work / BIN_NAME
-    bin_dir.mkdir()
-    log = work / CALLS_LOG
+    assert run_root.is_absolute() and run_root.is_dir(), f"{run_root} must be an existing absolute directory. Rule: wrappers live in the run folder, outside the agent's working directory. Fix: create the run folder first."
+    bin_dir = stub_folder(run_root)
+    bin_dir.mkdir(exist_ok=True)
+    log = calls_path(run_root)
     log.write_text("")
     for command, output in stub_outputs(world_dir).items():
         wrapper = inside(bin_dir, command)
         wrapper.write_text(wrapper_text(command, output, log))
         wrapper.chmod(WRAPPER_MODE)
-    assert log.is_file() and bin_dir.is_dir(), f"the stub wrappers under {work} are incomplete"
+    assert log.is_file() and bin_dir.is_dir(), f"the stub wrappers under {run_root} are incomplete"
     return bin_dir

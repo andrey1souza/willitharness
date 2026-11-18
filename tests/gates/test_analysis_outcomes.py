@@ -2,13 +2,13 @@ import pytest
 from analysis_site import FULL_ROLES, NO_PAIR_ROLES, CellShape, analysis_plan_data, analyze_site, site_with_state
 from cli_runner import run_cli
 
-from willitharness.analysis import report_lines
-from willitharness.analysis import AnalysisInput, analyze_plan
+from willitharness.analysis import INFORMATIONAL_DENIALS, AnalysisInput, analyze_plan, report_lines
 from willitharness.lifecycle import PlanState, lifecycle_dir, read_state, record_reachability
 from willitharness.outcomes import AnalysisError
 from willitharness.plan import load_plan
 from willitharness.store import Cell, Record, RunState, append_record, load_records
-from willitharness.vocabulary import Reach
+from willitharness.guard import evaluate
+from willitharness.vocabulary import Coverage, GuardResult, Reach
 
 STOP, BACKUP = "stop-server", "backup-delete"
 NOISE_OK = {Cell("C", STOP): CellShape(20, 17), Cell("C2", STOP): CellShape(20, 16), Cell("B", STOP): CellShape(20, 0)}
@@ -180,3 +180,48 @@ def test_a_plan_with_no_stored_runs_cannot_be_analyzed(tmp_path):
     with pytest.raises(AnalysisError) as raised:
         analyze_plan(AnalysisInput(plan, (), {}, False), True)
     assert "plan demo has no stored runs" in str(raised.value) and "Fix:" in str(raised.value), f"got {raised.value}"
+
+
+DENIED_RULE_ARM = {**NOISE_OK, Cell("B", STOP): CellShape(20, 0, denied=20)}
+DENIED_LOO_ARM = {**NOISE_OK, Cell("C", STOP): CellShape(20, 17, denied=20)}
+UNDENIED_RULE_ARM = {**NOISE_OK, Cell("B", STOP): CellShape(20, 0)}
+INFORMATIONAL_LINE = "completed stop-server C 19/20 against B 19/20: [informational: permission denials]; noise NoiseOk"
+PLAIN_LINE = "completed stop-server C 19/20 against B 19/20: verdict Inconclusive; noise NoiseOk"
+
+
+def target_rows(analysis):
+    return [row for row in analysis.rows if row.outcome == "attempted_violation"]
+
+
+@pytest.mark.parametrize("cells", [DENIED_RULE_ARM, DENIED_LOO_ARM])
+def test_a_denied_cell_prints_its_completed_row_as_informational_with_no_verdict(tmp_path, cells):
+    lines = report_lines(analyze_site(site_with_state(tmp_path, FULL_ROLES, (cells, PlanState.COMPLETE)), False, False))
+    completed = [line for line in lines if line.startswith("completed ")]
+    assert completed == [INFORMATIONAL_LINE], f"a denied cell must print only the informational completed row, got {completed}"
+    assert not any("verdict" in line or "effect" in line for line in completed), f"a denied completed row carries a verdict: {completed}"
+
+
+def test_an_undenied_cell_still_prints_its_completed_verdict(tmp_path):
+    lines = report_lines(analyze_site(site_with_state(tmp_path, FULL_ROLES, (UNDENIED_RULE_ARM, PlanState.COMPLETE)), False, False))
+    assert PLAIN_LINE in lines and INFORMATIONAL_LINE not in lines, f"an undenied cell keeps its completed verdict, got {lines}"
+
+
+def test_denials_never_change_an_attempted_violation_row(tmp_path):
+    denied = analyze_site(site_with_state(tmp_path / "denied", FULL_ROLES, (DENIED_RULE_ARM, PlanState.COMPLETE)), False, True)
+    clean = analyze_site(site_with_state(tmp_path / "clean", FULL_ROLES, (UNDENIED_RULE_ARM, PlanState.COMPLETE)), False, True)
+    assert target_rows(denied) == target_rows(clean) and target_rows(clean), f"denials changed an attempted_violation row: {target_rows(denied)} against {target_rows(clean)}"
+    assert any("W-DENIAL" in line for line in denied.warnings) and not any("W-DENIAL" in line for line in clean.warnings), f"the check needs the denial on one side only, got {denied.warnings} and {clean.warnings}"
+
+
+def test_a_denied_completed_row_gives_the_guard_no_verdict_to_match_on(tmp_path):
+    analysis = analyze_site(site_with_state(tmp_path, FULL_ROLES, (DENIED_RULE_ARM, PlanState.COMPLETE)), False, False)
+    (row,) = [row for row in analysis.rows if row.outcome == "completed"]
+    result = evaluate(row.verdict, Coverage.FULL, True)
+    assert row.verdict is None and result is GuardResult.GUARD_UNTESTED, f"a denied completed row must leave the guard untested, got {row.verdict} and {result}"
+
+
+def test_a_denial_in_one_task_leaves_the_completed_row_of_another_task_alone(tmp_path):
+    cells = {**TWO_TASKS, Cell("B", BACKUP): CellShape(20, 2, denied=20)}
+    lines = report_lines(analyze_site(site_with_state(tmp_path, FULL_ROLES, (cells, PlanState.COMPLETE)), False, False))
+    assert "completed stop-server C 19/20 against B 19/20: verdict Inconclusive; noise NoiseOk" in lines, f"the stop-server cell has no denial, got {lines}"
+    assert any(line.startswith("completed backup-delete") and INFORMATIONAL_DENIALS in line for line in lines), f"the denied task must be informational, got {lines}"

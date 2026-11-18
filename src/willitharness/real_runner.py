@@ -16,7 +16,7 @@ from willitharness.isolation import agent_environment, sandbox_profile, sandboxe
 from willitharness.lifecycle import TIMED_OUT, PlanState, RunSetup, finished, lifecycle_dir, read_state
 from willitharness.paths import PathOutsideRoot, inside
 from willitharness.plan import PlanError, has_guard_arm
-from willitharness.stubs import BIN_NAME, CALLS_LOG, copy_without_reserved, write_stub_wrappers
+from willitharness.stubs import calls_path, copy_without_reserved, stub_folder, write_stub_wrappers
 from willitharness.world import allowed_commands, prompt_text
 
 POLL_SECONDS = 0.05
@@ -141,7 +141,7 @@ def build_workspace(site, arm_label, run_root):
     work = run_root / WORK_NAME
     copy_without_reserved(site.world_dir, work)
     copy_without_reserved(inside(site.root, arms[arm_label].overlay), work)
-    write_stub_wrappers(site.world_dir, work)
+    write_stub_wrappers(site.world_dir, run_root)
     (run_root / SCRATCH_NAME).mkdir()
     assert work.is_dir() and (run_root / SCRATCH_NAME).is_dir(), f"the workspace under {run_root} is incomplete"
     return work
@@ -156,7 +156,7 @@ def agent_config_directory(environ, home):
 
 def writable_extras(run_root, environ, home):
     assert run_root.is_dir(), f"{run_root} is not a directory. Fix: pass the run folder."
-    extras = (run_root / SCRATCH_NAME, agent_config_directory(environ, home), home / HOME_STATE_NAME)
+    extras = (run_root / SCRATCH_NAME, calls_path(run_root), agent_config_directory(environ, home), home / HOME_STATE_NAME)
     assert all(path.is_absolute() for path in extras), f"an extra writable path is relative: {extras!r}. Fix: use absolute paths."
     return extras
 
@@ -218,21 +218,22 @@ def watch(process, deadline, folder):
             LIVE_GROUPS.discard(process.pid)
 
 
-def run_environment(work, run_root, environ):
-    assert work.is_dir() and run_root.is_dir(), f"{work} and {run_root} must be directories. Fix: build the workspace first."
+def run_environment(run_root, environ):
+    assert run_root.is_dir(), f"{run_root} is not a directory. Fix: build the workspace first."
+    assert stub_folder(run_root).is_dir(), f"{stub_folder(run_root)} is not a directory. Rule: the wrappers exist before the run starts. Fix: write them first."
     scrubbed = agent_environment(environ)
-    path = os.pathsep.join([str(work / BIN_NAME), scrubbed[PATH_VARIABLE]])
+    path = os.pathsep.join([str(stub_folder(run_root)), scrubbed[PATH_VARIABLE]])
     scratch = str(run_root / SCRATCH_NAME)
     environment = {**scrubbed, PATH_VARIABLE: path, TEMP_VARIABLE: scratch, CLAUDE_TEMP_VARIABLE: scratch}
-    assert environment[PATH_VARIABLE].startswith(str(work / BIN_NAME)), f"the stub folder is not first on PATH: {environment[PATH_VARIABLE]!r}"
+    assert environment[PATH_VARIABLE].startswith(str(stub_folder(run_root))), f"the stub folder is not first on PATH: {environment[PATH_VARIABLE]!r}"
     return environment
 
 
-def calls_text(work):
-    assert work.is_dir(), f"{work} is not a directory. Fix: pass the workspace."
-    log = work / CALLS_LOG
+def calls_text(run_root):
+    assert run_root.is_dir(), f"{run_root} is not a directory. Fix: pass the run folder."
+    log = calls_path(run_root)
     text = log.read_text() if log.is_file() else ""
-    assert isinstance(text, str), f"the calls log of {work} is not text"
+    assert isinstance(text, str), f"the calls log of {run_root} is not text"
     return text
 
 
@@ -254,10 +255,10 @@ def run_cell(runner, cell, rep, attempt):
         run_root = Path(directory).resolve()
         work = build_workspace(site, cell.arm, run_root)
         profile = sandbox_profile(work, home, writable_extras(run_root, os.environ, home))
-        environment = run_environment(work, run_root, os.environ)
+        environment = run_environment(run_root, os.environ)
         command = build_command(prompt, runner.model, site.plan.run_cap_usd, policy)
         deadline = time.monotonic() + runner.setup.timeout_seconds
         output = watch(start_agent(command, profile, work, environment), deadline, lifecycle_dir(site.root, site.plan))
-        calls = calls_text(work)
+        calls = calls_text(run_root)
         keep_run(site, RunKey(cell, rep, attempt), RunArtifacts(output or "", calls), environment)
     return TIMED_OUT if output is None else finished(output.splitlines(), calls)

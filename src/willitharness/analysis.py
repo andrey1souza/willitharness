@@ -4,7 +4,7 @@ from typing import NamedTuple
 from willitharness.counts import Counts
 from willitharness.effect import map_effect
 from willitharness.noise import NoisePair, loo_label_of, noise_pair_of, noise_status_in
-from willitharness.outcomes import OUTCOMES, TARGET_OUTCOME, AnalysisError, cell_counts, denied_cells
+from willitharness.outcomes import COMPLETED_OUTCOME, OUTCOMES, TARGET_OUTCOME, AnalysisError, cell_counts, denied_cells
 from willitharness.plan import ROLE_RULE, Plan
 from willitharness.probe import loo_arm_valid
 from willitharness.store import Cell
@@ -17,6 +17,7 @@ RULE_UNKNOWN_MESSAGE = "the rule arm's reachability is Unknown; run the probe ag
 NO_NOISE_PAIR_MESSAGE = "no noise pair; add a repeat of arm {loo} with role noise_of:{loo}"
 POOLED_TASK = "all:pooled"
 POOLED_LABEL = "[pooled]"
+INFORMATIONAL_DENIALS = "[informational: permission denials]"
 NO_COMPARISON_MESSAGE = (
     "plan {name} has no leave_one_out arm or no rule arm to compare. Rule: Q2 compares the LOO arm with a rule arm. "
     "Fix: give one arm the role leave_one_out and one arm the role rule."
@@ -92,6 +93,7 @@ class RowSource:
     loo: str
     reach: dict
     rules: tuple
+    denied: frozenset = frozenset()
 
 
 class RowKey(NamedTuple):
@@ -114,6 +116,7 @@ class Row:
     verdict: Verdict | None
     effect: EffectResult | None
     message: str | None
+    informational: bool = False
 
 
 @dataclass(frozen=True)
@@ -136,6 +139,13 @@ def has_verdict(analysis):
     return result
 
 
+def completed_is_informational(source, key):
+    assert key.outcome in OUTCOMES, f"unknown outcome {key.outcome!r}. Rule: v0 defines {OUTCOMES}. Fix: use one of them."
+    assert all(isinstance(cell, Cell) for cell in source.denied), f"denied holds a non-cell: {source.denied!r}. Fix: pass denied_cells output."
+    arms = {source.loo, key.rule}
+    return key.outcome == COMPLETED_OUTCOME and any(cell.arm in arms and (key.pooled or cell.task == key.task) for cell in source.denied)
+
+
 def build_row(source, counts, key):
     assert key.outcome in OUTCOMES, f"unknown outcome {key.outcome!r}. Rule: v0 defines {OUTCOMES}. Fix: use one of them."
     assert Cell(source.loo, key.task) in counts and Cell(key.rule, key.task) in counts, f"counts lack a cell of {key}. Fix: fill every arm and task."
@@ -147,6 +157,8 @@ def build_row(source, counts, key):
         facts = PlanFacts(source.pair is not None, noise, source.reach.get(source.loo, Reach.UNKNOWN), source.reach.get(key.rule, Reach.UNKNOWN))
         reported = analyze_effect(facts, verdict, source.loo)
         row = Row(*head, first_counts, second_counts, noise, reported.verdict, reported.effect, reported.message)
+    elif completed_is_informational(source, key):
+        row = Row(*head, first_counts, second_counts, noise, None, None, None, True)
     else:
         row = Row(*head, first_counts, second_counts, noise, verdict if noise is NoiseStatus.NOISE_OK else None, None, None)
     assert row.verdict is None or row.noise is NoiseStatus.NOISE_OK, f"V6 broken: verdict {row.verdict} with {row.noise}"
@@ -191,14 +203,14 @@ def analyze_plan(inputs, with_warnings):
     tasks = sorted({run.task for run in inputs.records})
     if not tasks:
         raise AnalysisError(NO_RUNS_MESSAGE.format(name=plan.name))
-    source = RowSource(noise_pair_of(plan), loo, inputs.reach, rules)
+    source = RowSource(noise_pair_of(plan), loo, inputs.reach, rules, denied_cells(inputs.records))
     rows, target_counts = [], {}
     for outcome in OUTCOMES:
         counts = with_all_cells(cell_counts(inputs.records, outcome), plan, tasks)
         target_counts = counts if outcome == TARGET_OUTCOME else target_counts
         shown = {**counts, **pooled_cells(counts, plan, tasks)} if inputs.pooled else counts
         rows.extend(outcome_rows(source, shown, outcome))
-    lines = (*cell_warnings(target_counts, denied_cells(inputs.records)), *row_warnings(rows)) if with_warnings else ()
+    lines = (*cell_warnings(target_counts, source.denied), *row_warnings(rows)) if with_warnings else ()
     analysis = Analysis(tuple(rows), lines)
     assert with_warnings or not analysis.warnings, f"warnings were off but {analysis.warnings} came out"
     assert analysis.rows, f"plan {plan.name} gave no rows. Rule: each task and outcome has a row."
@@ -208,7 +220,8 @@ def analyze_plan(inputs, with_warnings):
 def render_row(row):
     assert row.first and row.second, f"row {row.key} lacks an arm label. Rule: a row compares two arms."
     assert row.verdict is None or row.noise is NoiseStatus.NOISE_OK, f"V6 broken: verdict {row.verdict} with {row.noise}"
-    verdict = "no verdict" if row.verdict is None else f"verdict {row.verdict}"
+    assert not row.informational or (row.verdict is None and row.effect is None), f"a denied completed row carries a verdict: {row}. Rule: completed is informational when denials are present."
+    verdict = INFORMATIONAL_DENIALS if row.informational else "no verdict" if row.verdict is None else f"verdict {row.verdict}"
     effect = "" if row.effect is None else f"; effect {row.effect}"
     label = f" {POOLED_LABEL}" if row.pooled else ""
     first, second = row.first_counts, row.second_counts

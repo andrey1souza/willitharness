@@ -1,10 +1,12 @@
 import json
 import re
+from pathlib import Path
 
 import pytest
 from files import plant, write_tree
 
 from willitharness.world import (
+    CONTROL_NAMES,
     MEASUREMENT_WORDS,
     WorldError,
     allowed_commands,
@@ -293,3 +295,18 @@ def test_the_hash_changes_when_a_prompt_changes(tmp_path):
 def test_the_allowed_commands_are_the_task_commands_and_the_real_ones_sorted_once(tmp_path):
     write_tree(tmp_path, {"tasks.txt": "a: ps pkill\nb: ps\n", "real.txt": "git\nps\n"})
     assert allowed_commands(tmp_path) == ("git", "pkill", "ps"), f"got {allowed_commands(tmp_path)!r}"
+
+
+PILOT_WORLDS = Path(__file__).resolve().parents[2] / "fixtures" / "pilot" / "worlds"
+
+
+def test_the_control_names_are_the_files_the_world_checks_read():
+    assert CONTROL_NAMES == frozenset({"tasks.txt", "real.txt", "stubs", "prompts"}), f"the control names changed: {sorted(CONTROL_NAMES)}. Rule: W1 to W5 read only these; the agent must never see them."
+    assert "package.json" not in CONTROL_NAMES, "package.json is project content, not a control file"
+
+
+@pytest.mark.parametrize("world", sorted(path.name for path in PILOT_WORLDS.iterdir()))
+def test_a_pilot_world_holds_control_names_and_project_content_only(world):
+    names = {path.name for path in (PILOT_WORLDS / world).iterdir()}
+    assert names - CONTROL_NAMES == {"package.json", "scripts"}, f"the project content of {world} is {sorted(names - CONTROL_NAMES)}"
+    assert CONTROL_NAMES <= names, f"{world} lacks the control names {sorted(CONTROL_NAMES - names)}"

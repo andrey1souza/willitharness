@@ -10,7 +10,8 @@ import pytest
 from agent_site import ONE_RUN, TWO_RUNS, prepare_project_with_fake_agent, run_one
 from cli_runner import run_cli
 from fake_claude import ESCAPE_TARGET_FILE, PID_FILE, SECRET_VARIABLE, report_of
-from lifecycle_site import TASK_NAME, TASK_PROMPT, run_setup, stored_final_runs
+from files import write_tree
+from lifecycle_site import TASK_NAME, TASK_PROMPT, run_setup, stored_final_runs, validate_site
 
 from willitharness.lifecycle import TIMED_OUT, PlanState, RunSetup, abort_plan, execute_plan, lifecycle_dir, read_state, start_running
 from willitharness.plan import PlanError
@@ -53,10 +54,12 @@ def test_the_agent_gets_the_plan_flags_and_the_run_cap_as_its_budget(tmp_path, m
     assert arguments[arguments.index("--setting-sources") + 1] == "project,local", f"setting sources wrong in {arguments}"
 
 
-def test_the_workspace_holds_the_world_and_the_arm_overlay_and_not_the_original_folders(tmp_path, monkeypatch):
+def test_the_workspace_holds_the_project_files_and_the_arm_overlay_only(tmp_path, monkeypatch):
     site = prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok")
+    write_tree(site.world_dir, {"package.json": "{}"})
+    validate_site(site)
     report = report_of(run_one(site).transcript)
-    assert report["files"] == ["bin", "calls.log", "fake-behavior.txt", "fake-escape-target.txt", "prompts", "real.txt", "rule.txt", "stubs", "tasks.txt"], f"unexpected workspace files {report['files']}"
+    assert report["files"] == ["fake-behavior.txt", "fake-escape-target.txt", "package.json", "rule.txt"], f"unexpected workspace files {report['files']}"
     assert not report["cwd"].startswith(str(site.root)), f"the workspace {report['cwd']} sits under the project {site.root}. Rule: a project instruction file must not reach the agent."
 
 

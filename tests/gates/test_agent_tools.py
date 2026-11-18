@@ -87,7 +87,7 @@ def test_a_stub_logs_its_arguments_prints_the_canned_output_and_exits_zero(tmp_p
 def test_the_stub_folder_is_first_on_path_and_the_rest_of_path_is_kept(tmp_path, monkeypatch):
     site = prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok")
     entries = report_of(run_one(site).transcript)["path"].split(os.pathsep)
-    assert entries[0].endswith("/work/bin"), f"the stub folder must come first on PATH, got {entries}"
+    assert entries[0].endswith("/bin") and "willitharness-run-" in entries[0] and not entries[0].endswith("/work/bin"), f"the stub folder must come first on PATH, outside the working directory, got {entries}"
     assert entries[1:] == os.environ["PATH"].split(os.pathsep), f"the rest of PATH must be kept, got {entries}"
 
 
@@ -101,7 +101,7 @@ def test_a_stub_wrapper_is_generated_from_data_and_a_world_file_never_replaces_i
     outputs = report_of(run_one(site).transcript)["tool_outputs"]
     assert outputs[0] == "stub-killed\n", f"the wrapper must come from the stub data, got {outputs}"
     assert "planted-evil" not in outputs[1] and "not found" in outputs[1], f"a world bin folder must not reach PATH, got {outputs}"
-    assert artifact(tmp_path, "calls-1.log").read_text() == "pkill\n", "a world calls.log must not survive into the workspace"
+    assert artifact(tmp_path, "calls-1.log").read_text() == "pkill\n", "a world calls.log must not survive into the run"
 
 
 def test_the_run_stores_its_transcript_and_calls_under_the_plan_runs_folder(tmp_path, monkeypatch):
@@ -224,3 +224,28 @@ def test_permission_denials_in_the_stream_stay_countable(tmp_path, monkeypatch):
     assert record.state is RunState.RECORDED_USABLE and record.denials == 1, f"the denial must be counted, got {record}"
     assert record.commands == ("pkill -f vitest", "pkill second"), f"the attempts must stay listed, got {record.commands}"
     assert DENIED_COMMAND in result.transcript[-1], "the denied command must stay in the result event"
+
+
+SCAFFOLDING_NAMES = {"bin", "calls.log", "stubs", "tasks.txt", "real.txt", "prompts"}
+PROBE_COMMANDS = "ls -a\ncat bin/cp\ncat calls.log\nfind .\ncat tasks.txt\n"
+WRAPPER_FOLDER = "${PATH%%:*}"
+
+
+def test_the_agent_sees_no_scaffolding_in_its_working_directory(tmp_path, monkeypatch):
+    site = prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "tools")
+    write_tree(site.world_dir, {"package.json": "{}"})
+    add_overlay_file(site, "fake-commands.txt", "pkill x\n" + PROBE_COMMANDS)
+    validate_site(site)
+    listing, missing_wrapper, missing_log, found, missing_tasks = report_of(run_one(site).transcript)["tool_outputs"][1:]
+    assert sorted(listing.split()) == [".", "..", "fake-behavior.txt", "fake-commands.txt", "fake-escape-target.txt", "inside.txt", "package.json", "rule.txt"], f"ls -a shows more than the project files and the overlay: {listing!r}"
+    assert {line.removeprefix("./") for line in found.splitlines()} == {"."} | set(listing.split()) - {".", ".."}, f"find shows more than ls: {found!r}"
+    assert "No such file" in missing_wrapper and "No such file" in missing_log and "No such file" in missing_tasks, f"a scaffolding file was readable: {missing_wrapper!r} {missing_log!r} {missing_tasks!r}"
+    assert artifact(tmp_path, "calls-1.log").read_text() == "pkill x\n", "the call must still be logged and stored"
+
+
+def test_the_agent_cannot_write_into_the_wrapper_folder_or_beside_the_calls_log(tmp_path, monkeypatch):
+    attacks = f'echo x >> "{WRAPPER_FOLDER}/pkill"; echo status=$?\necho x > "{WRAPPER_FOLDER}/planted"; echo status=$?\necho x > "{WRAPPER_FOLDER}/../planted"; echo status=$?\npkill\n'
+    _, result = run_with_commands(tmp_path, monkeypatch, "tools", attacks)
+    outputs = report_of(result.transcript)["tool_outputs"]
+    assert all(output.startswith("status=1\n") and "Operation not permitted" in output for output in outputs[:3]), f"a write outside the workspace must fail under the sandbox, got {outputs}"
+    assert outputs[3] == "stub-killed\n", f"the wrapper must be untouched, got {outputs[3]!r}"

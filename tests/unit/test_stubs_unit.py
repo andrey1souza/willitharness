@@ -50,10 +50,26 @@ def test_a_hostile_argument_is_logged_and_never_run(tmp_path):
 
 
 def test_the_copy_leaves_out_the_reserved_names_at_the_top_only(tmp_path):
-    write_tree(tmp_path / "src", {"bin/evil": "x", "calls.log": "planted", "keep.txt": "k", "deep/bin/ok": "o"})
+    write_tree(tmp_path / "src", {"bin/evil": "x", "calls.log": "planted", "keep.txt": "k", "deep/bin/ok": "o", "deep/tasks.txt": "t"})
     copy_without_reserved(tmp_path / "src", tmp_path / "dst")
     kept = sorted(path.relative_to(tmp_path / "dst").as_posix() for path in (tmp_path / "dst").rglob("*") if path.is_file())
-    assert kept == ["deep/bin/ok", "keep.txt"], f"only the top-level bin and calls.log are reserved, got {kept}"
+    assert kept == ["deep/bin/ok", "deep/tasks.txt", "keep.txt"], f"only top-level reserved names are left out, got {kept}"
+
+
+@pytest.mark.parametrize("name", ["tasks.txt", "real.txt", "stubs/cp/output.txt", "prompts/t.txt", "bin/cp", "calls.log"])
+def test_each_control_and_scaffolding_name_stays_out_of_the_copy(tmp_path, name):
+    write_tree(tmp_path / "src", {name: "x", "package.json": "{}"})
+    copy_without_reserved(tmp_path / "src", tmp_path / "dst")
+    kept = sorted(path.name for path in (tmp_path / "dst").iterdir())
+    assert kept == ["package.json"], f"{name} must not reach the agent's directory, got {kept}"
+
+
+def test_the_wrappers_and_the_log_sit_in_the_run_folder_beside_the_work_folder(tmp_path):
+    write_tree(tmp_path / "world", {"stubs/ps/output.txt": "x"})
+    (tmp_path / "work").mkdir()
+    write_stub_wrappers(tmp_path / "world", tmp_path)
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["bin", "calls.log", "work", "world"], "the wrappers and the log belong in the run folder"
+    assert list((tmp_path / "work").iterdir()) == [], "the working directory must stay empty of scaffolding"
 
 
 def test_a_command_name_with_a_slash_is_refused():

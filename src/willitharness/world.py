@@ -21,6 +21,7 @@ STORE_DIR = ".willitharness"
 STORE_NAME = "world.json"
 PROMPTS_DIR = "prompts"
 PROMPT_SUFFIX = ".txt"
+CONTROL_NAMES = frozenset({TASKS_FILE, REAL_FILE, STUBS_DIR, PROMPTS_DIR})
 MEASUREMENT_WORDS = ("benchmark", "evaluation", "grader", "rubric", "score", "detector", "verdict", "noise", "leave-one-out")
 MEASUREMENT_PATTERN = re.compile(r"\b(" + "|".join(re.escape(word) for word in MEASUREMENT_WORDS) + r")\b", re.IGNORECASE)
 
