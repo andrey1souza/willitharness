@@ -27,9 +27,29 @@ def build_command(prompt, model, budget):
     ]
 
 
+def unisolated_command(prompt, model, budget):
+    assert prompt, "unisolated_command needs a prompt. Fix: pass the probe prompt."
+    assert model and budget > 0, f"unisolated_command needs a model and a budget above 0, got {model!r} and {budget!r}. Fix: pass both."
+    return [
+        "claude", "-p", prompt,
+        "--model", model,
+        "--max-budget-usd", str(budget),
+        "--tools", "",
+        "--no-session-persistence",
+        "--output-format", "stream-json",
+        "--verbose",
+    ]
+
+
 def ask_claude(directory, prompt, model, budget):
+    assert prompt, "ask_claude needs a prompt. Fix: pass the probe prompt."
+    assert budget > 0, f"ask_claude needs a budget above 0, got {budget!r}. Rule: every run is capped. Fix: pass the run budget."
+    return run_command(directory, build_command(prompt, model, budget))
+
+
+def run_command(directory, command):
     assert directory.is_dir(), f"{directory} is not a directory. Rule: the agent starts in the directory under test. Fix: pass an existing directory."
-    command = build_command(prompt, model, budget)
+    assert command and command[0] == "claude", f"run_command runs the claude CLI, got {command[:1]!r}. Fix: build the command with build_command."
     try:
         completed = subprocess.run(
             command, cwd=directory, capture_output=True, text=True, timeout=RUN_TIMEOUT_SECONDS, env=agent_environment(os.environ)

@@ -3,7 +3,7 @@ import math
 
 import pytest
 
-from willitharness.claude_agent import build_command, transcript_cost
+from willitharness.claude_agent import build_command, transcript_cost, unisolated_command
 
 MODEL = "haiku"
 BUDGET = 0.03
@@ -42,3 +42,10 @@ def test_the_cost_comes_from_the_result_event():
 
 def test_a_transcript_without_a_cost_costs_nothing():
     assert transcript_cost([json.dumps({"type": "system"}), "not json"]) == 0.0, "no cost field must give 0"
+
+
+def test_the_unisolated_control_command_drops_the_isolation_flags_only():
+    command = unisolated_command("hello", MODEL, BUDGET)
+    for flag in ("--setting-sources", "--strict-mcp-config", "--disable-slash-commands"):
+        assert flag not in command, f"{flag} must not be in the control command {command}"
+    assert command[command.index("--tools") + 1] == "" and command[command.index("--max-budget-usd") + 1] == str(BUDGET), f"got {command}"
