@@ -41,6 +41,6 @@ These came from the spike. Each has a planned task in `docs/plan/07-task-backlog
 |---|---|---|
 | A rule file silently did not load (`AGENTS.md` hidden by an ancestor `CLAUDE.md`). | Reachability probe with a control token | T16, T19 |
 | A guard blocked a command but its message gave no usable alternative, so tasks stopped. | Block-message actionability check | T39, T44 |
-| A stub world invalidated runs (a stub listed processes outside the checkout). | World validation W1 to W3 | T23, T24 |
+| A stub world invalidated runs (a stub listed processes outside the checkout). | World validation W1 to W5 | T23, T24 |
 | The analyzer crashed on a stream event whose `message` was a string. | Stream parser with a corpus of odd events | T21 |
 | A parallel run overspent its cap. | Budget reservation L2 | T27, T28 |

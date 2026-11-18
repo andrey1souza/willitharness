@@ -2,7 +2,7 @@
 
 Goal: every behavior has a test that can fail, and every check is proven to fail on
 a bad input. Formal artifacts are checked against the code where it is cheap.
-Contract: v0.2.
+Contract: v0.5.
 
 ## Layers
 | Layer | What it tests | Tool | Runs offline | Gate |
@@ -92,8 +92,7 @@ The loader checks that every case is distinct and uses only contract values, the
 compares each result with the Python function. If a file has another shape, adapt
 the loader. Do not adapt the contract.
 
-TLA+ (in `../formal/tla/`, updated to v0.2 by the TLA+ fork: retry policy,
-reservation rule, T2a, noise status, world invalidation): one invariant or property
+TLA+ (in `../formal/tla/`): one invariant or property
 per ID with the ID as the name prefix (for example `L9_...`, `T2a_...`).
 `trace_check.py` greps for every ID. It does not check the model against the code.
 Model-to-code drift is a known risk (file 06). A later step can validate real event

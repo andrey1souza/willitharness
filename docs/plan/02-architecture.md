@@ -2,7 +2,7 @@
 
 Language: Python 3.11 or later. The core uses the standard library only (A5).
 Dev tools: `pytest`, `hypothesis`, `behave` (or `pytest-bdd`). Formal tools:
-Java with TLC, and Lean 4 with `lake`. Contract: v0.2.
+Java with TLC, and Lean 4 with `lake`. Contract: v0.5.
 
 ## Constants (contract section 2)
 | Name | Value | Used by |
@@ -110,7 +110,7 @@ Warnings are report text only: `W-LOWN`, `W-DENIAL`, `saturated`, `pooled`.
 World directory: `tasks.txt` (one line per task, `<task>: <command> <command>`), `stubs/<command>/output.txt` (canned output, never code) and `real.txt` (commands declared real). `world check` executes nothing from the world. The validation record is `.willitharness/<world-dir-name>/world.json`: `{"hash": "04d7def2", "validated": true}`.
 A hash change sets `validated` to false and the plan leaves `WorldValidated` (W3).
 
-## Directory layout (future repo)
+## Directory layout
 ```
 willitharness/
   pyproject.toml
@@ -142,15 +142,12 @@ until it is final. The loaders live in `src/willitharness/conformance.py`.
 ## CLI
 | Command | Does | Exit codes |
 |---|---|---|
-| `willitharness init <dir>` | Writes a starter plan | 0, 2 |
 | `willitharness plan check <plan>` | Validates the plan (arms, noise pair repeats the LOO arm, budget) | 0, 1, 2 |
 | `willitharness world check <world-dir>` | Validates the world (W1 to W5) and stores the hash | 0, 1 |
-| `willitharness probe <plan>` | Runs the reachability probe (P1 to P4) | 0, 1, 2, 3 |
+| `willitharness probe --agent fake\|claude --directory D --runs N --target-token T --control-token C [--boundary B --seed S] [--model M]` | Runs the reachability probe (P1 to P4) | 0, 2, 3 |
 | `willitharness run <plan> --agent fake\|claude [--timeout-seconds S] [--model M]` | Runs cells, resumes, retries, stops at budget; reps come from the plan | 0, 1, 4 |
 | `willitharness abort <plan>` | Aborts; records in-flight runs unusable and charges RUN_CAP | 0, 1 |
 | `willitharness analyze <plan>` | Counts, verdicts, noise status, warnings | 0, 1 |
-| `willitharness decide <plan>` | Applies the decision table | 0, 1 |
-| `willitharness report <plan>` | Writes `report.md` | 0, 1 |
 Exit codes: 0 success; 1 domain failure (invalid world, plan aborted, noise pair
 wrong); 2 usage error (for example fewer than 3 probe runs); 3 harness error (CLI
 missing, parse failure); 4 budget stop. Every failure message names the value,

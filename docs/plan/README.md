@@ -1,23 +1,23 @@
 # willitharness: plan for v0
 
 `willitharness` checks whether the rules you write for a coding agent work.
-This folder holds the plan to build v0. It is a plan only. No code exists yet.
+This folder holds the plan to build v0.
 
-Source of truth: `../00-domain-contract.md` (v0.2). Version v0.1 is kept as
-`../00-domain-contract.v0.1.md`. Every ID in this plan comes from the contract.
+Source of truth: `../contract.md` (v0.5). Version v0.1 is kept as
+`../contract-v0.1.md`. Every ID in this plan comes from the contract.
 Do not edit the contract from here. Gaps are listed in `contract-issues.md`.
 
 ## Size of the plan
 | Item | Count |
 |---|---|
-| Contract IDs covered | 43 (V1 to V6, E1, P1 to P4, G1, D1 to D12, S1, S2, W1 to W3, L1 to L9, T1, T2, T2a, DI-1, DI-2) |
-| Feature files | 11 |
-| Scenarios | 116 |
+| Contract IDs covered | 49 (V1 to V6, E1, P1 to P4, G1, R1, D1 to D12, S1, S2, W1 to W5, L1 to L12, T1, T2, T2a, DI-1, DI-2) |
+| Feature files | 13 |
+| Scenarios | 143 |
 | Milestones | 8 (M0 to M7) |
-| Backlog tasks | 50 (T01 to T50) |
+| Backlog tasks | 64 (T01 to T64) |
 | Gates | 51, of which 4 are live (G2.3, G3.8, G4.4, G5.5) |
 | Total live cost cap | $2.00 |
-| Contract issues | 15 resolved by v0.2, 3 open (CI-16 to CI-18) |
+| Contract issues | CI-01 to CI-18, all resolved (see `contract-issues.md`) |
 
 ## Reading order
 | Order | File | What it answers |
@@ -30,19 +30,18 @@ Do not edit the contract from here. Gaps are listed in `contract-issues.md`.
 | 6 | `05-traceability.md` | Every contract ID mapped to features, tests, TLA+, Lean |
 | 7 | `06-risks.md` | Prior art, validity risks, limits, stop conditions |
 | 8 | `07-task-backlog.md` | The ordered task list (BDD stories) |
-| 9 | `contract-issues.md` | Status of the 15 old issues and the 3 open ones |
+| 9 | `contract-issues.md` | Status of every contract issue |
 
 ## Conventions
 - IDs come from the contract. Stop conditions are named STOP-1 to STOP-7 so they
   never collide with contract IDs (S1 and S2 are side-effect rules).
 - Tags: each scenario carries its IDs, for example `@V2 @D4`. Tag `@live` marks a
   scenario that spends money. Informational tags `@Q1`, `@Q3`, `@Q4` name the
-  question. The gap tags of the first plan are gone because contract v0.2 now covers them.
+  question.
 - Gates: a gate is a command with an expected output. Names look like `G3.3`
   (milestone 3, gate 3).
 - Gate pair: every gate has a good input that must pass and a bad input that must be
-  rejected. The runner `scripts/gates/run_gate.sh <gate>` runs both and prints
-  `GATE <id> OK (good passes, bad rejected)`. A gate with no bad input does not count.
+  rejected. A gate with no bad input does not count.
 - Sizes: S under half a day, M about a day, L two or three days.
 - Costs: caps use the measured haiku cost of $0.003 to $0.006 per small run
   (finding F7). Sonnet costs about 14 times more per run.
@@ -51,12 +50,11 @@ Do not edit the contract from here. Gaps are listed in `contract-issues.md`.
 | Area | Owner | Location |
 |---|---|---|
 | Plan, features, backlog | plan fork (this folder) | `plan/` |
-| TLA+ specs and TLC runs (updated to v0.2) | TLA+ fork | `../formal/tla/` |
+| TLA+ specs and TLC runs | TLA+ fork | `../formal/tla/` |
 | Lean proofs and golden tables (`decision_table.json`, `effect_table.json`, `probe_table.json`, `guard_table.json`) | Lean fork | `../formal/lean/` |
-| Implementation | future work | `src/willitharness/` (not created) |
+| Implementation | this repo | `src/willitharness/` |
 
 ## Honest limits
-- No code is written. Every gate here is a promise, not a result.
 - The spike evidence is toy and natural tasks written by us, mostly haiku, two rules,
   stubbed commands.
 - Formal methods cover the verdict logic, the effect and probe mappings, the guard

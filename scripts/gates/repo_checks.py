@@ -7,6 +7,7 @@ import tomllib
 from fnmatch import fnmatch
 from pathlib import Path
 
+import docs_freshness
 import mutant_tables
 import trace_check
 import workflow_checks
@@ -202,6 +203,7 @@ CHECKS = {
     "trace-pending": pending_errors,
     "paid-gate-target": paid_target_errors,
     "no-tracked-generated": tracked_generated_errors,
+    "docs_freshness": docs_freshness.docs_freshness_errors,
     **workflow_checks.CHECKS,
 }
 

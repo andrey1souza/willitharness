@@ -3,13 +3,13 @@
 v0 answers one user question: "Does this rule in my harness file work, and what
 should I do with it?" It answers with the four questions of the contract
 (Q1 reachability, Q2 effect, Q3 guard, Q4 side effects) and the decision table.
-Contract: v0.2.
+Contract: v0.5.
 
 ## What v0 includes
 | # | Capability | Why (spike evidence) | Contract IDs |
 |---|---|---|---|
 | 1 | Reachability probe for instruction files, with a control token and a check of the leave-one-out arm | F1: `AGENTS.md` is a fallback that an ancestor `CLAUDE.md` hides. F2: a masked rule had no effect. | P1 to P4, L7 |
-| 2 | Isolated runner with a validated stub world, outcomes counted per task cell, usable per outcome | F19: a bad stub world invalidated runs. F16: allowlist denials hid work. | W1 to W3, L1, L6 |
+| 2 | Isolated runner with a validated stub world, outcomes counted per task cell, usable per outcome | F19: a bad stub world invalidated runs. F16: allowlist denials hid work. | W1 to W5, L1, L6 |
 | 3 | Effect test: LOO arm, noise pair (a repeat of the LOO arm), three-valued noise status, interval verdicts | F3, F6, F17: effects were large and the noise arm showed no false difference at n = 20. | V1 to V6, DI-1, DI-2, E1, L8 |
 | 4 | Guard test measured by completion, with block coverage and bypass | F4: a guard needs a usable block message. F5: a guard blocks the command, not the attempt. F15: agents route around a Bash guard. | G1 |
 | 5 | Decision table | The point of the tool: keep, fix loading, replace with a script, or delete candidate. | D1 to D12 |

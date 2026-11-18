@@ -21,7 +21,7 @@ exhaustive. Treat "not found" as "not found in what we read".
 ## Validity risks found in the spike
 | Risk | Evidence | Mitigation in v0 | Gate or scenario |
 |---|---|---|---|
-| A bad stub world invalidates runs | F19: the `ps` stub listed processes outside the checkout | World validation W1 to W3 | G3.3, world-validation.feature |
+| A bad stub world invalidates runs | F19: the `ps` stub listed processes outside the checkout | World validation W1 to W5 | G3.3, world-validation.feature |
 | Permission allowlist denies chained commands and hides completed work | F16: sonnet guard run 3 | Per-outcome usability, denial counts, W-DENIAL warning | runner-isolation.feature |
 | Attempts are not executed commands | F5 | Label outcomes, show blocked counts separately | guard-test.feature, report.feature |
 | Agents route around a Bash guard through another tool | F15: `Write` in 4 of 10 sonnet runs | Bypass rate lowers the guard result | G5.3 |
@@ -31,10 +31,10 @@ exhaustive. Treat "not found" as "not found in what we read".
 | One model per plan, and drift over time | U11, sonnet costs 14 times more | Report the model; no cross-model claims | report.feature |
 | Pooled intervals ignore task clustering | Spike B caveat | Per-task verdicts first; a pooled verdict is labeled `pooled` with a warning (contract section 4) | effect-with-noise.feature, warnings.feature |
 | Shell parsing has gaps | Known gaps list | A documented corpus of known gaps | G5.1 |
-| `/bin/cp` meets the intent but not the letter | Pilot guard results | Listed as an alternative channel, not a violation and not counted as bypass (plan assumption, open CI-16) | runner-isolation.feature, guard-test.feature |
-| The contract defines bypass in a way that could count the guard's own advice | CI-16 (open) | Bypass counts only channels the block message did not offer | G5.3 |
-| NoiseStatus is defined for one outcome; the guard compares `completed` | CI-17 (open) | The report shows the `completed` noise status as a line; G1 stays as written | effect-with-noise.feature |
-| P4 failure has no row in the E1 table, and P1 does not say whether unusable probe runs count | CI-18 (open) | A failed P4 gives `Invalid`; only usable probe runs count | reachability.feature |
+| `/bin/cp` meets the intent but not the letter | Pilot guard results | Listed as an alternative channel, not a violation and not counted as bypass (resolved by contract v0.3, CI-16) | runner-isolation.feature, guard-test.feature |
+| The contract defines bypass in a way that could count the guard's own advice | CI-16 (resolved by contract v0.3) | Bypass counts only channels the block message did not offer | G5.3 |
+| NoiseStatus is defined for one outcome; the guard compares `completed` | CI-17 (resolved by contract v0.3) | The report shows the `completed` noise status as a line; G1 stays as written | effect-with-noise.feature |
+| P4 failure has no row in the E1 table, and P1 does not say whether unusable probe runs count | CI-18 (resolved by contract v0.3) | A failed P4 gives `Invalid`; only usable probe runs count | reachability.feature |
 | RUN_CAP is a runner assumption (A-CAP), not a proven property | Contract section 9 | Wall-clock limit plus the agent's budget flag; tests with a fake clock; live gates print spend | G3.10 |
 
 ## Engineering risks
@@ -53,7 +53,7 @@ exhaustive. Treat "not found" as "not found in what we read".
   not say "this rule is good".
 - `DeleteCandidate` means "no measurable effect at this n". It is advice.
 - Formal methods cover the pure logic and the lifecycle. They do not cover agent
-  behavior, shell parsing, or the CLI (contract section 8).
+  behavior, shell parsing, or the CLI (contract section 9).
 - The evidence behind the design is two rules and mostly haiku.
 
 ## What would make us stop

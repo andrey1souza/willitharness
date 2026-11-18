@@ -2,7 +2,7 @@
 
 Every contract ID maps to features, tests, a TLA+ item, a Lean item and a gate.
 All cells are `planned`. Owners: features and tests belong to the plan fork's
-backlog. TLA+ items belong to the TLA+ fork (`../formal/tla/`, updated to v0.2).
+backlog. TLA+ items belong to the TLA+ fork (`../formal/tla/`).
 Lean items belong to the Lean fork (`../formal/lean/`, golden tables
 `decision_table.json`, `effect_table.json`, `probe_table.json`, `guard_table.json`
 in progress). The naming convention for formal items is the ID as a name prefix,

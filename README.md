@@ -29,7 +29,7 @@ linear and `main` stays green. The hooks enforce this: `scripts/guards/trunk.py`
 Report vulnerabilities privately; see `SECURITY.md`. `make security` audits the GitHub settings (needs network and an admin `gh` token; not part of `make check`).
 
 ## Checks
-`make check` runs the tests, zanity, every mutation module, the trace gate and the repo checks. `make formal` runs the Lean and TLA+ gates. `make live` runs the real agent on the reachability fixtures (about a cent) and fails above $0.10.
+`make check` runs the tests, zanity, every mutation module, the trace gate, the repo checks and the simulation. `make formal` runs the Lean and TLA+ gates. `make live` runs the real agent on the reachability fixtures (about a cent) and fails above $0.10.
 
 ## What is here
 | Path | What |
@@ -57,9 +57,6 @@ uv sync
 make check
 git config core.hooksPath .githooks
 ```
-
-`make check` runs the tests, the guards and zanity. The hooks run the same guards
-before each commit and push.
 
 ### Push window rule
 Pushes are allowed only from 18:00 to 08:59 local time. `.githooks/pre-push` refuses

@@ -16,10 +16,10 @@ Summary:
 | M5 guard and decision | T38 to T44 | 7 |
 | M6 side effects and report | T45 to T49 | 5 |
 | M7 formal gates | T50 | 1 |
+| Added after M7 | T51 to T64 | 14 |
 
 Golden tables referenced by name (Lean fork, not final): `decision_table.json`,
 `effect_table.json`, `probe_table.json`, `guard_table.json` in `../formal/lean/`.
-The TLA+ model in `../formal/tla/` is updated to v0.2 by the TLA+ fork.
 
 ## M0. Skeleton
 
@@ -104,9 +104,9 @@ As a maintainer, I want the effect mapping to match the proven table.
 - Given one effect result changed in a copy, then it exits 1 and names the case.
 - IDs: E1, V6. Gate: G1.9. Deps: T10, the Lean fork's JSON.
 
-### T14. Traceability gate over 43 IDs (S)
+### T14. Traceability gate over 49 IDs (S)
 As a maintainer, I want every contract ID covered, so that nothing is unplanned.
-- Given the contract, features, tests and formal folders, when I run `python scripts/gates/trace_check.py ../00-domain-contract.md`, then it prints `trace-check: all 43 IDs covered`.
+- Given the contract, features, tests and formal folders, when I run `python scripts/gates/trace_check.py`, then it prints `trace-check: all 49 IDs covered`.
 - Given S2 removed from the features copy, then it exits 1 with `trace-check: missing S2 in features`.
 - IDs: all. Gate: G1.6. Deps: T03.
 

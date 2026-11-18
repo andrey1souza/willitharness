@@ -2,7 +2,7 @@
 
 Eight milestones in dependency order: M0 to M7. Every milestone has a goal, the
 scenarios it turns green, executable gates, a cost cap and exit criteria.
-Contract: v0.2 (43 IDs).
+Contract: v0.5 (49 IDs).
 
 ## How a gate works
 - A gate is a command with an expected output.
@@ -60,7 +60,7 @@ Scenarios: `verdict-engine.feature`, `decision-table.feature`.
 | G1.3 | `python scripts/gates/mutants.py stats` | `mutants killed: 8/8` | with the tests directory emptied the script prints `mutants killed: 0/8` and exits 1 |
 | G1.4 | `python -m pytest tests/test_decision.py -q` | all pass: 45 combinations, D1 to D12 | a table with D1 broken (Masked and RuleLowersViolations gives Keep) fails |
 | G1.5 | `python -m willitharness.conformance decision ../formal/lean/decision_table.json` | `decision table conforms: 45 cases` | a JSON copy with one decision changed exits 1 with `mismatch for (Masked, Invalid, GuardWorse): lean=FixLoading python=Keep` |
-| G1.6 | `python scripts/gates/trace_check.py ../00-domain-contract.md` | `trace-check: all 43 IDs covered` | a features copy with S2 removed exits 1 with `trace-check: missing S2 in features` |
+| G1.6 | `python scripts/gates/trace_check.py` | `trace-check: all 49 IDs covered` | a features copy with S2 removed exits 1 with `trace-check: missing S2 in features` |
 | G1.7 | `python -m pytest tests/test_effect.py -q` | all pass: E1 over 3 noise statuses x 4 verdicts (12 cases); only NoiseOk gives an effect other than Invalid; NoiseStatus rules (V6) | a mutant that maps NoiseFloorTooHigh and FirstHigher to RuleLowersViolations fails |
 | G1.8 | `python -m pytest tests/test_plan.py -q` and `willitharness plan check fixtures/plans/bad-noise-pair.json` | tests pass: DEFAULT_REPS 20, MAX_RETRIES 2, MIN_PROBE_RUNS 3; the plan check rejects a noise repeat of a non-LOO arm | the bad plan exits 1 with `noise pair must repeat the LOO arm C; B2 repeats B` (this is the proof the gate can fail) |
 | G1.9 | `python -m willitharness.conformance effect ../formal/lean/effect_table.json` | `effect table conforms: <N> cases` | a copy with one effect result changed exits 1 naming the case |
@@ -69,7 +69,7 @@ DI-1 and DI-2 are assumptions on the difference interval. G1.1 tests them on the
 implementation: `lo <= hi`, and the swap negates and reverses the interval within
 1e-9.
 Exit criteria: features green; G1.1 to G1.9 pass with their bad inputs rejected; the
-43 contract IDs appear in features and tests; the TLA+ and Lean artifacts exist
+49 contract IDs appear in features and tests; the TLA+ and Lean artifacts exist
 (owned by their forks).
 
 ## M2. Reachability
