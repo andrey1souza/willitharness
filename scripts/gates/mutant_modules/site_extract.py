@@ -1,0 +1,16 @@
+SOURCE = 'scripts/site/extract.py'
+
+TESTS = (
+    'tests/site/test_extract.py',
+)
+
+MUTANTS = (
+    ('wrapped-bullet-lines-dropped', SOURCE, 'elif line.startswith(CONTINUATION_PREFIX) and bullets:', 'elif False:'),
+    ('section-never-ends', SOURCE, 'if line.startswith(SECTION_PREFIX):\n            break', 'if False:\n            break'),
+    ('line-numbers-off-by-one', SOURCE, 'start=first + 1', 'start=first'),
+    ('derived-properties-kept', SOURCE, 'for bullet in section_bullets(lines, DECISIONS_HEADING) if DECISION_BULLET.match(bullet["text"])]', 'for bullet in section_bullets(lines, DECISIONS_HEADING)]'),
+    ('answer-fallback-dropped', SOURCE, 'result = RESULT_TEXT.search(rest) or AFTER_QUESTION.match(rest)', 'result = RESULT_TEXT.search(rest)'),
+    ('duplicate-json-line-allowed', SOURCE, 'assert len(found) == 1,', 'assert len(found) >= 1,'),
+    ('description-is-the-blank-line', SOURCE, 'description = next(line for line in lines[1:] if line.strip())', 'description = lines[1]'),
+    ('limits-heading-renamed', SOURCE, 'LIMITS_HEADING = "## Honest limits"', 'LIMITS_HEADING = "## Working on it"'),
+)

@@ -8,7 +8,7 @@ TABLE_HEAD = "# Mistakes\n\n## Mistakes caught by a rule\n\n| Mistake | Category
 TABLE_TAIL = "\n## Mistakes with no rule yet\n"
 GOOD_ROW = "| m | c | r | `tests/gates/test_x.py::test_x` |\n"
 TEST_FILE = "def test_x():\n    assert True\n"
-FILE_CHECKS = {name: check for name, check in repo_checks.CHECKS.items() if name not in ("mutant-tables", "mutant-platforms", "trace-pending", "paid-gate-target", "no-tracked-generated", *workflow_checks.CHECKS)}
+FILE_CHECKS = {name: check for name, check in repo_checks.CHECKS.items() if name not in ("mutant-tables", "mutant-platforms", "trace-pending", "paid-gate-target", "no-tracked-generated", "docs_freshness", *workflow_checks.CHECKS)}
 PENDING_GOOD = '[{"id": "S1", "place": "tests", "reason": "later"}]'
 
 

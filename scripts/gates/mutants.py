@@ -17,7 +17,7 @@ PYTEST_PASSED = 0
 PYTEST_TESTS_FAILED = 1
 PYTEST_NO_TESTS = 5
 COPIED_DIRECTORIES = ("src", "scripts", "fixtures")
-IMPORT_PATHS = ("src", "scripts", "scripts/gates")
+IMPORT_PATHS = ("src", "scripts", "scripts/gates", "scripts/site")
 GOLDEN_RELATIVE = Path("formal") / "lean"
 SUPPORT_DIRECTORY = Path("tests") / "support"
 

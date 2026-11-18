@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$title</title>
+<meta name="description" content="$description">
+<meta property="og:title" content="$title">
+<meta property="og:description" content="$description">
+<meta name="twitter:card" content="summary">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+<h1>$title</h1>
+<p class="lede">$description</p>
+</header>
+<main>
+<section aria-labelledby="questions">
+<h2 id="questions">The four questions</h2>
+<table>
+<caption>Each rule gets four answers. Source: <code>$contract_file</code>.</caption>
+<thead><tr><th scope="col">Question</th><th scope="col">Name</th><th scope="col">Asks</th><th scope="col">Answer</th></tr></thead>
+<tbody>
+$question_rows
+</tbody>
+</table>
+</section>
+<section aria-labelledby="decisions">
+<h2 id="decisions">The decision table</h2>
+<table>
+<caption>Reach, effect and guard decide what to do with a rule. Source: <code>$contract_file</code>.</caption>
+<thead><tr><th scope="col">Case</th><th scope="col">When</th><th scope="col">Decision</th></tr></thead>
+<tbody>
+$decision_rows
+</tbody>
+</table>
+</section>
+<section aria-labelledby="gates">
+<h2 id="gates">Gate status</h2>
+<table>
+<caption>Recorded from the output of <code>$gate_command</code> on $gate_date. Source: <code>$gate_file</code>.</caption>
+<thead><tr><th scope="col">Gate</th><th scope="col">Status</th><th scope="col">Result</th></tr></thead>
+<tbody>
+$gate_rows
+</tbody>
+</table>
+</section>
+<section aria-labelledby="live">
+<h2 id="live">Live gate $live_gate</h2>
+<p>Command: <code>$live_command</code>. Model: $live_model. Runs per cell: $live_reps. Date: $live_date. Cost: $$$live_cost. Source: <code>$live_file</code>.</p>
+<table>
+<caption>Outcome <code>$live_outcome</code>. Arm C has the rule removed. Arm B has the rule loaded.</caption>
+<thead><tr><th scope="col">Task</th><th scope="col">Arm C</th><th scope="col">Arm B</th><th scope="col">Verdict</th><th scope="col">Noise</th></tr></thead>
+<tbody>
+$live_rows
+</tbody>
+</table>
+<h3 id="live-limits">Limits of this result</h3>
+<ul>
+$live_limits
+</ul>
+</section>
+<section aria-labelledby="limits">
+<h2 id="limits">Honest limits</h2>
+<ul>
+$limits
+</ul>
+<p class="note">Source: <code>$readme_file</code>, section Honest limits.</p>
+</section>
+</main>
+<footer>
+<p>This page is built by <code>scripts/site/build.py</code> from the files named above. No number on it is typed by hand.</p>
+</footer>
+</body>
+</html>
