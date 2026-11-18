@@ -65,6 +65,7 @@ def test_the_agent_environment_drops_unlisted_variables_and_gets_a_private_temp_
     report = report_of(run_one(site).transcript)
     assert SECRET_VARIABLE not in report["environment"], f"{SECRET_VARIABLE} leaked into {report['environment']}"
     assert report["tmpdir"].endswith("/tmp") and "willitharness-run-" in report["tmpdir"], f"unexpected TMPDIR {report['tmpdir']}"
+    assert report["claude_tmpdir"] == report["tmpdir"], f"claude must write its command output inside the private scratch folder, got CLAUDE_CODE_TMPDIR {report['claude_tmpdir']} and TMPDIR {report['tmpdir']}"
 
 
 def test_the_agent_can_write_in_its_workspace_and_nowhere_else(tmp_path, monkeypatch):

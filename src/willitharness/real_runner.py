@@ -24,6 +24,7 @@ RUN_DIRECTORY_PREFIX = "willitharness-run-"
 WORK_NAME = "work"
 SCRATCH_NAME = "tmp"
 TEMP_VARIABLE = "TMPDIR"
+CLAUDE_TEMP_VARIABLE = "CLAUDE_CODE_TMPDIR"
 CONFIG_VARIABLE = "CLAUDE_CONFIG_DIR"
 DEFAULT_CONFIG_NAME = ".claude"
 HOME_STATE_NAME = ".claude.json"
@@ -221,7 +222,8 @@ def run_environment(work, run_root, environ):
     assert work.is_dir() and run_root.is_dir(), f"{work} and {run_root} must be directories. Fix: build the workspace first."
     scrubbed = agent_environment(environ)
     path = os.pathsep.join([str(work / BIN_NAME), scrubbed[PATH_VARIABLE]])
-    environment = {**scrubbed, PATH_VARIABLE: path, TEMP_VARIABLE: str(run_root / SCRATCH_NAME)}
+    scratch = str(run_root / SCRATCH_NAME)
+    environment = {**scrubbed, PATH_VARIABLE: path, TEMP_VARIABLE: scratch, CLAUDE_TEMP_VARIABLE: scratch}
     assert environment[PATH_VARIABLE].startswith(str(work / BIN_NAME)), f"the stub folder is not first on PATH: {environment[PATH_VARIABLE]!r}"
     return environment
 
