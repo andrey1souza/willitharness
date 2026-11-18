@@ -20,21 +20,6 @@
     "reason": "side-effect tests arrive in M6"
   },
   {
-    "id": "W1",
-    "place": "tests",
-    "reason": "world-validation tests arrive in M3"
-  },
-  {
-    "id": "W2",
-    "place": "tests",
-    "reason": "world-validation tests arrive in M3"
-  },
-  {
-    "id": "W3",
-    "place": "tests",
-    "reason": "world-validation tests arrive in M3"
-  },
-  {
     "id": "R1",
     "place": "tests",
     "reason": "the detector module arrives in M3"

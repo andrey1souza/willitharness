@@ -1,0 +1,1 @@
+copied src/a.js to build/a.js

@@ -1,0 +1,5 @@
+{"type":"system","subtype":"init","session_id":"s1","tools":["Bash"]}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"pkill -f vitest"}}]},"session_id":"s1"}
+{"type":"system","subtype":"permission_denied"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","content":"This command requires approval","is_error":true,"tool_use_id":"t1"}]}}
+{"type":"result","subtype":"success","is_error":false,"num_turns":3,"total_cost_usd":0.02,"permission_denials":[{"tool_name":"Bash","tool_use_id":"t1","tool_input":{"command":"pkill -f vitest"}}],"result":"It did not run."}

@@ -1,6 +1,6 @@
 # 07. Task backlog
 
-59 tasks in dependency order (contract v0.3). Each is a BDD story with Given, When,
+60 tasks in dependency order (contract v0.3). Each is a BDD story with Given, When,
 Then acceptance, the contract IDs it covers, a gate from file 03, a size and its
 dependencies. Sizes: S under half a day, M about a day, L two or three days. A task
 is done when its gate passes with its bad input rejected.
@@ -364,8 +364,18 @@ As a user, I want each arm to say how its rule text reaches the agent, so that a
 
 ### T54. Threat model of the runner (S, before M3)
 As a user, I want to know what a plan run can touch, so that running a third-party agent on my directory is a decision I can make.
-- Given the runner design, when the threat model is written, then each threat names a check that fails when the mitigation is missing (scrubbed environment, no network for stubs, writes only inside the world, no access to the user's home).
-- Given a task prompt that tells the agent to read outside the world, then the run is recorded unusable or the read is denied, and a test shows it.
+- Done in `isolation.py`, each threat with a check that fails when the mitigation is missing:
+
+| Threat | Mitigation | Check |
+|---|---|---|
+| Unrelated secrets in the environment reach the agent (GH_TOKEN, AWS keys) | the agent gets an allowlist of variables only | `tests/unit/test_isolation_unit.py`, mutants `every-variable-passes`, `prefix-rule-dropped` |
+| A tool-using run writes outside the world | a macOS `sandbox-exec` profile denies writes except the world and named folders | `tests/gates/test_sandbox_gate.py` runs a real write inside (allowed) and outside (denied); mutants `writes-not-denied`, `world-not-writable` |
+| A tool-using run reads the user's secret folders (.ssh, .aws, .gnupg, .config/gh, .netrc, .docker) | the same profile denies reads of them | the same gate reads a planted key and must fail; mutants `reads-not-denied`, `ssh-folder-readable` |
+| A world stub runs arbitrary code | a stub is data (canned output), and `world check` executes nothing from the world | world tests (T23) |
+| The probe agent edits files | the probe runs with `--tools ""` | `tests/unit/test_claude_agent_unit.py`, mutant `tools-left-on` |
+| A run costs more than planned | `--max-budget-usd` per run, a wall-clock timeout, and the reservation rule | T27, T28 |
+
+- Known limit: the profile does not block the network, because the agent itself must reach its API. A tool-using run could still send data out. The sandbox is for macOS only. Run only plans you have read.
 - IDs: W2. Gate: G3.3. Deps: T20.
 
 ### T55. Fuzz the two parsers (M)
@@ -399,3 +409,10 @@ As a maintainer, I want every change to reach `main` through a short-lived branc
 - Given a branch older than 24 hours or more than 10 commits ahead, then the commit and the push are refused.
 - Given a branch with green checks, when I run `scripts/guards/integrate.py`, then `main` fast-forwards to it and the branch is deleted. Given failing checks or a rebase conflict, then `main` and the branch stay untouched.
 - IDs: none. Gate: guard tests. Deps: none.
+
+### T60. One parser for probe runs and effect runs (S)
+As a maintainer, I want the probe to read a run with the stream parser, so that a probe run and an effect run can never disagree on what a usable run is.
+- Given a probe transcript, when `parse_run` reads it, then it uses `stream.parse_stream` and takes the hits from the final text.
+- Given the fake agent, then its result event carries a cost and turns, so the stream parser accepts it.
+- Today `probe.parse_run` and `stream.parse_stream` both read the result event, and `probe.py` repeats three constants of `stream.py`.
+- IDs: P1, L6. Gate: G2.2. Deps: T21.

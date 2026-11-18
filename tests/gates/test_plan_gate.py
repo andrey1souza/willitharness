@@ -1,17 +1,12 @@
 from pathlib import Path
 
+from cli_runner import run_cli
 from willitharness import cli
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GOOD_PLAN = "fixtures/plans/good.json"
 BAD_PLAN = "fixtures/plans/bad-noise-pair.json"
 BAD_PLAN_MESSAGE = "noise pair must repeat the LOO arm C; B2 repeats B"
-
-
-def run_cli(capsys, arguments):
-    code = cli.main(arguments)
-    captured = capsys.readouterr()
-    return code, captured.out, captured.err
 
 
 def test_a_good_plan_passes_the_check(capsys, monkeypatch):

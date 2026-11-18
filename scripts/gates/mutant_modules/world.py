@@ -1,0 +1,33 @@
+TESTS = (
+    'tests/unit/test_world_unit.py',
+    'tests/gates/test_world_gate.py',
+    'tests/bdd/test_world_scenarios.py',
+)
+
+MUTANTS = (
+    ('hash-length-8-to-6', 'src/willitharness/world.py', 'HASH_LENGTH = 8', 'HASH_LENGTH = 6'),
+    ('hash-ignores-paths', 'src/willitharness/world.py', 'digest.update(path.relative_to(world_dir).as_posix().encode() + PATH_NAME_SEPARATOR)', 'digest.update(PATH_NAME_SEPARATOR)'),
+    ('hash-ignores-content', 'src/willitharness/world.py', 'digest.update(path.read_bytes() + CONTENT_SEPARATOR)', 'digest.update(CONTENT_SEPARATOR)'),
+    ('hash-unsorted-files', 'src/willitharness/world.py', 'files = sorted(path for path in world_dir.rglob("*") if path.is_file())', 'files = [path for path in world_dir.rglob("*") if path.is_file()][::-1]'),
+    ('hash-skips-nested-files', 'src/willitharness/world.py', 'world_dir.rglob("*")', 'world_dir.glob("*")'),
+    ('unknown-command-passes-w1', 'src/willitharness/world.py', 'if command not in known:', 'if False:'),
+    ('real-declarations-ignored', 'src/willitharness/world.py', 'known = set(stub_outputs(world_dir)) | declared_real(world_dir)', 'known = set(stub_outputs(world_dir))'),
+    ('stubs-ignored-by-w1', 'src/willitharness/world.py', 'known = set(stub_outputs(world_dir)) | declared_real(world_dir)', 'known = declared_real(world_dir)'),
+    ('only-first-command-checked', 'src/willitharness/world.py', 'for command in commands:\n            if command not in known:', 'for command in commands[:1]:\n            if command not in known:'),
+    ('outside-path-passes-w2', 'src/willitharness/world.py', 'if not (root / token).resolve().is_relative_to(root):', 'if False:'),
+    ('inside-path-fails-w2', 'src/willitharness/world.py', 'if not (root / token).resolve().is_relative_to(root):', 'if (root / token).resolve().is_relative_to(root):'),
+    ('parent-traversal-ignored', 'src/willitharness/world.py', 'or PARENT_SEGMENT in Path(token).parts', 'or False'),
+    ('absolute-paths-ignored', 'src/willitharness/world.py', 'token.startswith(ROOT_PREFIX) or', 'False or'),
+    ('w2-skipped-in-validate', 'src/willitharness/world.py', '    check_stub_paths(world_dir)\n    validated', '    validated'),
+    ('w1-skipped-in-validate', 'src/willitharness/world.py', '    check_commands(world_dir)\n    check_stub_paths', '    check_stub_paths'),
+    ('changed-world-not-detected', 'src/willitharness/world.py', 'stored is not None and stored != world_hash(world_dir)', 'False'),
+    ('never-validated-counts-as-changed', 'src/willitharness/world.py', 'stored is not None and stored != world_hash(world_dir)', 'stored != world_hash(world_dir)'),
+    ('unvalidated-record-trusted', 'src/willitharness/world.py', 'record[RECORD_HASH_KEY] if record.get(RECORD_VALIDATED_KEY) else None', 'record[RECORD_HASH_KEY]'),
+    ('validated-flag-stored-false', 'src/willitharness/world.py', 'RECORD_VALIDATED_KEY: True}', 'RECORD_VALIDATED_KEY: False}'),
+    ('stored-hash-truncated', 'src/willitharness/world.py', 'RECORD_HASH_KEY: validated_hash,', 'RECORD_HASH_KEY: validated_hash[:4],'),
+    ('store-under-wrong-name', 'src/willitharness/world.py', 'f"{STORE_DIR}/{world_dir.name}/{STORE_NAME}"', 'f"{STORE_DIR}/{STORE_NAME}"'),
+    ('cli-skips-storing', 'src/willitharness/cli.py', '    store_validation(root, world_dir, validated)\n', ''),
+    ('cli-exit-code-ok-on-failure', 'src/willitharness/cli.py', '    except (PathOutsideRoot, WorldError) as error:\n        print(str(error), file=sys.stderr)\n        return EXIT_DOMAIN_FAILURE', '    except (PathOutsideRoot, WorldError) as error:\n        print(str(error), file=sys.stderr)\n        return EXIT_OK'),
+    ('cli-valid-line-changed', 'src/willitharness/cli.py', 'print(f"world: valid (hash {validated})")', 'print(f"world ok (hash {validated})")'),
+    ('task-line-without-separator-accepted', 'src/willitharness/world.py', 'if not separator or not name.strip():', 'if not name.strip():'),
+)

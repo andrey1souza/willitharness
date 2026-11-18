@@ -1,0 +1,2 @@
+{"type":"system","subtype":"init","session_id":"s1","tools":["Bash"]}
+{"type":"result","subtype":"error_max_budget_usd","is_error":false,"num_turns":4,"total_cost_usd":0.05,"permission_denials":[],"errors":["budget"]}

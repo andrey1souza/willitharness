@@ -5,13 +5,16 @@ from pathlib import Path
 from willitharness import claude_agent, fakeagent
 from willitharness.fakeagent import Behavior, Location
 from willitharness.plan import PlanError, read_plan
+from willitharness.paths import PathOutsideRoot, inside
 from willitharness.probe import DEFAULT_LABEL, PROMPT_TEMPLATE, ProbeRefused, check_requested_runs, parse_run, probe
+from willitharness.world import WorldError, store_validation, validate_world
 
 EXIT_OK = 0
 EXIT_DOMAIN_FAILURE = 1
 EXIT_USAGE = 2
-USAGE = "usage: willitharness plan check <plan.json> | willitharness probe --agent fake|claude --directory D --runs N --target-token T --control-token C [--boundary B --seed S] [--model M]"
+USAGE = "usage: willitharness plan check <plan.json> | willitharness world check <world-dir> | willitharness probe --agent fake|claude --directory D --runs N --target-token T --control-token C [--boundary B --seed S] [--model M]"
 PLAN_ARGUMENT_COUNT = 3
+WORLD_ARGUMENT_COUNT = 3
 
 
 def plan_check(root, name):
@@ -24,6 +27,23 @@ def plan_check(root, name):
         return EXIT_DOMAIN_FAILURE
     print(f"plan ok: {plan.name} ({len(plan.arms)} arms, {plan.reps} reps)")
     assert plan.reps >= 1, f"a loaded plan has reps {plan.reps}. Rule: the loader keeps reps at 1 or more."
+    return EXIT_OK
+
+
+def world_check(root, name):
+    assert isinstance(root, Path), f"world_check needs a Path root, got {root!r}. Fix: pass the project directory."
+    assert name, "world_check needs a world directory. Fix: pass the path of the world directory."
+    try:
+        world_dir = inside(root, name)
+        if not world_dir.is_dir():
+            raise WorldError(f"world directory {world_dir} does not exist. Rule: a world is a directory of stubs. Fix: pass the path of a world directory.")
+        validated = validate_world(world_dir)
+    except (PathOutsideRoot, WorldError) as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_DOMAIN_FAILURE
+    store_validation(root, world_dir, validated)
+    print(f"world: valid (hash {validated})")
+    assert validated, "a valid world prints a hash"
     return EXIT_OK
 
 
@@ -83,9 +103,11 @@ def main(argv):
     assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
     if len(argv) == PLAN_ARGUMENT_COUNT and argv[:2] == ["plan", "check"]:
         return plan_check(Path.cwd(), argv[2])
+    if len(argv) == WORLD_ARGUMENT_COUNT and argv[:2] == ["world", "check"]:
+        return world_check(Path.cwd(), argv[2])
     if argv[:1] == ["probe"]:
         return probe_command(argv[1:], RUNNERS)
-    print(f"unknown command {argv!r}. Rule: v0 has plan check and probe so far. Fix: {USAGE}", file=sys.stderr)
+    print(f"unknown command {argv!r}. Rule: v0 has plan check, world check and probe so far. Fix: {USAGE}", file=sys.stderr)
     return EXIT_USAGE
 
 

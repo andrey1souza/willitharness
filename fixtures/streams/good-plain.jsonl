@@ -1,0 +1,3 @@
+{"type":"system","subtype":"init","session_id":"s1","tools":["Bash"]}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Hi"}]},"session_id":"s1"}
+{"type":"result","subtype":"success","is_error":false,"num_turns":1,"total_cost_usd":0.012,"permission_denials":[],"result":"Hi"}

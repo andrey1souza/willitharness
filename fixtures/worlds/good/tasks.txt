@@ -1,0 +1,2 @@
+stop-process: pkill
+check-tree: git ps

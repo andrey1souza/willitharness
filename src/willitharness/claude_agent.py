@@ -1,6 +1,8 @@
 import json
+import os
 import subprocess
 
+from willitharness.isolation import agent_environment
 from willitharness.probe import COST_FIELD, RESULT_EVENT
 
 DEFAULT_MODEL = "haiku"
@@ -29,7 +31,9 @@ def ask_claude(directory, prompt, model, budget):
     assert directory.is_dir(), f"{directory} is not a directory. Rule: the agent starts in the directory under test. Fix: pass an existing directory."
     command = build_command(prompt, model, budget)
     try:
-        completed = subprocess.run(command, cwd=directory, capture_output=True, text=True, timeout=RUN_TIMEOUT_SECONDS)
+        completed = subprocess.run(
+            command, cwd=directory, capture_output=True, text=True, timeout=RUN_TIMEOUT_SECONDS, env=agent_environment(os.environ)
+        )
     except subprocess.TimeoutExpired:
         return []
     lines = completed.stdout.splitlines()

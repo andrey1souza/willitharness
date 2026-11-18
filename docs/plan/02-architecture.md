@@ -106,7 +106,7 @@ Effect, guard and decision records:
 ```
 Warnings are report text only: `W-LOWN`, `W-DENIAL`, `saturated`, `pooled`.
 
-World record (`world.json`): `{"hash": "a1b2c3d4...", "validated": true, "stubs": [...], "real": ["git"]}`.
+World directory: `tasks.txt` (one line per task, `<task>: <command> <command>`), `stubs/<command>/output.txt` (canned output, never code) and `real.txt` (commands declared real). `world check` executes nothing from the world. The validation record is `.willitharness/<world-dir-name>/world.json`: `{"hash": "04d7def2", "validated": true}`.
 A hash change sets `validated` to false and the plan leaves `WorldValidated` (W3).
 
 ## Directory layout (future repo)
@@ -143,7 +143,7 @@ until it is final. The loaders live in `src/willitharness/conformance.py`.
 |---|---|---|
 | `willitharness init <dir>` | Writes a starter plan | 0, 2 |
 | `willitharness plan check <plan>` | Validates the plan (arms, noise pair repeats the LOO arm, budget) | 0, 1, 2 |
-| `willitharness world check <plan>` | Validates the world (W1 to W3) and stores the hash | 0, 1 |
+| `willitharness world check <world-dir>` | Validates the world (W1 to W3) and stores the hash | 0, 1 |
 | `willitharness probe <plan>` | Runs the reachability probe (P1 to P4) | 0, 1, 2, 3 |
 | `willitharness run <plan> --reps N` | Runs cells, resumes, retries, stops at budget | 0, 1, 3, 4 |
 | `willitharness abort <plan>` | Aborts; records in-flight runs unusable and charges RUN_CAP | 0, 1 |
