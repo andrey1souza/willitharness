@@ -10,6 +10,7 @@ zanity:
 
 mutants:
 	uv run python scripts/gates/mutants.py stats
+	uv run python scripts/gates/mutants.py plan
 
 trace:
 	uv run python scripts/gates/trace_check.py

@@ -21,6 +21,7 @@ jobs:
       - run: uv sync
       - run: uv run pytest
       - run: uv run python scripts/gates/mutants.py stats
+      - run: uv run python scripts/gates/mutants.py plan
       - run: uv run python scripts/gates/trace_check.py
 
   zanity:

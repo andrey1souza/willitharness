@@ -38,4 +38,18 @@ STATS_MUTANTS = (
     ),
 )
 
-MODULES = {"stats": (STATS_TESTS, STATS_MUTANTS)}
+PLAN_TESTS = ("tests/unit/test_plan_unit.py", "tests/gates/test_plan_gate.py")
+PLAN = "src/willitharness/plan.py"
+
+PLAN_MUTANTS = (
+    ("default-reps-20-to-10", PLAN, "DEFAULT_REPS = 20", "DEFAULT_REPS = 10"),
+    ("max-retries-2-to-3", PLAN, "MAX_RETRIES = 2", "MAX_RETRIES = 3"),
+    ("min-probe-runs-3-to-1", PLAN, "MIN_PROBE_RUNS = 3", "MIN_PROBE_RUNS = 1"),
+    ("noise-target-check-inverted", PLAN, "if target != loo_label:", "if target == loo_label:"),
+    ("noise-pair-without-loo-arm-allowed", PLAN, "        if not leave_one_out:\n", "        if False:\n"),
+    ("run-cap-may-exceed-budget", PLAN, "if run_cap > budget:", "if run_cap > budget * 2:"),
+    ("two-loo-arms-allowed", PLAN, "if len(leave_one_out) > 1:", "if len(leave_one_out) > 2:"),
+    ("repeated-labels-allowed-once", PLAN, "labels.count(label) > 1", "labels.count(label) > 2"),
+)
+
+MODULES = {"stats": (STATS_TESTS, STATS_MUTANTS), "plan": (PLAN_TESTS, PLAN_MUTANTS)}

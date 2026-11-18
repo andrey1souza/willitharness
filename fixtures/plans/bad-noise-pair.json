@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "name": "bad-noise-pair",
+  "budget_usd": 2.0,
+  "run_cap_usd": 0.5,
+  "arms": [
+    {
+      "label": "C",
+      "role": "leave_one_out",
+      "overlay": "arms/C"
+    },
+    {
+      "label": "B2",
+      "role": "noise_of:B",
+      "overlay": "arms/B"
+    },
+    {
+      "label": "B",
+      "role": "rule",
+      "overlay": "arms/B"
+    },
+    {
+      "label": "D2",
+      "role": "guard_only",
+      "overlay": "arms/D"
+    }
+  ]
+}

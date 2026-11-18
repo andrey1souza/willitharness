@@ -20,11 +20,12 @@ def test_the_stats_module_lists_eight_mutants_with_distinct_names():
     assert len(set(names)) == len(names), f"mutant names must be distinct, got {names}"
 
 
-def test_every_stats_target_occurs_exactly_once_and_changes_the_text():
-    for name, relative_path, old, new in stats_mutants():
-        text = (REPO_ROOT / relative_path).read_text()
-        assert text.count(old) == 1, f"mutant {name}: target occurs {text.count(old)} times in {relative_path}"
-        assert old != new, f"mutant {name}: the replacement equals the target"
+def test_every_target_in_every_module_occurs_exactly_once_and_changes_the_text():
+    for module, (_, module_mutants) in MODULES.items():
+        for name, relative_path, old, new in module_mutants:
+            text = (REPO_ROOT / relative_path).read_text()
+            assert text.count(old) == 1, f"{module}/{name}: target occurs {text.count(old)} times in {relative_path}"
+            assert old != new, f"{module}/{name}: the replacement equals the target"
 
 
 def test_an_ambiguous_target_is_rejected():

@@ -250,3 +250,6 @@ disable = ["filesystem-in-test"]
 
 [paths."tests/gates/"]
 disable = ["filesystem-in-test", "process-in-test"]
+
+[paths."src/willitharness/plan.py"]
+disable = ["parameter-file-path"]
