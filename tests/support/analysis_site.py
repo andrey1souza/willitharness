@@ -2,7 +2,7 @@ import json
 from dataclasses import dataclass
 
 from files import write_tree
-from lifecycle_site import SCHEMA_VERSION, TASK_NAME, WORLD_NAME, reach_every_arm, validate_site
+from lifecycle_site import SCHEMA_VERSION, TASK_NAME, TASK_PROMPT, WORLD_NAME, reach_every_arm, validate_site
 
 from willitharness.analysis import AnalysisInput, analyze_plan
 from willitharness.lifecycle import PlanSite, lifecycle_dir, read_reach, write_state
@@ -71,7 +71,7 @@ def analysis_plan_data(roles):
 
 def make_analysis_site(root, roles):
     data = analysis_plan_data(roles)
-    write_tree(root, {"plan.json": json.dumps(data), f"{WORLD_NAME}/tasks.txt": f"{TASK_NAME}: ls\n", f"{WORLD_NAME}/real.txt": "ls\n"})
+    write_tree(root, {"plan.json": json.dumps(data), f"{WORLD_NAME}/tasks.txt": f"{TASK_NAME}: ls\n", f"{WORLD_NAME}/real.txt": "ls\n", f"{WORLD_NAME}/prompts/{TASK_NAME}.txt": TASK_PROMPT})
     site = PlanSite(root, load_plan(data), root / WORLD_NAME)
     validate_site(site)
     reach_every_arm(site, Reach.LOADED)
