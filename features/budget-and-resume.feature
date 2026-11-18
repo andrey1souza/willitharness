@@ -208,13 +208,6 @@ Feature: Budget, resume, retry, abort and plan lifecycle
     Then the command fails with exit code 1
     And the plan state is "Analyzed"
 
-  @L10
-  Scenario: Analyze on a BudgetStopped plan warns that it ends resume
-    Given the plan state is "BudgetStopped"
-    When I run analyze
-    Then the output warns that analyze ends resume
-    And the plan state becomes "Analyzed"
-
   @L11
   Scenario Outline: A resume with a budget that is not higher is refused
     Given the plan state is "BudgetStopped" with a budget of 0.05

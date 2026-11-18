@@ -42,7 +42,6 @@ RESUME_WORLD_REFUSED = "world not validated or changed since validation. Rule: L
 RESUME_NO_RECORD = "plan has no stored budget and fingerprint. Rule: L10, a plan stores both when it first runs. Fix: start the plan with run before resuming."
 RESUME_PLAN_CHANGED = "plan differs from the stored plan in more than budget_usd. Rule: A-FP, a resume changes only the budget. Fix: restore the plan and raise only budget_usd."
 NOTHING_TO_RESUME = "plan is Complete; there is nothing to resume. Rule: L10, only a BudgetStopped plan resumes. Fix: run willitharness analyze."
-ANALYZE_ENDS_RESUME = "warning: analyze ends resume; a BudgetStopped plan cannot get more budget after it"
 ANALYZE_BEFORE_RUN = "plan has not run yet; analyze after Complete or BudgetStopped"
 STORE_LOCK = threading.Lock()
 
@@ -469,13 +468,3 @@ def analyze_gate(root, plan):
     assert state in ANALYZABLE, f"analyze_gate let state {state} pass. Rule: L5, a verdict needs Complete or BudgetStopped."
     return state
 
-
-def end_plan_by_analysis(root, plan):
-    state = analyze_gate(root, plan)
-    folder = lifecycle_dir(root, plan)
-    with STORE_LOCK:
-        if state in (PlanState.COMPLETE, PlanState.BUDGET_STOPPED):
-            move_to(folder, PlanState.ANALYZED)
-    assert read_state(folder) in ANALYZABLE, f"end_plan_by_analysis left plan {plan.name} in {read_state(folder)}. Rule: L5, an analyzed plan stays analyzable."
-    assert state in ANALYZABLE, f"end_plan_by_analysis got {state}. Rule: L5, a verdict needs Complete or BudgetStopped."
-    return state

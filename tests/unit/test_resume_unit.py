@@ -10,7 +10,6 @@ from willitharness.lifecycle import (
     PlanState,
     ResumeRecord,
     abort_plan,
-    end_plan_by_analysis,
     execute_plan,
     move_to,
     read_reach,
@@ -153,10 +152,3 @@ def test_L10_run_on_a_complete_plan_says_there_is_nothing_to_resume(tmp_path):
     assert "nothing to resume" in message, f"got {message!r}"
     assert read_state(folder_of(site)) is PlanState.COMPLETE, f"got {read_state(folder_of(site))}"
 
-
-def test_L10_analyze_ends_resume_by_moving_a_budget_stopped_plan_to_analyzed(tmp_path):
-    site = stopped_site(tmp_path)
-    assert end_plan_by_analysis(tmp_path, site.plan) is PlanState.BUDGET_STOPPED, f"the gate must report BudgetStopped for {site.plan.name}"
-    assert read_state(folder_of(site)) is PlanState.ANALYZED, f"got {read_state(folder_of(site))}"
-    message = refusal_of(with_budget(site, 0.10), resume_plan)
-    assert "plan is Analyzed" in message, f"got {message!r}"

@@ -236,6 +236,7 @@ As an analyst, I want the LOO arm compared with its repeat first, so that a nois
 As a user, I want one effect result per task and outcome, so that I see where the rule works.
 - Given counts per task, when I analyze, then each task and outcome has its own n and k, built from runs usable for that outcome (L6). A failed P4 gives effect `Invalid`.
 - Given a pooled request, then the verdict is labeled `pooled` with a clustering warning.
+- Given `analyze` on a BudgetStopped plan, then it warns that it ends resume and moves to Analyzed when it produces the verdict (L10).
 - IDs: V1, V6, E1, L6, L7, L8, P4. Gate: G4.5, G4.2. Deps: T10, T22, T30, T33.
 
 ### T35. Warnings (S)
@@ -423,7 +424,6 @@ As a maintainer, I want the probe to read a run with the stream parser, so that 
 As an analyst, I want to continue a plan that the budget stopped by giving it more budget, so that I do not pay again for runs that already exist.
 - Given a BudgetStopped plan, an unchanged world hash, an unchanged plan fingerprint (the plan without `budget_usd`) and a strictly higher budget, when I resume it, then the state is Running, reachability results are kept and `endedBy` is reset.
 - Given a Complete, Analyzed or Aborted plan, a budget that is not higher, a changed world hash or a changed fingerprint, then the command exits 1, names the reason and leaves the plan unchanged.
-- Given `analyze` on a BudgetStopped plan, then it prints a warning that it ends resume.
 - Given a TLA+ schedule of the `resume` model, then the code reaches the same states (trace replay, as in T57).
 - IDs: L10, L11, L12. Gates: G3.7, G7.1. Deps: T27, T28, T50.
 

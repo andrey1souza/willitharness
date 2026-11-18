@@ -104,12 +104,6 @@ def test_L10_an_analyzed_plan_cannot_resume(world):
     assert world["exit_code"] == 1 and "plan is Analyzed" in world["message"], f"got {world['exit_code']} and {world['message']!r}. Rule: L10. Fix: refuse a resume after analyze."
 
 
-@scenario(BUDGET_FEATURE, "Analyze on a BudgetStopped plan warns that it ends resume")
-def test_L10_analyze_on_a_budget_stopped_plan_warns_that_it_ends_resume(world):
-    assert "analyze ends resume" in world["message"], f"the warning is missing, got {world['message']!r}. Rule: L10. Fix: warn before analyze ends resume."
-    assert world["exit_code"] == 2, f"analyze keeps its exit code, got {world['exit_code']}"
-
-
 @scenario(BUDGET_FEATURE, "A resume with a budget that is not higher is refused")
 def test_L11_a_resume_with_a_budget_that_is_not_higher_is_refused(world):
     assert world["exit_code"] == 1 and "L11" in world["message"], f"got {world['exit_code']} and {world['message']!r}. Rule: L11. Fix: require a strictly higher budget."
@@ -285,7 +279,6 @@ def abort_the_plan(world, monkeypatch, capsys):
 def run_analyze(world, monkeypatch, capsys):
     monkeypatch.chdir(world["site"].root)
     world["exit_code"], _, world["message"] = run_cli(capsys, ["analyze", "plan.json"])
-    world["states_seen"].add(read_state(folder_in(world)).value)
 
 
 @then("the start is refused")
@@ -455,11 +448,6 @@ def plan_not_marked_as_ended(world):
 @then("the message says the world must be validated again")
 def message_says_validate_again(world):
     assert "must be validated again" in world["message"], f"got {world['message']!r}"
-
-
-@then("the output warns that analyze ends resume")
-def output_warns_analyze_ends_resume(world):
-    assert "analyze ends resume" in world["message"], f"got {world['message']!r}"
 
 
 @then(parsers.parse("the budget stays {budget:f}"))

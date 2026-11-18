@@ -11,8 +11,7 @@ from willitharness.lifecycle import (
     PlanState,
     RunSetup,
     abort_plan,
-    ANALYZE_ENDS_RESUME,
-    end_plan_by_analysis,
+    analyze_gate,
     resume_if_stopped,
     finished,
     lifecycle_dir,
@@ -188,9 +187,7 @@ def plan_command(argv, name):
             abort_plan(root, plan)
             print(f"plan {PlanState.ABORTED}")
             return EXIT_OK
-        analyzed_from = end_plan_by_analysis(root, plan)
-        if analyzed_from is PlanState.BUDGET_STOPPED:
-            print(ANALYZE_ENDS_RESUME, file=sys.stderr)
+        analyze_gate(root, plan)
     except (PlanError, LifecycleRefused) as error:
         print(str(error), file=sys.stderr)
         return EXIT_DOMAIN_FAILURE

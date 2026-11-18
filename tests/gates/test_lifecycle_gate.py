@@ -2,6 +2,8 @@ import json
 import math
 import threading
 
+import pytest
+
 from cli_runner import run_cli
 from lifecycle_site import SiteSpec, TASK_NAME, edit_world, make_site, ready_site, reach_every_arm, run_setup, success_transcript, validate_site
 
@@ -186,10 +188,11 @@ def test_L10_run_on_a_complete_plan_exits_one_and_says_there_is_nothing_to_resum
     assert state_file(site) == "Complete", f"got {state_file(site)}"
 
 
-def test_L10_analyze_on_a_budget_stopped_plan_warns_that_it_ends_resume_and_keeps_exit_two(tmp_path, monkeypatch, capsys):
-    site = ready_site(tmp_path, TIGHT)
+@pytest.mark.parametrize("spec, expected", [(TIGHT, "BudgetStopped"), (ROOMY, "Complete")])
+def test_L5_analyze_before_m4_leaves_a_finished_plan_in_its_state(tmp_path, monkeypatch, capsys, spec, expected):
+    site = ready_site(tmp_path, spec)
     monkeypatch.chdir(tmp_path)
     run_cli(capsys, RUN_ARGUMENTS)
     code, out, err = run_cli(capsys, ["analyze", "plan.json"])
     assert code == 2 and "analysis is built in M4" in err, f"got {code} {err!r}"
-    assert "analyze ends resume" in err and state_file(site) == "Analyzed", f"got {err!r} and {state_file(site)}"
+    assert state_file(site) == expected and "resume" not in err, f"analyze moved the plan to {state_file(site)}, expected {expected}; err {err!r}"

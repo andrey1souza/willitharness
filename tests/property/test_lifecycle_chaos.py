@@ -13,7 +13,7 @@ from willitharness.lifecycle import (
     abort_plan,
     claim_next_job,
     conclude,
-    end_plan_by_analysis,
+    analyze_gate,
     finish_job,
     finished,
     ledger_from_records,
@@ -78,7 +78,7 @@ def apply_end_step(site, step):
             resume_if_stopped(raised)
             return raised
         if step.operation == "analyze":
-            end_plan_by_analysis(site.root, site.plan)
+            analyze_gate(site.root, site.plan)
     except LifecycleRefused:
         return site
     if step.operation == "conclude":
