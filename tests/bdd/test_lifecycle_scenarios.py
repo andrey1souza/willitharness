@@ -257,7 +257,7 @@ def try_to_start_a_run(world):
 @when("I run the plan")
 def run_the_plan(world, monkeypatch, capsys):
     monkeypatch.chdir(world["site"].root)
-    world["exit_code"] = cli.run_plan_command(RUN_ARGUMENTS, {"fake": observing_runner(world)})
+    world["exit_code"] = cli.run_plan_command(RUN_ARGUMENTS, {"fake": observing_runner(world)}, {})
     world["message"] = capsys.readouterr().err
     world["runs"] = scenario_final_runs(world)
 

@@ -27,3 +27,4 @@ integrate:
 live:
 	uv run python scripts/gates/probe_live.py
 	uv run python scripts/gates/isolation_live.py
+	uv run python scripts/gates/run_live.py

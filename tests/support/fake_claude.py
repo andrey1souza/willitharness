@@ -1,0 +1,57 @@
+import json
+import os
+import stat
+import sys
+
+BEHAVIOR_FILE = "fake-behavior.txt"
+PID_FILE = "agent.pid"
+ESCAPE_TARGET_FILE = "fake-escape-target.txt"
+SECRET_VARIABLE = "FAKE_SECRET_TOKEN"
+OVERSPEND_USD = 5.0
+NORMAL_USD = 0.01
+HANG_SECONDS = 60
+
+SCRIPT = f'''#!{sys.executable}
+import json, os, sys, time
+behavior = open("{BEHAVIOR_FILE}").read().strip() if os.path.exists("{BEHAVIOR_FILE}") else "ok"
+arguments = sys.argv[1:]
+config = os.environ["CLAUDE_CONFIG_DIR"]
+if behavior == "hang":
+    open(os.path.join(config, "{PID_FILE}"), "w").write(str(os.getpid()))
+    time.sleep({HANG_SECONDS})
+def write_allowed(path):
+    try:
+        open(path, "w").write("x")
+        return True
+    except OSError:
+        return False
+report = {{
+    "arguments": arguments,
+    "cwd": os.getcwd(),
+    "files": sorted(os.listdir(".")),
+    "environment": sorted(os.environ),
+    "tmpdir": os.environ.get("TMPDIR"),
+    "wrote_inside": write_allowed("inside.txt"),
+    "wrote_outside": write_allowed(open("{ESCAPE_TARGET_FILE}").read().strip() if os.path.exists("{ESCAPE_TARGET_FILE}") else "/nonexistent/none"),
+}}
+cost = {OVERSPEND_USD} if behavior == "overspend" else {NORMAL_USD}
+print(json.dumps({{"type": "system", "subtype": "init"}}))
+print(json.dumps({{"type": "result", "subtype": "success", "is_error": False, "result": json.dumps(report), "total_cost_usd": cost}}))
+'''
+
+
+def install_fake_claude(bin_dir):
+    assert bin_dir.is_absolute(), f"install_fake_claude needs an absolute folder, got {bin_dir!r}. Fix: pass a path under tmp_path."
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    script = bin_dir / "claude"
+    script.write_text(SCRIPT)
+    script.chmod(script.stat().st_mode | stat.S_IXUSR)
+    assert os.access(script, os.X_OK), f"{script} is not executable"
+    return bin_dir
+
+
+def report_of(transcript):
+    assert transcript, "report_of got an empty transcript. Rule: the fake agent always prints its report. Fix: check the run."
+    last = json.loads(transcript[-1])
+    assert last["type"] == "result", f"the last line is {last!r}, not a result event. Fix: check the fake agent."
+    return json.loads(last["result"])

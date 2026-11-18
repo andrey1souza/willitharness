@@ -19,6 +19,7 @@ from willitharness.lifecycle import (
 )
 from willitharness.plan import PlanError, read_plan
 from willitharness.paths import PathOutsideRoot, inside
+from willitharness.real_runner import claude_runner
 from willitharness.probe import DEFAULT_LABEL, PROMPT_TEMPLATE, ProbeRefused, check_requested_runs, parse_run, probe
 from willitharness.store import load_records, spent
 from willitharness.world import WorldError, store_validation, task_commands, validate_world
@@ -30,7 +31,7 @@ EXIT_BUDGET_STOPPED = 4
 USAGE = (
     "usage: willitharness plan check <plan.json> | willitharness world check <world-dir> "
     "| willitharness probe --agent fake|claude --directory D --runs N --target-token T --control-token C [--boundary B --seed S] [--model M] "
-    "| willitharness run <plan.json> --agent fake | willitharness abort <plan.json> | willitharness analyze <plan.json>"
+    "| willitharness run <plan.json> --agent fake|claude [--timeout-seconds S] [--model M] | willitharness abort <plan.json> | willitharness analyze <plan.json>"
 )
 EXIT_CODES = (EXIT_OK, EXIT_DOMAIN_FAILURE, EXIT_USAGE, EXIT_BUDGET_STOPPED)
 FAKE_RUN_COST_USD = 0.01
@@ -130,6 +131,7 @@ def fake_cell_runner(cell, rep, attempt):
 
 
 RUN_RUNNERS = {"fake": fake_cell_runner}
+SETUP_RUNNERS = {"claude": claude_runner}
 
 
 def plan_site_from(root, plan_name):
@@ -153,21 +155,24 @@ def run_report(site, state):
     return codes.get(state, EXIT_DOMAIN_FAILURE)
 
 
-def run_plan_command(argv, runners):
+def run_plan_command(argv, runners, setup_runners):
     assert isinstance(argv, list), f"run_plan_command needs a list of arguments, got {argv!r}. Fix: pass the arguments after run."
     assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
     parser = argparse.ArgumentParser(prog="willitharness run")
     parser.add_argument("plan")
-    parser.add_argument("--agent", choices=sorted(runners), required=True)
+    parser.add_argument("--agent", choices=sorted([*runners, *setup_runners]), required=True)
     parser.add_argument("--timeout-seconds", type=float, default=DEFAULT_RUN_TIMEOUT_SECONDS)
+    parser.add_argument("--model", default=claude_agent.DEFAULT_MODEL)
     arguments = parser.parse_args(argv)
     try:
         site = plan_site_from(Path.cwd(), arguments.plan)
         tasks = tuple(sorted(task_commands(site.world_dir)))
         if not tasks:
             raise WorldError(NO_TASKS)
+        setup = RunSetup(site, tasks, arguments.timeout_seconds)
+        runner = runners[arguments.agent] if arguments.agent in runners else setup_runners[arguments.agent](setup, arguments.model)
         resume_if_stopped(site)
-        state = execute_plan(RunSetup(site, tasks, arguments.timeout_seconds), runners[arguments.agent])
+        state = execute_plan(setup, runner)
     except (PathOutsideRoot, PlanError, WorldError, LifecycleRefused) as error:
         print(str(error), file=sys.stderr)
         return EXIT_DOMAIN_FAILURE
@@ -206,7 +211,7 @@ def main(argv):
     if command == ["probe"]:
         return probe_command(rest, RUNNERS)
     if command == ["run"]:
-        return run_plan_command(rest, RUN_RUNNERS)
+        return run_plan_command(rest, RUN_RUNNERS, SETUP_RUNNERS)
     if command in (["abort"], ["analyze"]):
         return plan_command(rest, argv[0])
     print(f"unknown command {argv!r}. Rule: v0 has plan check, world check, probe, run, abort and analyze so far. Fix: {USAGE}", file=sys.stderr)
