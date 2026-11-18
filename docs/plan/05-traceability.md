@@ -1,4 +1,4 @@
-# 05. Traceability matrix (contract v0.2)
+# 05. Traceability matrix (contract v0.4)
 
 Every contract ID maps to features, tests, a TLA+ item, a Lean item and a gate.
 All cells are `planned`. Owners: features and tests belong to the plan fork's
@@ -9,7 +9,7 @@ in progress). The naming convention for formal items is the ID as a name prefix,
 for example `L9_...` or `P2_...`. Gate G1.6 checks it.
 
 Legend: F = feature file. n/a = not the right tool for this ID. Contract section 8
-decides which tool covers which group. 44 IDs in total.
+decides which tool covers which group. 47 IDs in total.
 
 ## Verdict properties and assumptions
 | ID | Feature scenarios | Python tests | TLA+ | Lean | Gate |
@@ -71,6 +71,9 @@ decides which tool covers which group. 44 IDs in total.
 | L7 | F reachability: "An arm with Unknown reachability gets no effect verdict" | `test_analysis.py::test_l7` | `L7_...` | n/a | G2.2, G7.1 |
 | L8 | F effect-with-noise: noise pair repeats LOO, no noise pair, LOO arm removes one section; F report | `test_analysis.py::test_l8`, `test_plan.py` | `L8_...` | n/a | G1.8, G4.2, G7.1 |
 | L9 | F budget-and-resume: "An unusable run does not use a rep, and attempts are capped", "Retries stop when the cell is full" | `test_store.py::test_attempt_cap` | `L9_...` | n/a | G3.5, G7.1 |
+| L10 | F budget-and-resume: "A BudgetStopped plan resumes with a higher budget", Complete, changed world, changed plan fingerprint and Analyzed plans cannot resume, analyze warns | none yet; pending T61 (`trace_pending.json`) | `L10` action property; mutants RA, RD | n/a | G3.7, G7.1 |
+| L11 | F budget-and-resume: "A resume with a budget that is not higher is refused" | none yet; pending T61 | `L11` action property; mutant RB | n/a | G3.7, G7.1 |
+| L12 | F budget-and-resume: "A resumed plan is not marked as ended" | none yet; pending T61 | `L12` invariant; mutant RC | n/a | G3.7, G7.1 |
 | T1 | F budget-and-resume: "A timed-out run still ends", RUN_CAP scenario; F runner-isolation: broken-run outline | `test_run_cap.py`, `test_timeout.py` | `T1_...` temporal property | n/a | G3.7, G3.10, G7.1 |
 | T2 | F budget-and-resume: "A running plan that is never aborted finishes" | `test_lifecycle.py::test_t2` | `T2_...` temporal property | n/a | G3.7, G7.1 |
 | T2a | F budget-and-resume: "A running plan that may be aborted ends in one of three states" | `test_lifecycle.py::test_t2a` | `T2a_...` temporal property | n/a | G3.7, G7.1 |
@@ -86,6 +89,6 @@ decides which tool covers which group. 44 IDs in total.
 | Abort records in-flight runs unusable and charges RUN_CAP | `budget-and-resume.feature` | `test_abort.py` | G3.11 |
 
 ## Coverage check
-Gate G1.6 reads the 44 contract IDs from the contract and fails if one is missing
+Gate G1.6 reads the 47 contract IDs from the contract and fails if one is missing
 from the features or the tests, or (for V, E, P, G, D, DI) from the Lean files, or
 (for L and T) from the TLA+ files. Remove an ID and the gate must fail.

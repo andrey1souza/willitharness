@@ -166,3 +166,70 @@ Feature: Budget, resume, retry, abort and plan lifecycle
     Given the plan state is "BudgetStopped" with 3 usable runs in a cell
     When I run analyze
     Then the verdict for that cell is "InconclusiveSmallN"
+
+  @L10
+  Scenario: A BudgetStopped plan resumes with a higher budget
+    Given the plan state is "BudgetStopped" with a budget of 0.05
+    And the world hash is unchanged since validation
+    And the plan is identical except for budget_usd
+    When I resume the plan with a budget of 0.10
+    Then the plan state becomes "Running"
+    And the reachability results are kept
+    And the plan is no longer marked as ended
+
+  @L10
+  Scenario: A Complete plan cannot resume
+    Given the plan state is "Complete"
+    When I resume the plan with a budget of 0.10
+    Then the command fails with exit code 1
+    And the plan state is "Complete"
+
+  @L10
+  Scenario: A BudgetStopped plan with a changed world cannot resume
+    Given the plan state is "BudgetStopped"
+    And the world hash changed since validation
+    When I resume the plan with a higher budget
+    Then the command fails with exit code 1
+    And the message says the world must be validated again
+    And the plan state is "BudgetStopped"
+
+  @L10
+  Scenario: A plan that differs from the stored plan in more than the budget cannot resume
+    Given the plan state is "BudgetStopped"
+    And the plan fingerprint differs from the stored fingerprint
+    When I resume the plan with a higher budget
+    Then the command fails with exit code 1
+    And the plan state is "BudgetStopped"
+
+  @L10
+  Scenario: An analyzed plan cannot resume
+    Given a BudgetStopped plan that I analyzed
+    When I resume the plan with a higher budget
+    Then the command fails with exit code 1
+    And the plan state is "Analyzed"
+
+  @L10
+  Scenario: Analyze on a BudgetStopped plan warns that it ends resume
+    Given the plan state is "BudgetStopped"
+    When I run analyze
+    Then the output warns that analyze ends resume
+    And the plan state becomes "Analyzed"
+
+  @L11
+  Scenario Outline: A resume with a budget that is not higher is refused
+    Given the plan state is "BudgetStopped" with a budget of 0.05
+    When I resume the plan with a budget of <new_budget>
+    Then the command fails with exit code 1
+    And the budget stays 0.05
+
+    Examples:
+      | new_budget |
+      | 0.05       |
+      | 0.04       |
+
+  @L12
+  Scenario: A resumed plan is not marked as ended
+    Given the plan state is "BudgetStopped" and the plan is marked as ended by the budget
+    When I resume the plan with a higher budget
+    Then the plan state is "Running"
+    And the plan is not marked as ended

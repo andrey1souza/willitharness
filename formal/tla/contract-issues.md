@@ -1,6 +1,6 @@
 # Contract issues found while writing the TLA+ model
 
-Source: `docs/contract.md` (v0.3). Part 3 gives the status of the nine gaps in Part 2 against v0.3.
+Source: `docs/contract.md` (v0.4). Part 3 gives the status of the nine gaps in Part 2 against v0.3.
 Part 1 gives the status of the 12 issues raised against v0.1. Part 2 lists the new gaps
 found while updating the model to v0.2.
 
@@ -53,3 +53,13 @@ Unclear in the contract: section 7 says Abort is reachable from "any state befor
 Analyzed". The model reads that as Drafted to Complete or BudgetStopped. The history flag
 `analyzed` is a model variable, not a contract term. The finite-world-changes assumption is
 stated in prose, not as a numbered item.
+
+## Part 4. Resume in contract v0.4
+
+| # | Status | Where the model checks it |
+|---|---|---|
+| R1 | Resolved. Section 7 defines resume: BudgetStopped to Running only, strictly higher budget, world validated, `endedBy` reset. | Action `Resume`, constants `MaxResumes` and `MaxBudget`. Property `L10`. Mutants RA (resume from Complete) and RD (resume without a valid world) must violate it. |
+| R2 | Resolved. L11: the budget never decreases. | Property `L11`. Mutant RB (any budget from 0) must violate it. |
+| R3 | Resolved. L12: a Running plan is never marked as ended. | Invariant `L12`. Mutant RC (`endedBy` kept) must violate it. |
+| R4 | Open by design. A-FP (the plan is identical except `budget_usd`) has no plan content in the model. | Not modelled. The implementation fingerprint covers it (backlog T61). |
+| R5 | Open. Run records carry no world hash. | Not modelled. Backlog T62. |

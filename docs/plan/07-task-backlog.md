@@ -1,6 +1,6 @@
 # 07. Task backlog
 
-60 tasks in dependency order (contract v0.3). Each is a BDD story with Given, When,
+62 tasks in dependency order (contract v0.4). Each is a BDD story with Given, When,
 Then acceptance, the contract IDs it covers, a gate from file 03, a size and its
 dependencies. Sizes: S under half a day, M about a day, L two or three days. A task
 is done when its gate passes with its bad input rejected.
@@ -416,3 +416,20 @@ As a maintainer, I want the probe to read a run with the stream parser, so that 
 - Given the fake agent, then its result event carries a cost and turns, so the stream parser accepts it.
 - Today `probe.parse_run` and `stream.parse_stream` both read the result event, and `probe.py` repeats three constants of `stream.py`.
 - IDs: P1, L6. Gate: G2.2. Deps: T21.
+
+## Added with contract v0.4
+
+### T61. Resume a BudgetStopped plan (M)
+As an analyst, I want to continue a plan that the budget stopped by giving it more budget, so that I do not pay again for runs that already exist.
+- Given a BudgetStopped plan, an unchanged world hash, an unchanged plan fingerprint (the plan without `budget_usd`) and a strictly higher budget, when I resume it, then the state is Running, reachability results are kept and `endedBy` is reset.
+- Given a Complete, Analyzed or Aborted plan, a budget that is not higher, a changed world hash or a changed fingerprint, then the command exits 1, names the reason and leaves the plan unchanged.
+- Given `analyze` on a BudgetStopped plan, then it prints a warning that it ends resume.
+- Given a TLA+ schedule of the `resume` model, then the code reaches the same states (trace replay, as in T57).
+- IDs: L10, L11, L12. Gates: G3.7, G7.1. Deps: T27, T28, T50.
+
+### T62. World hash in run records (M)
+As an analyst, I want each run record to carry the world hash it ran under, so that a resumed plan can show which runs came from which world.
+- Given a run, when it is recorded, then the record holds the world hash at the start of the run.
+- Given a resumed plan whose records show two world hashes, then the report warns and lists the cells that mix worlds.
+- Today records carry no world hash, so resume checks only the stored validation hash (contract section 7, known gap).
+- IDs: W3. Gate: G3.4. Deps: T61.

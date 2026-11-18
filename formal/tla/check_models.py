@@ -28,7 +28,8 @@ TEMPORAL = "TEMPORAL"
 PASS = "pass"
 VIOLATION = "violation"
 
-SCENARIOS = ("nominal", "budget_tight", "unusable", "unknown_reach", "abort", "world_change", "two_tasks")
+SCENARIOS = ("nominal", "budget_tight", "unusable", "unknown_reach", "abort", "world_change", "two_tasks",
+             "resume", "resume_big", "resume_world", "resume_abort")
 
 PROBES = (
     ("NeverBudgetStopped", "budget_tight"),
@@ -50,6 +51,10 @@ PROBES = (
     ("NeverReachMasked", "nominal"),
     ("NeverWorldChanged", "world_change"),
     ("NeverStartBlockedByWorld", "world_change"),
+    ("NeverResumed", "resume"),
+    ("NeverStoppedAgain", "resume_big"),
+    ("NeverCompleteAfterResume", "resume"),
+    ("NeverStoppedWorldChanged", "resume_world"),
 )
 
 MUTANTS = (
@@ -68,7 +73,12 @@ MUTANTS = (
     ("L9", "unusable", "invariant", "               /\\ TRUE", "L9"),
     ("abort", "abort", "invariant", '    /\\ planState \\notin {"Reported", "Aborted"}', "AbortBeforeAnalyzed"),
     ("W3", "world_change", "property",
-     '    /\\ reach\' = [a \\in Arms |-> "none"]\n    /\\ UNCHANGED <<planArms, endedBy, runVars, verdictVars, timeouts>>', "W3"),
+     '    /\\ reach\' = [a \\in Arms |-> "none"]\n    /\\ UNCHANGED <<planArms, endedBy, runVars, verdictVars, timeouts, budget, resumes>>', "W3"),
+    ("RA", "resume_big", "property",
+     '    /\\ planState \\in {"BudgetStopped", "Complete"}', "L10"),
+    ("RB", "resume", "property", "    /\\ b \\in 0..MaxBudget", "L11"),
+    ("RC", "resume", "invariant", "    /\\ endedBy' = endedBy", "L12"),
+    ("RD", "resume_world", "property", "    /\\ TRUE", "L10"),
     ("T", "unusable", "property", "    /\\ cost' = [cost EXCEPT ![c] = @]", "TimeoutCharges"),
 )
 KINDS = ("invariant", "property")

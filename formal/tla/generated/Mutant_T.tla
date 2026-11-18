@@ -14,7 +14,7 @@
    Lines tagged MUT:x are replaced by check_models.py to build the mutants. *)
 EXTENDS Naturals
 
-CONSTANTS Tasks, Reps, MaxRetries, RunCap, Budget, MinRuns, MaxWorldChanges,
+CONSTANTS Tasks, Reps, MaxRetries, RunCap, Budget, MinRuns, MaxWorldChanges, MaxResumes, MaxBudget,
           AllowUnusable, AllowAbort, WithNoiseOnly, ReachOutcomes
 
 ASSUME Reps \in Nat \ {0}
@@ -23,6 +23,8 @@ ASSUME RunCap \in Nat \ {0}
 ASSUME Budget \in Nat
 ASSUME MinRuns \in Nat
 ASSUME MaxWorldChanges \in Nat
+ASSUME MaxResumes \in Nat
+ASSUME MaxBudget \in Nat /\ MaxBudget >= Budget
 ASSUME AllowUnusable \in BOOLEAN
 ASSUME AllowAbort \in BOOLEAN
 ASSUME WithNoiseOnly \in BOOLEAN
@@ -44,14 +46,14 @@ MaxAttempts == Reps + MaxRetries
 VARIABLES planState, worldOk, planArms, reach, endedBy,
           started, usable, unusable, cost,
           noiseStatus, effect, reportedN, analyzed,
-          timeouts, worldChanges
+          timeouts, worldChanges, budget, resumes
 
 planVars == <<planState, worldOk, planArms, reach, endedBy>>
 runVars == <<started, usable, unusable, cost>>
 verdictVars == <<noiseStatus, effect, reportedN, analyzed>>
-counterVars == <<timeouts, worldChanges>>
+counterVars == <<timeouts, worldChanges, budget, resumes>>
 vars == <<planState, worldOk, planArms, reach, endedBy, started, usable, unusable, cost,
-          noiseStatus, effect, reportedN, analyzed, timeouts, worldChanges>>
+          noiseStatus, effect, reportedN, analyzed, timeouts, worldChanges, budget, resumes>>
 
 PlanCells == planArms \X Tasks
 EffectArms == planArms \ {LooArm, NoiseArm}
@@ -66,7 +68,7 @@ InFlightCell(c) == started[c] - usable[c] - unusable[c]
 InFlight == SumCells([c \in Cells |-> InFlightCell(c)], PlanCells)
 Spent == SumCells(cost, Cells)
 Reserved == RunCap * InFlight
-BudgetAllows == Spent + Reserved + RunCap <= Budget  (* MUT:L2 *)
+BudgetAllows == Spent + Reserved + RunCap <= budget  (* MUT:L2 *)
 CellDone(c) == usable[c] = Reps \/ started[c] = MaxAttempts
 CanStart(c) == /\ c \in PlanCells
                /\ usable[c] + InFlightCell(c) < Reps  (* MUT:L4 *)
@@ -92,22 +94,24 @@ Init == /\ planState = "Drafted"
         /\ analyzed = FALSE
         /\ timeouts = 0
         /\ worldChanges = 0
+        /\ budget = Budget
+        /\ resumes = 0
 
 ValidateWorld ==
     /\ ~worldOk
-    /\ planState \in {"Drafted", "Running"}
+    /\ planState \in {"Drafted", "Running", "BudgetStopped"}
     /\ worldOk' = TRUE
-    /\ planState' = (IF planState = "Drafted" THEN "WorldValidated" ELSE "Running")
+    /\ planState' = (IF planState = "Drafted" THEN "WorldValidated" ELSE planState)
     /\ UNCHANGED <<planArms, reach, endedBy, runVars, verdictVars, counterVars>>
 
 WorldChanged ==
     /\ worldOk
     /\ worldChanges < MaxWorldChanges
-    /\ planState \in {"WorldValidated", "ReachabilityChecked", "Running"}
+    /\ planState \in {"WorldValidated", "ReachabilityChecked", "Running", "BudgetStopped"}
     /\ worldOk' = FALSE
-    /\ planState' = (IF planState = "Running" THEN "Running" ELSE "Drafted")
+    /\ planState' = (IF planState \in {"WorldValidated", "ReachabilityChecked"} THEN "Drafted" ELSE planState)
     /\ worldChanges' = worldChanges + 1
-    /\ UNCHANGED <<planArms, reach, endedBy, runVars, verdictVars, timeouts>>  (* MUT:W3 *)
+    /\ UNCHANGED <<planArms, reach, endedBy, runVars, verdictVars, timeouts, budget, resumes>>  (* MUT:W3 *)
 
 CheckReach(a) ==
     /\ planState = "WorldValidated"
@@ -153,7 +157,7 @@ Timeout(c) ==
     /\ unusable' = [unusable EXCEPT ![c] = @ + 1]
     /\ cost' = [cost EXCEPT ![c] = @]
     /\ timeouts' = timeouts + 1
-    /\ UNCHANGED <<planVars, started, usable, verdictVars, worldChanges>>
+    /\ UNCHANGED <<planVars, started, usable, verdictVars, worldChanges, budget, resumes>>
 
 FinishComplete ==
     /\ planState = "Running"
@@ -171,6 +175,17 @@ FinishBudgetStopped ==
     /\ planState' = "BudgetStopped"
     /\ endedBy' = "BudgetStopped"
     /\ UNCHANGED <<worldOk, planArms, reach, runVars, verdictVars, counterVars>>
+
+Resume(b) ==
+    /\ planState = "BudgetStopped"  (* MUT:RA *)
+    /\ worldOk  (* MUT:RD *)
+    /\ resumes < MaxResumes
+    /\ b \in (budget + 1)..MaxBudget  (* MUT:RB *)
+    /\ budget' = b
+    /\ resumes' = resumes + 1
+    /\ planState' = "Running"
+    /\ endedBy' = "none"  (* MUT:RC *)
+    /\ UNCHANGED <<worldOk, planArms, reach, runVars, verdictVars, timeouts, worldChanges>>
 
 Analyze ==
     /\ planState \in {"Complete", "BudgetStopped"}
@@ -228,6 +243,7 @@ Next == \/ ValidateWorld
         \/ \E c \in Cells : Timeout(c)
         \/ FinishComplete
         \/ FinishBudgetStopped
+        \/ \E b \in 0..MaxBudget : Resume(b)
         \/ Analyze
         \/ AssessNoise
         \/ \E x \in Arms : EmitEffect(x)
@@ -271,10 +287,12 @@ TypeOK ==
     /\ analyzed \in BOOLEAN
     /\ timeouts \in Nat
     /\ worldChanges \in 0..MaxWorldChanges
+    /\ budget \in Budget..MaxBudget
+    /\ resumes \in 0..MaxResumes
 
 L1 == [][\A c \in Cells : started'[c] > started[c] =>
             (planState = "Running" /\ worldOk /\ \A a \in planArms : reach[a] # "none")]_vars
-L2 == Spent + Reserved <= Budget
+L2 == Spent + Reserved <= budget
 L3 == [][\A c \in Cells : /\ usable'[c] >= usable[c]
                           /\ unusable'[c] >= unusable[c]
                           /\ cost'[c] >= cost[c]]_vars
@@ -285,6 +303,10 @@ L6 == planState \in {"Analyzed", "Reported"} => \A a \in planArms : reportedN[a]
 L7 == \A x \in Arms : effect[x] = "Reported" => reach[x] # "Unknown"
 L8 == \A x \in Arms : effect[x] = "Reported" => (NoiseArm \in planArms /\ noiseStatus = "NoiseOk")
 L9 == \A c \in Cells : started[c] <= MaxAttempts
+L10 == [][resumes' > resumes => /\ planState = "BudgetStopped" /\ planState' = "Running" /\ worldOk
+                                  /\ budget' > budget /\ endedBy' = "none"]_vars
+L11 == [][budget' >= budget]_vars
+L12 == planState = "Running" => endedBy = "none"
 V6 == \A x \in Arms : effect[x] = "Reported" => noiseStatus = "NoiseOk"
 
 AbortBeforeAnalyzed == analyzed => planState # "Aborted"

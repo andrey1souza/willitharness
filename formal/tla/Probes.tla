@@ -25,4 +25,8 @@ NeverCompleteWithShortCell == ~(planState = "Complete" /\ \E c \in PlanCells : u
 NeverReachMasked == \A a \in Arms : reach[a] # "Masked"
 NeverWorldChanged == worldChanges = 0
 NeverStartBlockedByWorld == ~(planState = "Running" /\ ~worldOk /\ \E c \in PlanCells : CanStart(c))
+NeverResumed == resumes = 0
+NeverStoppedAgain == ~(resumes > 0 /\ planState = "BudgetStopped")
+NeverCompleteAfterResume == ~(resumes > 0 /\ planState = "Complete")
+NeverStoppedWorldChanged == ~(planState = "BudgetStopped" /\ ~worldOk)
 ====
