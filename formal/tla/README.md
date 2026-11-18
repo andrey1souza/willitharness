@@ -154,9 +154,9 @@ Two things the suite caught while moving to v0.2:
 
 ```
 cd formal/tla
-python3 check_models.py                 # all 52 runs, about 5.3 minutes
-python3 check_models.py --only mutant   # one family
-python3 check_models.py --list
+uv run python check_models.py                 # all 52 runs, about 5.3 minutes
+uv run python check_models.py --only mutant   # one family
+uv run python check_models.py --list
 ```
 
 It needs a JDK and the TLC jar. Defaults: Java at `/opt/homebrew/opt/openjdk/bin/java`

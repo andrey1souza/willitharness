@@ -19,7 +19,7 @@ repo:
 
 formal:
 	python3 formal/lean/check_lean.py
-	python3 formal/tla/check_models.py
+	uv run python formal/tla/check_models.py
 
 integrate:
 	python3 scripts/guards/integrate.py
