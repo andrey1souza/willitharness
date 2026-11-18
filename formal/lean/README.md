@@ -6,6 +6,7 @@ Proves the logic layer of `docs/contract.md` (v0.3). It does not prove the numer
 - Lean 4.36.0 (commit 611c117bfaf7b7ae1cfcf246ce6fba31e8f509e9, arm64-apple-darwin24.6.0).
 - Lake 5.0.0. elan 4.2.4.
 - Installed under `~/.cache/willitharness/elan` (set `WILLITHARNESS_ELAN_HOME` to use another folder). No Mathlib. Core Lean only.
+- Pinned: `check_lean.py` compares the sha256 of `lean` and `lake` with `PINNED_BINARY_SHA256` (macOS arm64 only) before it runs anything. The pins equal the binaries inside the official `lean-4.36.0-darwin_aarch64.tar.zst` release archive (archive sha256 `49acada8749ad1343eff1224a3d2510ac61ed53363d37b5e738e8c587e7deabd`, checked against GitHub on 2026-11-18). Other platforms fail with "no pin" until their digests are added. elan itself is not pinned.
 
 ## Layout
 | File | Content |

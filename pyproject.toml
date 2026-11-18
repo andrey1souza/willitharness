@@ -79,4 +79,4 @@ markers = [
   "W3: tag from the features directory",
   "live: tag from the features directory",
 ]
-pythonpath = ["src", "scripts", "scripts/gates", "tests/support", "formal/tla"]
+pythonpath = ["src", "scripts", "scripts/gates", "tests/support", "formal/tla", "formal/lean"]

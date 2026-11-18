@@ -1,5 +1,7 @@
+import hashlib
 import json
 import os
+import platform
 import re
 import subprocess
 import sys
@@ -11,6 +13,13 @@ PROVEN_SOURCES = ["Willitharness.lean", "Export.lean", "Audit.lean"]
 PROVEN_SOURCE_DIR = "Willitharness"
 WRONG_SOURCE = PROJECT / "WrongVariants.lean"
 AUDIT_SOURCE = PROJECT / "Audit.lean"
+TOOLCHAIN_FILE = PROJECT / "lean-toolchain"
+PINNED_BINARY_SHA256 = {
+    ("Darwin", "arm64"): {
+        "lean": "a4c5d3dfc1672faf014e59bd17724035259ff0d22a4ffbdf5a75e142f564817e",
+        "lake": "a0e516de0ba03a26cb90c80f06666022ef9de3f0943f8b26e9b902d229b43ebe",
+    },
+}
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
 BUILD_TIMEOUT_SECONDS = 900
 CONTRACT_VERSION = "v0.3"
@@ -172,6 +181,41 @@ def write_audit_file(names):
     assert AUDIT_SOURCE.is_file(), f"the audit file {AUDIT_SOURCE} was not written. Fix: check the folder permissions."
 
 
+def toolchain_directory_name():
+    text = TOOLCHAIN_FILE.read_text().strip()
+    assert "/" in text and ":" in text, f"{TOOLCHAIN_FILE} holds {text!r}. Rule: it names a toolchain as origin/name:version. Fix: restore the file."
+    directory = text.replace("/", "--").replace(":", "---")
+    assert "/" not in directory and ":" not in directory, f"the directory name {directory!r} still holds a separator. Fix: replace every / and :."
+    return directory
+
+
+def installed_digests(names):
+    assert names, "installed_digests got no binary names. Fix: pass the pinned names."
+    binaries = TOOLS / "toolchains" / toolchain_directory_name() / "bin"
+    assert binaries.is_dir(), f"the toolchain folder {binaries} is missing. Rule: the checker runs the toolchain named in lean-toolchain. Fix: install it with elan."
+    return {name: hashlib.sha256((binaries / name).read_bytes()).hexdigest() for name in names}
+
+
+def pin_mismatches(actual, pinned):
+    assert pinned, "pin_mismatches got no pins. Rule: a pin check with no pins proves nothing. Fix: pass the pinned digests."
+    lengths = {len(digest) for digest in pinned.values()}
+    assert len(lengths) == 1, f"pinned digests differ in length: {pinned!r}. Fix: use sha256 hex digests."
+    return [f"{name} has sha256 {actual.get(name)}, pinned {digest}" for name, digest in pinned.items() if actual.get(name) != digest]
+
+
+def check_toolchain_pin():
+    key = (platform.system(), platform.machine())
+    name = "toolchain binaries match the pinned sha256"
+    if key not in PINNED_BINARY_SHA256:
+        return name, "a pin for this platform", f"no pin for {key}. Fix: add its lean and lake digests to PINNED_BINARY_SHA256", False
+    pinned = PINNED_BINARY_SHA256[key]
+    assert pinned, f"the pins for {key} are empty. Rule: a pinned platform names its binaries. Fix: add the lean and lake digests."
+    mismatches = pin_mismatches(installed_digests(sorted(pinned)), pinned)
+    row = name, "lean and lake match", "match" if not mismatches else "; ".join(mismatches), not mismatches
+    assert len(row) == 4, f"a check returns four fields, got {row!r}. Fix: return name, expected, actual, passed."
+    return row
+
+
 def check_toolchain():
     assert (PROJECT / "lakefile.toml").is_file(), f"no lakefile.toml in {PROJECT}. Rule: the checks run lake there. Fix: run the checker from a complete Lean project."
     result = run(["lean", "--version"])
@@ -258,7 +302,7 @@ def check_wrong_variants():
 
 
 def main():
-    checks = [check_toolchain, check_build, check_forbidden_constructs, check_axioms,
+    checks = [check_toolchain_pin, check_toolchain, check_build, check_forbidden_constructs, check_axioms,
               *[lambda kind=kind: check_table(kind) for kind in TABLE_KINDS], check_wrong_variants]
     rows = [check() for check in checks]
     assert all(len(row) == 4 for row in rows), f"every check returns four fields, got {rows!r}. Fix: return name, expected, actual, passed."
