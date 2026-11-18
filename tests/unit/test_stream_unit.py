@@ -1,6 +1,6 @@
 import json
 
-from willitharness.stream import RunState, attempted, parse_stream
+from willitharness.stream import RunState, attempted, load_event_with, parse_stream
 
 CAP = 0.5
 NEEDED = ("cp", "unlink")
@@ -142,3 +142,16 @@ def test_a_deeply_nested_line_is_skipped():
     record = parse_stream([deep, result_line()], NEEDED, CAP)
     assert record.state == RunState.RECORDED_USABLE, f"expected usable, got {record}"
     assert record.denials == 0, f"unexpected denials in {record}"
+
+
+def raise_recursion(line):
+    raise RecursionError(line)
+
+
+def raise_value(line):
+    raise ValueError(line)
+
+
+def test_a_decoder_that_runs_out_of_stack_gives_an_empty_event_on_every_python():
+    assert load_event_with("[[[", raise_recursion) == {}, "a RecursionError from the decoder must give an empty event"
+    assert load_event_with("[[[", raise_value) == {}, "a ValueError from the decoder must give an empty event"

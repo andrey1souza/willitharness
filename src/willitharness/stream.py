@@ -47,15 +47,23 @@ def list_of(value):
     return result
 
 
-def load_event(line):
+def load_event_with(line, loads):
+    assert callable(loads), f"loads must be a function that decodes a line, got {loads!r}. Fix: pass json.loads."
     try:
-        event = json.loads(line)
+        event = loads(line)
     except UNREADABLE_LINE_ERRORS:
         event = None
     result = dict_of(event)
-    assert isinstance(result, dict), f"load_event returned {type(result)}. Rule: a line is an object or empty. Fix: use dict_of."
-    assert not result or result is event, f"load_event changed the event {event!r}. Rule: pass an object through unchanged."
+    assert isinstance(result, dict), f"load_event_with returned {type(result)}. Rule: a line is an object or empty. Fix: use dict_of."
+    assert not result or result is event, f"load_event_with changed the event {event!r}. Rule: pass an object through unchanged."
     return result
+
+
+def load_event(line):
+    assert isinstance(line, str), f"load_event needs a text line, got {type(line)}. Rule: a transcript line is text. Fix: pass the line as str."
+    event = load_event_with(line, json.loads)
+    assert isinstance(event, dict), f"load_event returned {type(event)}. Rule: a line is an object or empty. Fix: use load_event_with."
+    return event
 
 
 def bash_command_of(block):
