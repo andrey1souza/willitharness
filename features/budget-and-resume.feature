@@ -131,6 +131,14 @@ Feature: Budget, resume, retry, abort and plan lifecycle
     When I run the plan to the end
     Then the plan state is "Complete", "BudgetStopped" or "Aborted"
 
+  @L5
+  Scenario: An analyzed plan cannot be aborted
+    Given the plan state is "Analyzed"
+    When I abort the plan
+    Then the command fails with exit code 1
+    And the message says "plan already analyzed; abort is not possible"
+    And the plan state is "Analyzed"
+
   @L5 @L2
   Scenario: Abort records every in-flight run as unusable and charges RUN_CAP for it
     Given 3 runs are in flight and the recorded spend is 0.10

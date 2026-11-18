@@ -1,6 +1,6 @@
 # 07. Task backlog
 
-50 tasks in dependency order (contract v0.2). Each is a BDD story with Given, When,
+53 tasks in dependency order (contract v0.3). Each is a BDD story with Given, When,
 Then acceptance, the contract IDs it covers, a gate from file 03, a size and its
 dependencies. Sizes: S under half a day, M about a day, L two or three days. A task
 is done when its gate passes with its bad input rejected.
@@ -340,3 +340,22 @@ As a maintainer, I want the formal artifacts checked on every run, so that spec 
 - Given `cd formal/lean && lake build`, then it prints `Build completed successfully`. Given a Lean file with `sorry`, then `scripts/gates/no_sorry.sh` exits 1.
 - Given `make check`, then it prints `ALL GATES OK`. Given a removed gate script, then it fails with `missing gate`. Nothing is pushed.
 - IDs: L1 to L9, T1, T2, T2a, V1 to V6, D1 to D12, E1, P1 to P4, G1, DI-1, DI-2. Gates: G7.1 to G7.6. Deps: T14, T49, both formal forks' artifacts.
+
+## Added with contract v0.3
+
+### T51. Required-action detectors (M)
+As a user, I want rules like "check X first" tested, so that rules about doing something are measured, not only rules about not doing something.
+- Given a `required` detector for the action "gbrain query" before the first edit, when a complete transcript calls it first, then the run did not break the rule.
+- Given a transcript that ends before any result event, then the run is unusable for the outcome and counts in neither n nor k.
+- IDs: R1. Gate: G3.2. Deps: T21.
+
+### T52. AtBound warning (S)
+As a user, I want to know when an Inconclusive verdict only means both arms are at a bound, so that I run harder tasks instead of more runs.
+- Given arms at 0 of 20 and 0 of 20, or 20 of 20 and 20 of 20, then the report shows the AtBound warning with its reason, and the verdict and the decision do not change.
+- IDs: warnings. Gate: G4.6. Deps: T40.
+
+### T53. Channel per arm (S)
+As a user, I want each arm to say how its rule text reaches the agent, so that a hook and a file are not mixed up.
+- Done in M2: `plan.py` reads `channel` (file, skill, hook, system_prompt; default file) and rejects another value with the fix. `features/plan-arms.feature` runs under pytest-bdd.
+- Later: the probe runs per channel, and Q5 (comparing channels) is a v0.4 contract item with its own tables.
+- IDs: none (glossary). Gate: G1.8. Deps: T11.

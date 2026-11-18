@@ -1,4 +1,6 @@
-# Contract issues: status against contract v0.2
+# Contract issues: status against contract v0.3
+
+Contract v0.3 resolves CI-16, CI-17 and CI-18 and the TLA+ and Lean gaps listed in the contract's section 11. The text below keeps the v0.2 record. Items that change a Lean table, the guard code or the TLA+ model are still to be built.
 
 Source: `../00-domain-contract.md` (v0.2, not edited). v0.1 is kept as
 `../00-domain-contract.v0.1.md`. Section 11 of v0.2 lists every change.

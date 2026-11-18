@@ -13,6 +13,8 @@ ROLE_RULE = "rule"
 ROLE_GUARD_ONLY = "guard_only"
 NOISE_ROLE_PREFIX = "noise_of:"
 FIXED_ROLES = frozenset({ROLE_LEAVE_ONE_OUT, ROLE_RULE, ROLE_GUARD_ONLY})
+CHANNELS = ("file", "hook", "skill", "system_prompt")
+DEFAULT_CHANNEL = "file"
 ARM_KEYS = ("label", "role", "overlay")
 
 
@@ -25,6 +27,7 @@ class Arm:
     label: str
     role: str
     overlay: str
+    channel: str
 
 
 @dataclass(frozen=True)
@@ -53,7 +56,13 @@ def read_arm(entry):
     role = entry["role"]
     if noise_target(role) is None and role not in FIXED_ROLES:
         raise PlanError(f"arm {entry['label']} has role {role!r}. Rule: a role is rule, leave_one_out, guard_only or noise_of:<label>. Fix: correct the role.")
-    arm = Arm(entry["label"], role, entry["overlay"])
+    channel = entry.get("channel", DEFAULT_CHANNEL)
+    if channel not in CHANNELS:
+        raise PlanError(
+            f"arm {entry['label']} has channel {channel!r}, which is not one of {', '.join(CHANNELS)}. "
+            f"Rule: a channel says how the rule text reaches the agent. Fix: set channel to one of them or remove it for {DEFAULT_CHANNEL}."
+        )
+    arm = Arm(entry["label"], role, entry["overlay"], channel)
     assert arm.label == entry["label"] and arm.role == role, f"read_arm changed the entry {entry!r} into {arm!r}"
     return arm
 

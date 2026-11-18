@@ -38,7 +38,7 @@ STATS_MUTANTS = (
     ),
 )
 
-PLAN_TESTS = ("tests/unit/test_plan_unit.py", "tests/gates/test_plan_gate.py")
+PLAN_TESTS = ("tests/unit/test_plan_unit.py", "tests/gates/test_plan_gate.py", "tests/bdd/test_plan_arms.py")
 PLAN = "src/willitharness/plan.py"
 
 PLAN_MUTANTS = (
@@ -50,6 +50,8 @@ PLAN_MUTANTS = (
     ("run-cap-may-exceed-budget", PLAN, "if run_cap > budget:", "if run_cap > budget * 2:"),
     ("two-loo-arms-allowed", PLAN, "if len(leave_one_out) > 1:", "if len(leave_one_out) > 2:"),
     ("repeated-labels-allowed-once", PLAN, "labels.count(label) > 1", "labels.count(label) > 2"),
+    ("unknown-channel-accepted", PLAN, "if channel not in CHANNELS:", "if False:"),
+    ("default-channel-changed", PLAN, 'DEFAULT_CHANNEL = "file"', 'DEFAULT_CHANNEL = "hook"'),
 )
 
 FAKE_AGENT_TESTS = ("tests/gates/test_fakeagent.py",)

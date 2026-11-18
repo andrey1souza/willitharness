@@ -25,6 +25,8 @@ dev = [
 testpaths = ["tests"]
 addopts = "-q -m 'not live' --strict-markers"
 markers = [
+  "AtBound: tag from the features directory",
+  "Channel: tag from the features directory",
   "D1: tag from the features directory",
   "D10: tag from the features directory",
   "D11: tag from the features directory",
@@ -57,6 +59,7 @@ markers = [
   "Q1: tag from the features directory",
   "Q3: tag from the features directory",
   "Q4: tag from the features directory",
+  "R1: tag from the features directory",
   "S1: tag from the features directory",
   "S2: tag from the features directory",
   "T1: tag from the features directory",

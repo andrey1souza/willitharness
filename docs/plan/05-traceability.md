@@ -9,7 +9,7 @@ in progress). The naming convention for formal items is the ID as a name prefix,
 for example `L9_...` or `P2_...`. Gate G1.6 checks it.
 
 Legend: F = feature file. n/a = not the right tool for this ID. Contract section 8
-decides which tool covers which group. 43 IDs in total.
+decides which tool covers which group. 44 IDs in total.
 
 ## Verdict properties and assumptions
 | ID | Feature scenarios | Python tests | TLA+ | Lean | Gate |
@@ -52,6 +52,7 @@ decides which tool covers which group. 43 IDs in total.
 ## Side effects and world
 | ID | Feature scenarios | Python tests | TLA+ | Lean | Gate |
 |---|---|---|---|---|---|
+| R1 | F detectors: required action present, missing, and a cut-off transcript | `test_detectors.py::test_r1` (pending, M3) | n/a | n/a | G3.2 |
 | S1 | F side-effects: command listed with counts, no difference, turns and cost, alternative channels; F report: side-effect section | `test_side_effects.py` | n/a | n/a | G6.1 |
 | S2 | F side-effects: "Side effects never change the decision", "The decision function takes no side-effect input"; F report | `test_side_effects.py::test_s2_same_decision`, `s2_type_check.py` | n/a | n/a (by type in Python) | G6.5 |
 | W1 | F world-validation: task command with a stub, declared real, no stub | `test_world.py::test_w1` | n/a | n/a | G3.3 |
@@ -77,13 +78,14 @@ decides which tool covers which group. 43 IDs in total.
 ## Non-ID rules covered in features
 | Rule | Feature | Tests | Gate |
 |---|---|---|---|
-| Warnings W-LOWN, W-DENIAL, saturated, pooled | `warnings.feature`, `effect-with-noise.feature`, `report.feature` | `test_warnings.py` | G4.6 |
+| Warnings W-LOWN, W-DENIAL, saturated, AtBound, pooled | `warnings.feature`, `effect-with-noise.feature`, `report.feature` | `test_warnings.py` | G4.6 |
+| Channel per arm (file, skill, hook, system_prompt) | `plan-arms.feature` | `tests/bdd/test_plan_arms.py` | G1.8 |
 | Outcomes per task cell, usable per outcome | `runner-isolation.feature`, `effect-with-noise.feature` | `test_analysis_outcomes.py` | G3.2, G4.5 |
 | DEFAULT_REPS 20, MAX_RETRIES 2, MIN_PROBE_RUNS 3 | `budget-and-resume.feature`, `reachability.feature` | `test_plan.py` | G1.8 |
 | A-CAP enforcement and timeout transition | `runner-isolation.feature`, `budget-and-resume.feature` | `test_run_cap.py` | G3.10 |
 | Abort records in-flight runs unusable and charges RUN_CAP | `budget-and-resume.feature` | `test_abort.py` | G3.11 |
 
 ## Coverage check
-Gate G1.6 reads the 43 contract IDs from the contract and fails if one is missing
+Gate G1.6 reads the 44 contract IDs from the contract and fails if one is missing
 from the features or the tests, or (for V, E, P, G, D, DI) from the Lean files, or
 (for L and T) from the TLA+ files. Remove an ID and the gate must fail.

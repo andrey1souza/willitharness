@@ -35,6 +35,23 @@ def rejection(data):
     return str(raised.value)
 
 
+def test_an_arm_without_a_channel_gets_the_file_channel():
+    channels = {arm.label: arm.channel for arm in load_plan(VALID).arms}
+    assert channels == {"C": "file", "C2": "file", "B": "file"}, f"got {channels}"
+
+
+def test_each_known_channel_is_kept():
+    for channel in plan.CHANNELS:
+        arms = [{"label": "B", "role": "rule", "overlay": "arms/B", "channel": channel}]
+        assert load_plan(changed({"arms": arms})).arms[0].channel == channel, f"channel {channel} was not kept"
+
+
+def test_an_unknown_channel_is_rejected_with_the_known_ones_and_a_fix():
+    arms = [{"label": "B", "role": "rule", "overlay": "arms/B", "channel": "carrier-pigeon"}]
+    message = rejection(changed({"arms": arms}))
+    assert "carrier-pigeon" in message and "file, hook, skill, system_prompt" in message and "Fix:" in message, f"got {message!r}"
+
+
 def test_the_constants_match_the_contract():
     assert plan.DEFAULT_REPS == EXPECTED_DEFAULT_REPS, f"{plan.DEFAULT_REPS=}"
     assert plan.MAX_RETRIES == EXPECTED_MAX_RETRIES, f"{plan.MAX_RETRIES=}"

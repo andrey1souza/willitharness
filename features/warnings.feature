@@ -57,3 +57,18 @@ Feature: Report warnings
     When I analyze the plan and decide
     Then the verdict is the same
     And the decision is the same
+
+  @AtBound
+  Scenario Outline: AtBound explains an Inconclusive verdict when both arms sit at a bound
+    Given arm "first" has <k1> of 20 and arm "second" has <k2> of 20
+    When I analyze the plan
+    Then the verdict is "Inconclusive"
+    And the warning "AtBound" is <shown>
+    And the reason says "both arms at 0% (or 100%); harder tasks are needed" when it is shown
+
+    Examples:
+      | k1 | k2 | shown |
+      | 0  | 0  | shown |
+      | 20 | 20 | shown |
+      | 0  | 1  | absent |
+      | 10 | 10 | absent |
