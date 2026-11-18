@@ -1,169 +1,22 @@
-STATS_TESTS = ("tests/unit", "tests/golden", "tests/property")
-INTERVALS = "src/willitharness/intervals.py"
-VERDICT = "src/willitharness/verdict.py"
+import importlib.util
+from pathlib import Path
 
-STATS_MUTANTS = (
-    ("min-runs-5-to-1", VERDICT, "MIN_RUNS = 5", "MIN_RUNS = 1"),
-    ("z-1.96-to-1.0", INTERVALS, "WILSON_Z = 1.96", "WILSON_Z = 1.0"),
-    (
-        "swap-low-and-high",
-        INTERVALS,
-        "low, high = difference - lower_reach, difference + upper_reach",
-        "low, high = difference + upper_reach, difference - lower_reach",
-    ),
-    (
-        "remove-wilson-clamp",
-        INTERVALS,
-        "low = min(max(0.0, center - half_width), proportion)",
-        "low = center - half_width",
-    ),
-    ("lower-bound-above-zero-to-at-least-zero", VERDICT, "if low > 0 else", "if low >= 0 else"),
-    (
-        "swap-first-higher-and-first-lower",
-        VERDICT,
-        "Verdict.FIRST_HIGHER if low > 0 else Verdict.FIRST_LOWER if high < 0",
-        "Verdict.FIRST_LOWER if low > 0 else Verdict.FIRST_HIGHER if high < 0",
-    ),
-    (
-        "difference-interval-unordered",
-        INTERVALS,
-        '{low}, {high}"\n    return low, high\n',
-        '{low}, {high}"\n    return high, low\n',
-    ),
-    (
-        "difference-without-negation-on-swap",
-        INTERVALS,
-        "difference = first_rate - second_rate",
-        "difference = abs(first_rate - second_rate)",
-    ),
-)
+MODULE_DIRECTORY = Path(__file__).resolve().parent / "mutant_modules"
+REQUIRED_NAMES = ("TESTS", "MUTANTS")
 
-PLAN_TESTS = ("tests/unit/test_plan_unit.py", "tests/gates/test_plan_gate.py", "tests/bdd/test_plan_arms.py")
-PLAN = "src/willitharness/plan.py"
 
-PLAN_MUTANTS = (
-    ("default-reps-20-to-10", PLAN, "DEFAULT_REPS = 20", "DEFAULT_REPS = 10"),
-    ("max-retries-2-to-3", PLAN, "MAX_RETRIES = 2", "MAX_RETRIES = 3"),
-    ("min-probe-runs-3-to-1", PLAN, "MIN_PROBE_RUNS = 3", "MIN_PROBE_RUNS = 1"),
-    ("noise-target-check-inverted", PLAN, "if target != loo_label:", "if target == loo_label:"),
-    ("noise-pair-without-loo-arm-allowed", PLAN, "        if not leave_one_out:\n", "        if False:\n"),
-    ("run-cap-may-exceed-budget", PLAN, "if run_cap > budget:", "if run_cap > budget * 2:"),
-    ("two-loo-arms-allowed", PLAN, "if len(leave_one_out) > 1:", "if len(leave_one_out) > 2:"),
-    ("repeated-labels-allowed-once", PLAN, "labels.count(label) > 1", "labels.count(label) > 2"),
-    ("unknown-channel-accepted", PLAN, "if channel not in CHANNELS:", "if False:"),
-    ("default-channel-changed", PLAN, 'DEFAULT_CHANNEL = "file"', 'DEFAULT_CHANNEL = "hook"'),
-)
+def load_modules(directory):
+    assert directory.is_dir(), f"{directory} is not a directory. Rule: each mutation module is one file there. Fix: restore the folder."
+    modules = {}
+    for path in sorted(directory.glob("*.py")):
+        spec = importlib.util.spec_from_file_location(f"mutant_module_{path.stem}", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        missing = [name for name in REQUIRED_NAMES if not hasattr(module, name)]
+        assert not missing, f"{path.name} lacks {missing}. Rule: a mutation module defines TESTS and MUTANTS. Fix: add them."
+        modules[path.stem] = (module.TESTS, module.MUTANTS)
+    assert modules, f"{directory} holds no mutation modules. Rule: a gate with no mutants proves nothing. Fix: add one."
+    return modules
 
-FAKE_AGENT_TESTS = ("tests/gates/test_fakeagent.py",)
-FAKE_AGENT = "src/willitharness/fakeagent.py"
 
-FAKE_AGENT_MUTANTS = (
-    ("fallback-file-always-read", FAKE_AGENT, "chosen = primary or fallback", "chosen = primary + fallback"),
-    ("recall-ignored", FAKE_AGENT, "values[0] if values and draw < behavior.recall else", "values[0] if values else"),
-    ("walk-passes-the-boundary", FAKE_AGENT, "while chain[-1] != boundary:", "while chain[-1] != chain[-1].parent:"),
-    ("seed-ignored", FAKE_AGENT, 'random.Random(f"{behavior.seed}:{run_index}")', "random.Random()"),
-    ("seed-message-changed", FAKE_AGENT, '"seed required; pass --seed N"', '"seed needed"'),
-    ("claude-file-not-read", FAKE_AGENT, 'CONTEXT_FILE = "CLAUDE.md"', 'CONTEXT_FILE = "CLAUDE.txt"'),
-)
-
-PROBE_TESTS = ("tests/unit/test_probe_unit.py", "tests/bdd/test_reachability.py", "tests/golden", "tests/property")
-PROBE = "src/willitharness/probe.py"
-
-PROBE_MUTANTS = (
-    ("control-token-check-dropped", PROBE, "if runs < MIN_PROBE_RUNS or control_hits > 0:", "if runs < MIN_PROBE_RUNS:"),
-    ("two-of-three-accepted-as-loaded", PROBE, "elif target_hits == runs:", "elif target_hits >= runs - 1:"),
-    ("unusable-runs-counted", PROBE, "usable = [run for run in runs if run.usable]", "usable = list(runs)"),
-    ("loo-probe-accepts-unknown", PROBE, "result = loo_probe is Reach.LOADED\n    assert result ==", "result = loo_probe is not Reach.MASKED\n    assert result =="),
-    ("error-result-counted-usable", PROBE, 'or last.get("is_error"):', "or False:"),
-    ("control-message-changed", PROBE, '"control token appeared; the probe cannot be trusted"', '"control seen"'),
-    ("one-run-too-few-accepted", PROBE, "if requested < MIN_PROBE_RUNS:", "if requested < MIN_PROBE_RUNS - 1:"),
-)
-
-ARMS_TESTS = ("tests/unit/test_arms_unit.py",)
-ARMS = "src/willitharness/arms.py"
-
-ARMS_MUTANTS = (
-    ("nested-sections-kept", ARMS, "len(matched.group(1)) <= level", "len(matched.group(1)) < level"),
-    ("repeated-heading-accepted", ARMS, "assert len(starts) == 1,", "assert len(starts) >= 1,"),
-    ("last-line-of-the-file-kept", ARMS, "    end = len(lines)\n    for index", "    end = len(lines) - 1\n    for index"),
-)
-
-ANALYSIS_TESTS = ("tests/unit/test_analysis_unit.py", "tests/bdd/test_reachability.py", "tests/golden")
-ANALYSIS = "src/willitharness/analysis.py"
-
-ANALYSIS_MUTANTS = (
-    ("unknown-rule-arm-may-report", ANALYSIS, "        and facts.rule_reach is not Reach.UNKNOWN\n", "        and True\n"),
-    ("loo-arm-always-valid", ANALYSIS, "        and loo_arm_valid(facts.loo_probe)\n", "        and True\n"),
-    ("noise-problem-still-reports", ANALYSIS, "        and facts.noise is NoiseStatus.NOISE_OK\n", "        and True\n"),
-    ("no-noise-pair-still-reports", ANALYSIS, "        facts.has_noise_pair\n        and facts.noise", "        True\n        and facts.noise"),
-    ("loo-message-changed", ANALYSIS, '"LOO arm does not load its other rules; the effect cannot be reported"', '"LOO arm invalid"'),
-    ("no-pair-message-changed", ANALYSIS, '"no noise pair; add a repeat of arm {loo} with role noise_of:{loo}"', '"no noise pair"'),
-)
-
-GUARD_TESTS = ("tests/unit/test_guard_unit.py", "tests/golden")
-GUARD = "src/willitharness/guard.py"
-
-GUARD_MUTANTS = (
-    ("too-few-runs-counts-as-worse", GUARD, "UNTESTED_COMPLETED_VERDICTS = frozenset({Verdict.INCONCLUSIVE_SMALL_N})", "UNTESTED_COMPLETED_VERDICTS = frozenset()"),
-    ("none-seen-counts-as-worse", GUARD, " or coverage is Coverage.NONE_SEEN\n", "\n"),
-    ("bypass-ignored", GUARD, "coverage is Coverage.FULL and zero_bypass:", "coverage is Coverage.FULL:"),
-    ("partial-coverage-accepted", GUARD, "coverage is Coverage.FULL and zero_bypass:", "coverage is not Coverage.NONE_SEEN and zero_bypass:"),
-    ("lower-completed-verdict-accepted", GUARD, "NOT_MATCHING_COMPLETED_VERDICTS = frozenset({Verdict.FIRST_LOWER})", "NOT_MATCHING_COMPLETED_VERDICTS = frozenset()"),
-)
-
-TRUNK_TESTS = ("tests/guards/test_trunk.py", "tests/guards/test_integrate.py")
-TRUNK = "scripts/guards/trunk.py"
-INTEGRATE = "scripts/guards/integrate.py"
-
-TRUNK_MUTANTS = (
-    ("commit-on-main-allowed", TRUNK, "    if branch == TRUNK:\n        return [", "    if False:\n        return ["),
-    ("branch-size-limit-off-by-one", TRUNK, "if len(timestamps) > MAX_BRANCH_COMMITS:", "if len(timestamps) > MAX_BRANCH_COMMITS + 1:"),
-    ("branch-age-limit-doubled", TRUNK, "MAX_BRANCH_AGE_HOURS = 24", "MAX_BRANCH_AGE_HOURS = 48"),
-    ("merge-commits-allowed", TRUNK, '["rev-list", "--merges", TRUNK]', '["rev-list", "--max-count=0", TRUNK]'),
-    ("any-branch-name-accepted", TRUNK, "if not BRANCH_PATTERN.match(branch):", "if False:"),
-    ("any-ref-pushable", TRUNK, "if name == TRUNK or BRANCH_PATTERN.match(name):", "if True:"),
-)
-
-INTEGRATE_MUTANTS = (
-    ("checks-skipped", INTEGRATE, "    run_branch_checks(repo, command)\n", "    pass\n"),
-    ("rebase-skipped", INTEGRATE, "    rebase_on_trunk(repo, branch)\n", "    pass\n"),
-    ("dirty-tree-allowed", INTEGRATE, "    if dirty:\n", "    if False:\n"),
-    ("branch-kept-after-merge", INTEGRATE, '    run_checked(repo, ["git", "branch", "-d", branch])\n', "    pass\n"),
-)
-
-CLAUDE_TESTS = ("tests/unit/test_claude_agent_unit.py",)
-CLAUDE = "src/willitharness/claude_agent.py"
-
-CLAUDE_MUTANTS = (
-    ("strict-mcp-config-dropped", CLAUDE, '        "--strict-mcp-config",\n', ""),
-    ("slash-commands-allowed", CLAUDE, '        "--disable-slash-commands",\n', ""),
-    ("session-persisted", CLAUDE, '        "--no-session-persistence",\n', ""),
-    ("user-settings-loaded", CLAUDE, '"--setting-sources", "project,local"', '"--setting-sources", "user,project,local"'),
-    ("budget-flag-dropped", CLAUDE, '        "--max-budget-usd", str(budget),\n', ""),
-    ("tools-left-on", CLAUDE, '        "--tools", "",\n', ""),
-    ("cost-ignored", CLAUDE, "cost = float(event[COST_FIELD])", "cost = 0.0"),
-)
-
-LIVE_TESTS = ("tests/gates/test_probe_live.py",)
-LIVE = "scripts/gates/probe_live.py"
-
-LIVE_MUTANTS = (
-    ("cost-cap-raised", LIVE, "COST_CAP_USD = 0.10", "COST_CAP_USD = 10.0"),
-    ("mismatch-ignored", LIVE, "            if reach != expected[case.name]:", "            if False:"),
-    ("exit-zero-on-mismatch", LIVE, "    if mismatches:\n        return EXIT_FAILED", "    if False:\n        return EXIT_FAILED"),
-    ("pass-line-changed", LIVE, 'print("GATE G2.3 PASS")', 'print("ok")'),
-)
-
-MODULES = {
-    "stats": (STATS_TESTS, STATS_MUTANTS),
-    "plan": (PLAN_TESTS, PLAN_MUTANTS),
-    "fakeagent": (FAKE_AGENT_TESTS, FAKE_AGENT_MUTANTS),
-    "probe": (PROBE_TESTS, PROBE_MUTANTS),
-    "arms": (ARMS_TESTS, ARMS_MUTANTS),
-    "analysis": (ANALYSIS_TESTS, ANALYSIS_MUTANTS),
-    "guard": (GUARD_TESTS, GUARD_MUTANTS),
-    "trunk": (TRUNK_TESTS, TRUNK_MUTANTS),
-    "claude": (CLAUDE_TESTS, CLAUDE_MUTANTS),
-    "live": (LIVE_TESTS, LIVE_MUTANTS),
-    "integrate": (TRUNK_TESTS, INTEGRATE_MUTANTS),
-}
+MODULES = load_modules(MODULE_DIRECTORY)
