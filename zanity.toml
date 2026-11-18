@@ -253,3 +253,6 @@ disable = ["filesystem-in-test", "process-in-test"]
 
 [paths."src/willitharness/plan.py"]
 disable = ["parameter-file-path"]
+
+[paths."tests/bdd/conftest.py"]
+disable = ["dead-symbol"]

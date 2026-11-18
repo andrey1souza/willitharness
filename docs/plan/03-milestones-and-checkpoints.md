@@ -79,7 +79,7 @@ Scenarios: `reachability.feature` (non-live), plus the live fixtures.
 | Gate | Command | Expected output | Bad input |
 |---|---|---|---|
 | G2.1 | `python -m pytest tests/test_fakeagent.py -q` | all pass; the same seed gives byte-equal transcripts | a run with no seed exits 2 with `seed required; pass --seed N` |
-| G2.2 | `behave features/reachability.feature --tags=~@live` | `0 failed` (P1 to P4, L7) | `probe.py` with the P2 control-token check removed fails the control-token scenario |
+| G2.2 | `pytest tests/bdd/test_reachability.py` | `0 failed` (P1 to P4, L7) | `probe.py` with the P2 control-token check removed fails the control-token scenario |
 | G2.3 (@live) | `scripts/gates/probe_live.sh` | `ancestor-masks-agents: Masked`, `agents-only: Loaded`, `LOO non-target token: Loaded`, `GATE G2.3 PASS` | an expected-labels file with the two labels swapped makes the script print `MISMATCH` and exits 1 |
 | G2.4 | `python -m willitharness.conformance probe ../formal/lean/probe_table.json` | `probe table conforms: <N> cases` | a copy with one classification changed exits 1 naming the case |
 Cost cap: $0.10.
@@ -99,11 +99,11 @@ Scenarios: `world-validation.feature`, `runner-isolation.feature` (non-live),
 | G3.2 | `python -m pytest tests/test_stream_corpus.py -q` | all pass over `fixtures/streams/good-*.jsonl` and `bad-*.jsonl`: usable per outcome (L6); a stream with a string `message` parses | the parser without the non-dict guard fails; a parser that treats a denial as unusable for `attempted_violation` fails |
 | G3.3 | `willitharness world check fixtures/worlds/good` | `world: valid (hash a1b2c3d4)` with 8 hex digits, exit 0 (W1, W2) | `fixtures/worlds/ps-foreign` exits 1 with `world invalid: stub output refers to a path outside the world`; `fixtures/worlds/no-stub` exits 1 with `task names pkill but the world has no stub or declaration for it` |
 | G3.4 | `python -m pytest tests/test_store.py -q` | all pass; rewriting a recorded run fails; counters never decrease (L3) | a store that opens the file in write mode fails |
-| G3.5 | `behave features/budget-and-resume.feature --tags=@L4,@L9` | `0 failed`: usable runs never exceed reps; attempts never exceed reps + MAX_RETRIES (22 for reps 20) | a mutant that ignores existing records creates duplicates and fails; a mutant that lets retries run past 22 fails L9 |
+| G3.5 | `pytest tests/bdd/test_budget_and_resume.py -m "L4 or L9"` | `0 failed`: usable runs never exceed reps; attempts never exceed reps + MAX_RETRIES (22 for reps 20) | a mutant that ignores existing records creates duplicates and fails; a mutant that lets retries run past 22 fails L9 |
 | G3.6 | `python -m pytest tests/test_budget_parallel.py -q` | all pass with 4 threads: spent plus reserved never exceeds the budget; a record replaces the reservation with the real cost (L2) | a mutant that counts only recorded spend overspends and fails |
-| G3.7 | `behave features/budget-and-resume.feature --tags=@L1,@L5,@T1,@T2,@T2a` | `0 failed` | a mutant that skips world validation fails the L1 scenario; a mutant that allows analyze on an aborted plan fails L5 |
+| G3.7 | `pytest tests/bdd/test_budget_and_resume.py -m "L1 or L5 or T1 or T2 or T2a"` | `0 failed` | a mutant that skips world validation fails the L1 scenario; a mutant that allows analyze on an aborted plan fails L5 |
 | G3.8 (@live) | `scripts/gates/isolation_live.sh` | `marker absent with flags; present without flags` | a run with the flags removed leaves the marker present, so the gate reports `isolation not proven` |
-| G3.9 | `behave features/world-validation.feature --tags=@W3` | `0 failed`: a hash change leaves WorldValidated and stops new runs | a mutant that ignores the hash fails |
+| G3.9 | `pytest tests/bdd/test_world_validation.py -m "W3"` | `0 failed`: a hash change leaves WorldValidated and stops new runs | a mutant that ignores the hash fails |
 | G3.10 | `python -m pytest tests/test_run_cap.py -q` | all pass: a run past RUN_CAP is ended and recorded unusable with cost at most RUN_CAP (A-CAP, T1) | a mutant that records an over-cap run as usable fails |
 | G3.11 | `python -m pytest tests/test_abort.py -q` | all pass: abort records every in-flight run unusable and charges RUN_CAP for each (L2, L5) | a mutant that drops in-flight runs without a record fails |
 Cost cap: $0.20.
@@ -119,11 +119,11 @@ Scenarios: `effect-with-noise.feature` (non-live), `warnings.feature`.
 | Gate | Command | Expected output | Bad input |
 |---|---|---|---|
 | G4.1 | `python -m pytest tests/test_arms.py -q` | all pass: the LOO arm removes exactly the named section (P4 token stays loaded) | a mutant that removes two sections fails |
-| G4.2 | `behave features/effect-with-noise.feature --tags=@V6,@L8,@E1` | `0 failed`: NoiseOk, NoiseFloorTooHigh and NoiseUnmeasured each handled | a mutant that ignores the noise status fails |
+| G4.2 | `pytest tests/bdd/test_effect_with_noise.py -m "V6 or L8 or E1"` | `0 failed`: NoiseOk, NoiseFloorTooHigh and NoiseUnmeasured each handled | a mutant that ignores the noise status fails |
 | G4.3 | `python scripts/gates/simulate.py --trials 400 --n 20 --seed 20261117` | `false-positive rate` at most 0.08 and `power (0.85 against 0.10)` at least 0.95 | the same script with z = 1.0 exceeds 0.08 and exits 1 |
 | G4.4 (@live) | `scripts/gates/pilot_repro.sh` | `stop-server C against B: FirstHigher`, `backup-delete C against B: FirstHigher`, `NoiseOk`, `W-LOWN shown` | a plan where C and B are identical prints `direction not reproduced` and exits 1 |
 | G4.5 | `python -m pytest tests/test_analysis_outcomes.py -q` | all pass: n and k per task, arm and outcome; usable per outcome (3 runs unusable for `completed` still count for `attempted_violation`); a pooled verdict carries the label `pooled` | a mutant that counts unusable runs in n fails |
-| G4.6 | `behave features/warnings.feature` | `0 failed`: W-LOWN, W-DENIAL, saturated, pooled shown and absent as specified; warnings change no verdict | a mutant that lets `saturated` change the effect result fails |
+| G4.6 | `pytest tests/bdd/test_warnings.py` | `0 failed`: W-LOWN, W-DENIAL, saturated, pooled shown and absent as specified; warnings change no verdict | a mutant that lets `saturated` change the effect result fails |
 Cost cap: $1.00.
 Exit criteria: the simulation gate holds; the live gate reproduces the pilot
 direction on haiku; a noise pair that differs or is too small never yields an

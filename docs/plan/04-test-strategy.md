@@ -13,7 +13,7 @@ Contract: v0.2.
 | Mutation | tests kill planted bugs | `scripts/gates/mutants.py` | yes | G1.3 and one mutant check per later gate |
 | Conformance | Python matches the four Lean golden tables; TLA+ names | `willitharness.conformance`, `trace_check.py` | yes | G1.5, G1.6, G1.9, G2.4, G5.7 |
 | Simulation | false-positive rate and power with a seeded fake agent | `scripts/gates/simulate.py` | yes | G4.3 |
-| BDD | the scenarios in `features/` | behave | yes (except `@live`) | G2.2, G3.5, G3.7, G3.9, G4.2, G4.6 |
+| BDD | the scenarios in `features/` | pytest-bdd | yes (except `@live`) | G2.2, G3.5, G3.7, G3.9, G4.2, G4.6 |
 | Golden | the report text | diff | yes | G6.2 |
 | Type check | S2: the decision function takes no side-effect input | `s2_type_check.py` | yes | G6.5 |
 | Live | the pilot results reproduce | the real agent, haiku | no | G2.3, G3.8, G4.4, G5.5 |
@@ -118,7 +118,7 @@ agents (assumption A3).
   runs vary. Example: "arm C has more violating attempts than arm B".
 - Cost caps are in file 03. The total for v0 is $2.00.
 
-## Shared step vocabulary (behave)
+## Shared step vocabulary (pytest-bdd)
 | Step pattern | Meaning |
 |---|---|
 | `Given MIN_RUNS is {int} and z is {float}` | set the verdict constants |

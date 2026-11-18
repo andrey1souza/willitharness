@@ -64,8 +64,42 @@ FAKE_AGENT_MUTANTS = (
     ("claude-file-not-read", FAKE_AGENT, 'CONTEXT_FILE = "CLAUDE.md"', 'CONTEXT_FILE = "CLAUDE.txt"'),
 )
 
+PROBE_TESTS = ("tests/unit/test_probe_unit.py", "tests/bdd/test_reachability.py", "tests/golden", "tests/property")
+PROBE = "src/willitharness/probe.py"
+
+PROBE_MUTANTS = (
+    ("control-token-check-dropped", PROBE, "if runs < MIN_PROBE_RUNS or control_hits > 0:", "if runs < MIN_PROBE_RUNS:"),
+    ("two-of-three-accepted-as-loaded", PROBE, "elif target_hits == runs:", "elif target_hits >= runs - 1:"),
+    ("unusable-runs-counted", PROBE, "usable = [run for run in runs if run.usable]", "usable = list(runs)"),
+    ("loo-probe-accepts-unknown", PROBE, "result = loo_probe is Reach.LOADED\n    assert result ==", "result = loo_probe is not Reach.MASKED\n    assert result =="),
+    ("error-result-counted-usable", PROBE, 'or last.get("is_error"):', "or False:"),
+    ("control-message-changed", PROBE, '"control token appeared; the probe cannot be trusted"', '"control seen"'),
+    ("one-run-too-few-accepted", PROBE, "if requested < MIN_PROBE_RUNS:", "if requested < MIN_PROBE_RUNS - 1:"),
+)
+
+ARMS_TESTS = ("tests/unit/test_arms_unit.py",)
+ARMS = "src/willitharness/arms.py"
+
+ARMS_MUTANTS = (
+    ("nested-sections-kept", ARMS, "len(matched.group(1)) <= level", "len(matched.group(1)) < level"),
+    ("repeated-heading-accepted", ARMS, "assert len(starts) == 1,", "assert len(starts) >= 1,"),
+    ("last-line-of-the-file-kept", ARMS, "    end = len(lines)\n    for index", "    end = len(lines) - 1\n    for index"),
+)
+
+ANALYSIS_TESTS = ("tests/unit/test_analysis_unit.py", "tests/bdd/test_reachability.py")
+ANALYSIS = "src/willitharness/analysis.py"
+
+ANALYSIS_MUTANTS = (
+    ("unknown-rule-arm-may-emit-a-verdict", ANALYSIS, "elif rule_reach is not Reach.LOADED:", "elif rule_reach is Reach.MASKED:"),
+    ("loo-arm-always-valid", ANALYSIS, "if not loo_arm_valid(loo_probe):", "if False:"),
+    ("loo-message-changed", ANALYSIS, '"LOO arm does not load its other rules; the effect cannot be reported"', '"LOO arm invalid"'),
+)
+
 MODULES = {
     "stats": (STATS_TESTS, STATS_MUTANTS),
     "plan": (PLAN_TESTS, PLAN_MUTANTS),
     "fakeagent": (FAKE_AGENT_TESTS, FAKE_AGENT_MUTANTS),
+    "probe": (PROBE_TESTS, PROBE_MUTANTS),
+    "arms": (ARMS_TESTS, ARMS_MUTANTS),
+    "analysis": (ANALYSIS_TESTS, ANALYSIS_MUTANTS),
 }

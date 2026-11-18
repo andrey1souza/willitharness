@@ -1,8 +1,22 @@
+import json
+
 import pytest
 
-from willitharness.probe import MIN_PROBE_RUNS, classify, loo_arm_valid
+from willitharness import plan
+from willitharness.probe import (
+    MIN_PROBE_RUNS,
+    ProbeRefused,
+    ProbeRun,
+    check_requested_runs,
+    classify,
+    loo_arm_valid,
+    parse_run,
+    probe,
+)
 from willitharness.vocabulary import Reach
 
+TARGET = "ZQ-8841-lumen"
+CONTROL = "purple-giraffe-91"
 PROBE_RUNS = 5
 EXPECTED_MIN_PROBE_RUNS = 3
 
@@ -46,3 +60,78 @@ def test_P3_some_runs_hit_is_unknown():
 def test_P4_only_a_loaded_loo_probe_is_valid(probe, valid):
     result = loo_arm_valid(probe)
     assert result is valid, f"{result=} expected {valid=} for {probe=}"
+
+
+def transcript_with_result(result_event):
+    return [json.dumps({"type": "system"}), json.dumps(result_event)]
+
+
+def success(text):
+    return {"type": "result", "subtype": "success", "is_error": False, "result": text}
+
+
+def test_P1_a_probe_ignores_unusable_runs_when_counting():
+    runs = [ProbeRun(True, True, False), ProbeRun(True, True, False), ProbeRun(False, True, False)]
+    result = probe(runs)
+    assert result.reach is Reach.UNKNOWN, f"two usable runs must give Unknown, got {result}"
+
+
+def test_P2_the_control_message_is_exact():
+    runs = [ProbeRun(True, True, True), ProbeRun(True, True, False), ProbeRun(True, True, False)]
+    result = probe(runs)
+    assert result.message == "control token appeared; the probe cannot be trusted", f"unexpected message {result.message!r}"
+
+
+def test_P3_a_loaded_probe_reports_the_counts():
+    result = probe([ProbeRun(True, True, False)] * PROBE_RUNS)
+    assert (result.reach, result.message) == (Reach.LOADED, "the target token appeared in 5 of 5 runs"), f"got {result}"
+
+
+def test_a_transcript_without_a_result_event_is_unusable():
+    run = parse_run([json.dumps({"type": "system"})], TARGET, CONTROL)
+    assert not run.usable, f"a transcript with no result event must be unusable, got {run}"
+
+
+def test_a_transcript_with_an_error_result_is_unusable():
+    event = {"type": "result", "subtype": "success", "is_error": True, "result": TARGET}
+    run = parse_run(transcript_with_result(event), TARGET, CONTROL)
+    assert not run.usable, f"an error result must be unusable even when it holds the token, got {run}"
+
+
+def test_a_transcript_with_a_failure_subtype_is_unusable():
+    event = {"type": "result", "subtype": "error_max_turns", "is_error": False, "result": TARGET}
+    run = parse_run(transcript_with_result(event), TARGET, CONTROL)
+    assert not run.usable, f"a non-success subtype must be unusable, got {run}"
+
+
+def test_a_transcript_with_a_broken_line_is_unusable():
+    run = parse_run(["{not json"], TARGET, CONTROL)
+    assert not run.usable, f"a line that is not JSON must make the run unusable, got {run}"
+
+
+def test_a_reply_with_the_target_token_is_a_target_hit_only():
+    run = parse_run(transcript_with_result(success(f"it is {TARGET}")), TARGET, CONTROL)
+    assert (run.usable, run.target_hit, run.control_hit) == (True, True, False), f"got {run}"
+
+
+def test_a_reply_with_the_control_token_is_a_control_hit():
+    run = parse_run(transcript_with_result(success(f"maybe {CONTROL}")), TARGET, CONTROL)
+    assert (run.usable, run.target_hit, run.control_hit) == (True, False, True), f"got {run}"
+
+
+def test_the_two_tokens_must_differ():
+    with pytest.raises(AssertionError) as raised:
+        parse_run([], TARGET, TARGET)
+    assert "must differ" in str(raised.value), f"unexpected message {str(raised.value)!r}"
+
+
+def test_requesting_fewer_runs_than_the_minimum_is_refused_with_the_fix():
+    with pytest.raises(ProbeRefused) as raised:
+        check_requested_runs(MIN_PROBE_RUNS - 1)
+    expected = "at least 3 probe runs per arm are needed; use --runs 3 or more"
+    assert str(raised.value) == expected, f"unexpected message {str(raised.value)!r}"
+
+
+def test_requesting_the_minimum_runs_is_accepted():
+    check_requested_runs(MIN_PROBE_RUNS)
+    assert MIN_PROBE_RUNS == plan.MIN_PROBE_RUNS, "the probe and the plan must share one MIN_PROBE_RUNS"
