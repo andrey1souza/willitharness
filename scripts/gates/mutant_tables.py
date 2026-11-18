@@ -131,6 +131,29 @@ INTEGRATE_MUTANTS = (
     ("branch-kept-after-merge", INTEGRATE, '    run_checked(repo, ["git", "branch", "-d", branch])\n', "    pass\n"),
 )
 
+CLAUDE_TESTS = ("tests/unit/test_claude_agent_unit.py",)
+CLAUDE = "src/willitharness/claude_agent.py"
+
+CLAUDE_MUTANTS = (
+    ("strict-mcp-config-dropped", CLAUDE, '        "--strict-mcp-config",\n', ""),
+    ("slash-commands-allowed", CLAUDE, '        "--disable-slash-commands",\n', ""),
+    ("session-persisted", CLAUDE, '        "--no-session-persistence",\n', ""),
+    ("user-settings-loaded", CLAUDE, '"--setting-sources", "project,local"', '"--setting-sources", "user,project,local"'),
+    ("budget-flag-dropped", CLAUDE, '        "--max-budget-usd", str(budget),\n', ""),
+    ("tools-left-on", CLAUDE, '        "--tools", "",\n', ""),
+    ("cost-ignored", CLAUDE, "cost = float(event[COST_FIELD])", "cost = 0.0"),
+)
+
+LIVE_TESTS = ("tests/gates/test_probe_live.py",)
+LIVE = "scripts/gates/probe_live.py"
+
+LIVE_MUTANTS = (
+    ("cost-cap-raised", LIVE, "COST_CAP_USD = 0.10", "COST_CAP_USD = 10.0"),
+    ("mismatch-ignored", LIVE, "            if reach != expected[case.name]:", "            if False:"),
+    ("exit-zero-on-mismatch", LIVE, "    if mismatches:\n        return EXIT_FAILED", "    if False:\n        return EXIT_FAILED"),
+    ("pass-line-changed", LIVE, 'print("GATE G2.3 PASS")', 'print("ok")'),
+)
+
 MODULES = {
     "stats": (STATS_TESTS, STATS_MUTANTS),
     "plan": (PLAN_TESTS, PLAN_MUTANTS),
@@ -140,5 +163,7 @@ MODULES = {
     "analysis": (ANALYSIS_TESTS, ANALYSIS_MUTANTS),
     "guard": (GUARD_TESTS, GUARD_MUTANTS),
     "trunk": (TRUNK_TESTS, TRUNK_MUTANTS),
+    "claude": (CLAUDE_TESTS, CLAUDE_MUTANTS),
+    "live": (LIVE_TESTS, LIVE_MUTANTS),
     "integrate": (TRUNK_TESTS, INTEGRATE_MUTANTS),
 }

@@ -25,6 +25,9 @@ old. `python3 scripts/guards/integrate.py` rebases the branch on `main`, runs
 `make check`, fast-forwards `main` and deletes the branch, so the history stays
 linear and `main` stays green. The hooks enforce this: `scripts/guards/trunk.py`.
 
+## Checks
+`make check` runs the tests, zanity, every mutation module, the trace gate and the repo checks. `make formal` runs the Lean and TLA+ gates. `make live` runs the real agent on the reachability fixtures (about a cent) and fails above $0.10.
+
 ## What is here
 | Path | What |
 |---|---|

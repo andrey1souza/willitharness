@@ -4,13 +4,13 @@ from typing import NamedTuple
 
 from pytest_bdd import given, parsers, scenarios, then, when
 
-from willitharness import cli, fakeagent
+from willitharness import claude_agent, cli, fakeagent
 from willitharness.analysis import PlanFacts, analyze_effect
 from willitharness.arms import remove_section
 from willitharness.decision import decide
 from willitharness.fakeagent import Behavior, Location
 from willitharness.plan import MIN_PROBE_RUNS
-from willitharness.probe import ProbeRun, loo_arm_valid, parse_run, probe
+from willitharness.probe import PROMPT_TEMPLATE, ProbeRun, loo_arm_valid, parse_run, probe
 from willitharness.vocabulary import EffectResult, GuardResult, NoiseStatus, Reach, Verdict
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "probe"
@@ -198,3 +198,23 @@ def no_effect_verdict(world):
 @then(parsers.parse('the decision is "{name}"'))
 def decision_is(world, name):
     assert world["decision"].value == name, f"expected {name}, got {world['decision']}"
+
+
+@given(parsers.parse('a fixture "{name}" with an AGENTS.md and no CLAUDE.md in any parent directory'))
+def agents_only_fixture(world, name, tmp_path):
+    shutil.copytree(FIXTURES / name, tmp_path / name)
+    root = tmp_path / name
+    parents = [folder for folder in [root, *root.parents] if (folder / "CLAUDE.md").exists()]
+    assert not parents, f"the fixture must have no CLAUDE.md in any parent directory, found one in {parents}"
+    world["location"] = Location(root, root)
+
+
+@when("I run the probe in that directory with the real agent")
+def run_the_probe_with_the_real_agent(world):
+    prompt = PROMPT_TEMPLATE.format(label=fakeagent.DEFAULT_LABEL)
+    runs = []
+    for _ in range(MIN_PROBE_RUNS):
+        lines = claude_agent.ask_claude(world["location"].directory, prompt, claude_agent.DEFAULT_MODEL, claude_agent.DEFAULT_RUN_BUDGET_USD)
+        runs.append(parse_run(lines, world["target"], world["control"]))
+    world["result"] = probe(runs)
+    world["message"] = world["result"].message

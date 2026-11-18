@@ -1,4 +1,4 @@
-.PHONY: check test zanity mutants trace repo formal integrate
+.PHONY: check test zanity mutants trace repo formal integrate live
 
 check: test zanity mutants trace repo
 
@@ -23,3 +23,6 @@ formal:
 
 integrate:
 	python3 scripts/guards/integrate.py
+
+live:
+	uv run python scripts/gates/probe_live.py

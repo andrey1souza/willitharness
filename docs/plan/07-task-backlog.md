@@ -139,7 +139,7 @@ As a tester, I want fixtures that reproduce the spike finding, so that the probe
 
 ### T19. Live probe with the real agent (M)
 As a user, I want the probe to run on my real directory, so that I learn whether my rule loads.
-- Given the fixture `ancestor-masks-agents`, when I run `scripts/gates/probe_live.sh`, then it prints `ancestor-masks-agents: Masked`, `agents-only: Loaded` and `LOO non-target token: Loaded`, at a cost of $0.10 or less.
+- Given the fixture `ancestor-masks-agents`, when I run `python scripts/gates/probe_live.py`, then it prints `ancestor-masks-agents: Masked`, `agents-only: Loaded` and `LOO non-target token: Loaded`, at a cost of $0.10 or less.
 - Given the expected labels swapped, then it prints `MISMATCH` and exits 1.
 - IDs: P1 to P4. Gate: G2.3 (@live). Deps: T16.
 

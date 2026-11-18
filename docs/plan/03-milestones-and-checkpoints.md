@@ -80,7 +80,7 @@ Scenarios: `reachability.feature` (non-live), plus the live fixtures.
 |---|---|---|---|
 | G2.1 | `python -m pytest tests/test_fakeagent.py -q` | all pass; the same seed gives byte-equal transcripts | a run with no seed exits 2 with `seed required; pass --seed N` |
 | G2.2 | `pytest tests/bdd/test_reachability.py` | `0 failed` (P1 to P4, L7) | `probe.py` with the P2 control-token check removed fails the control-token scenario |
-| G2.3 (@live) | `scripts/gates/probe_live.sh` | `ancestor-masks-agents: Masked`, `agents-only: Loaded`, `LOO non-target token: Loaded`, `GATE G2.3 PASS` | an expected-labels file with the two labels swapped makes the script print `MISMATCH` and exits 1 |
+| G2.3 (@live) | `python scripts/gates/probe_live.py` | `ancestor-masks-agents: Masked`, `agents-only: Loaded`, `LOO non-target token: Loaded`, `GATE G2.3 PASS` | an expected-labels file with the two labels swapped makes the script print `MISMATCH` and exits 1 |
 | G2.4 | `python -m willitharness.conformance probe ../formal/lean/probe_table.json` | `probe table conforms: <N> cases` | a copy with one classification changed exits 1 naming the case |
 Cost cap: $0.10.
 Exit criteria: P1 to P4 pass offline; probe classification matches the Lean table;

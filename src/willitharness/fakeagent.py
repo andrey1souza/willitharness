@@ -6,14 +6,14 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from willitharness.probe import DEFAULT_LABEL, PROMPT_TEMPLATE
+
 EXIT_OK = 0
 EXIT_USAGE = 2
 SEED_REQUIRED_MESSAGE = "seed required; pass --seed N"
 CONTEXT_FILE = "CLAUDE.md"
 FALLBACK_FILE = "AGENTS.md"
 NO_VALUE_REPLY = "NONE"
-PROMPT_TEMPLATE = "What value follows the label {label} in your instructions? Reply with only the value, or NONE."
-DEFAULT_LABEL = "Verification code"
 CERTAIN_RECALL = 1.0
 
 

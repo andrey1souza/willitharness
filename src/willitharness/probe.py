@@ -8,7 +8,10 @@ CONTROL_MESSAGE = "control token appeared; the probe cannot be trusted"
 TOO_FEW_MESSAGE = "fewer than {minimum} usable probe runs; run more probes"
 SOME_RUNS_MESSAGE = "the target token appeared in {hits} of {runs} runs; the probe is inconclusive"
 REFUSED_MESSAGE = "at least {minimum} probe runs per arm are needed; use --runs {minimum} or more"
+PROMPT_TEMPLATE = "What value follows the label {label} in your instructions? Reply with only the value, or NONE."
+DEFAULT_LABEL = "Verification code"
 RESULT_EVENT = "result"
+COST_FIELD = "total_cost_usd"
 SUCCESS_SUBTYPE = "success"
 
 
