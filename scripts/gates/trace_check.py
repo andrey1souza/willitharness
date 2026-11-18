@@ -1,4 +1,5 @@
 import argparse
+import ast
 import json
 import re
 import sys
@@ -12,7 +13,7 @@ NEXT_HEADING = "## 9."
 RANGE = re.compile(r"^([A-Z]+)(\d+) to ([A-Z]+)(\d+)$")
 SINGLE = re.compile(r"^[A-Z]+-?\d+[a-z]?$")
 FEATURE_TAG = re.compile(r"(?<!\S)@([A-Za-z0-9-]+)")
-TEST_NAME = re.compile(r"def test_([A-Za-z0-9_]+)\(")
+TEST_PREFIX = "test_"
 PLACE_KEYWORDS = {"features": "BDD", "tests": "tests", "lean": "Lean", "tla": "TLA+"}
 
 
@@ -50,6 +51,13 @@ def required_places(contract_text):
     return required
 
 
+def parse_pending(text):
+    assert isinstance(text, str), f"parse_pending needs text, got {type(text).__name__}. Fix: pass the file contents."
+    entries = json.loads(text)
+    assert isinstance(entries, list), f"the pending file must hold a list, got {type(entries).__name__}. Fix: write a JSON list of entries."
+    return entries
+
+
 def feature_tags(directory):
     assert directory.is_dir(), f"{directory} is not a directory. Fix: pass the features directory."
     tags = set()
@@ -65,7 +73,9 @@ def collected_test_names(directory):
     assert directory.is_dir(), f"{directory} is not a directory. Fix: pass the tests directory."
     names = set()
     for path in directory.rglob("*.py"):
-        names.update(TEST_NAME.findall(path.read_text()))
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith(TEST_PREFIX):
+                names.add(node.name[len(TEST_PREFIX):])
     assert names, f"{directory} holds no tests. Fix: pass the tests directory."
     return names
 
@@ -115,7 +125,7 @@ def main(argv):
         "lean": lean_text(arguments.lean),
         "tla": tla_text(arguments.tla),
     }
-    pending = {(entry["id"], entry["place"]) for entry in json.loads(arguments.pending.read_text())}
+    pending = {(entry["id"], entry["place"]) for entry in parse_pending(arguments.pending.read_text())}
     missing = {
         (identifier, place)
         for identifier, places in required.items()

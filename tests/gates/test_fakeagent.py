@@ -1,5 +1,6 @@
 import json
 
+from files import plant
 from willitharness import fakeagent
 from willitharness.fakeagent import Behavior, Location
 
@@ -11,12 +12,6 @@ SEED = 7
 HALF_RECALL = 0.5
 SEED_SWEEP = range(40)
 TARGET_LINE = f"Verification code: {TARGET_CODE}\n"
-
-
-def plant(folder, name, text):
-    folder.mkdir(parents=True, exist_ok=True)
-    (folder / name).write_text(text)
-    return folder
 
 
 def act(child, boundary, behavior):

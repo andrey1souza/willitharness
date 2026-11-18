@@ -14,10 +14,11 @@ USAGE = "usage: willitharness plan check <plan.json> | willitharness probe --age
 PLAN_ARGUMENT_COUNT = 3
 
 
-def plan_check(path):
-    assert isinstance(path, Path), f"plan_check needs a Path, got {path!r}. Fix: wrap the argument in Path."
+def plan_check(root, name):
+    assert isinstance(root, Path), f"plan_check needs a Path root, got {root!r}. Fix: pass the project directory."
+    assert name, "plan_check needs a plan file name. Fix: pass the path of a plan.json."
     try:
-        plan = read_plan(path)
+        plan = read_plan(root, name)
     except PlanError as error:
         print(str(error), file=sys.stderr)
         return EXIT_DOMAIN_FAILURE
@@ -62,7 +63,7 @@ def main(argv):
     assert isinstance(argv, list), f"main needs a list of arguments, got {argv!r}. Fix: pass sys.argv[1:]."
     assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
     if len(argv) == PLAN_ARGUMENT_COUNT and argv[:2] == ["plan", "check"]:
-        return plan_check(Path(argv[2]))
+        return plan_check(Path.cwd(), argv[2])
     if argv[:1] == ["probe"]:
         return probe_command(argv[1:])
     print(f"unknown command {argv!r}. Rule: v0 has plan check and probe so far. Fix: {USAGE}", file=sys.stderr)

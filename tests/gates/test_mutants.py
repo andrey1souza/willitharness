@@ -1,11 +1,8 @@
-from pathlib import Path
-
 import pytest
 
 import mutants
 from mutant_tables import MODULES
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
 STATS_MUTANT_COUNT = 8
 FAILING_TEST = "def test_always_fails():\n    assert False, 'planted failure'\n"
 
@@ -18,14 +15,6 @@ def test_the_stats_module_lists_eight_mutants_with_distinct_names():
     names = [mutant[0] for mutant in stats_mutants()]
     assert len(names) == STATS_MUTANT_COUNT, f"expected {STATS_MUTANT_COUNT} stats mutants, got {names}"
     assert len(set(names)) == len(names), f"mutant names must be distinct, got {names}"
-
-
-def test_every_target_in_every_module_occurs_exactly_once_and_changes_the_text():
-    for module, (_, module_mutants) in MODULES.items():
-        for name, relative_path, old, new in module_mutants:
-            text = (REPO_ROOT / relative_path).read_text()
-            assert text.count(old) == 1, f"{module}/{name}: target occurs {text.count(old)} times in {relative_path}"
-            assert old != new, f"{module}/{name}: the replacement equals the target"
 
 
 def test_an_ambiguous_target_is_rejected():

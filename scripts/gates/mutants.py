@@ -18,6 +18,7 @@ PYTEST_TESTS_FAILED = 1
 PYTEST_NO_TESTS = 5
 COPIED_DIRECTORIES = ("src", "scripts")
 GOLDEN_RELATIVE = Path("formal") / "lean"
+SUPPORT_DIRECTORY = Path("tests") / "support"
 
 
 def mutated_text(text, old, new):
@@ -44,7 +45,7 @@ def copy_sources(destination):
 def run_tests(source_root, tests):
     assert tests, "run_tests got no test paths. Rule: a run needs tests. Fix: name at least one path."
     assert source_root.is_dir(), f"{source_root} is not a directory. Fix: pass the copied source root."
-    paths = os.pathsep.join(str(source_root / name) for name in COPIED_DIRECTORIES)
+    paths = os.pathsep.join([*(str(source_root / name) for name in COPIED_DIRECTORIES), str(REPO_ROOT / SUPPORT_DIRECTORY)])
     command = [
         sys.executable, "-m", "pytest", *tests, "-x", "-q", "-p", "no:cacheprovider",
         "-o", "pythonpath=" + paths.replace(os.pathsep, " "),

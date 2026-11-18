@@ -2,6 +2,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from willitharness.paths import PathOutsideRoot, inside
+
 DEFAULT_REPS = 20
 MAX_RETRIES = 2
 MIN_PROBE_RUNS = 3
@@ -131,8 +133,13 @@ def load_plan(data):
     return loaded
 
 
-def read_plan(path):
-    assert isinstance(path, Path), f"read_plan needs a Path, got {path!r}. Fix: pass pathlib.Path."
+def read_plan(root, name):
+    assert isinstance(root, Path), f"read_plan needs a Path root, got {root!r}. Fix: pass pathlib.Path."
+    assert name, "read_plan needs a plan file name. Fix: pass the path of a plan.json."
+    try:
+        path = inside(root, name)
+    except PathOutsideRoot as error:
+        raise PlanError(str(error)) from error
     if not path.is_file():
         raise PlanError(f"plan file {path} does not exist. Rule: a plan is a JSON file. Fix: pass the path of a plan.json.")
     try:

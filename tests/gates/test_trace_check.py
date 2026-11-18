@@ -1,5 +1,4 @@
 import json
-import shutil
 from pathlib import Path
 
 import pytest
@@ -9,6 +8,13 @@ import trace_check
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_ID_COUNT = 43
 REMOVED_ID = "S2"
+MINI_CONTRACT = (
+    "## 8. Traceability\n| ID group | Where it must appear |\n|---|---|\n"
+    "| V1 | BDD features |\n| S2 | BDD features, tests |\n\n## 9. Out of scope\n"
+)
+FEATURE_WITH_BOTH = "Feature: mini\n  @V1 @S2\n  Scenario: both\n"
+FEATURE_WITHOUT_S2 = "Feature: mini\n  @V1\n  Scenario: one\n"
+TEST_FOR_S2 = "def test_S2_holds():\n    assert True\n"
 
 
 def run_gate(capsys, arguments=()):
@@ -16,12 +22,23 @@ def run_gate(capsys, arguments=()):
     return code, capsys.readouterr().out
 
 
-def copy_features_without(tmp_path, identifier):
-    target = tmp_path / "features"
-    shutil.copytree(REPO_ROOT / "features", target)
-    for path in target.glob("*.feature"):
-        path.write_text(path.read_text().replace("@" + identifier, "@removed"))
-    return target
+def build_world(root, feature_text):
+    files = {
+        "contract.md": MINI_CONTRACT,
+        "features/a.feature": feature_text,
+        "tests/test_a.py": TEST_FOR_S2,
+        "lean/A.lean": "theorem V1_holds : True := trivial\n",
+        "tla/A.tla": "L1 == TRUE\n",
+        "pending.json": "[]",
+    }
+    for name, text in files.items():
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+    return [
+        "--contract", str(root / "contract.md"), "--features", str(root / "features"), "--tests", str(root / "tests"),
+        "--lean", str(root / "lean"), "--tla", str(root / "tla"), "--pending", str(root / "pending.json"),
+    ]
 
 
 def test_a_range_expands_to_every_id_in_it():
@@ -45,10 +62,9 @@ def test_a_word_that_is_not_an_id_is_rejected():
     assert "not a contract ID" in str(raised.value), f"unexpected message {str(raised.value)!r}"
 
 
-def test_the_contract_table_expands_to_forty_three_ids():
-    required = trace_check.required_places((REPO_ROOT / "docs" / "contract.md").read_text())
-    assert len(required) == CONTRACT_ID_COUNT, f"expected {CONTRACT_ID_COUNT} IDs, got {sorted(required)}"
-    assert required["L9"] == {"features", "tla"}, f"L9 must need features and TLA+, got {required['L9']}"
+def test_a_contract_table_maps_each_id_to_the_places_its_row_names():
+    required = trace_check.required_places(MINI_CONTRACT)
+    assert required == {"V1": {"features"}, "S2": {"features", "tests"}}, f"unexpected places {required}"
 
 
 def test_a_test_named_for_d10_does_not_cover_d1():
@@ -63,17 +79,35 @@ def test_the_repository_passes_the_gate(capsys):
     assert "all %d IDs covered" % CONTRACT_ID_COUNT in output, f"unexpected output {output!r}"
 
 
+def test_a_complete_mini_world_passes(tmp_path, capsys):
+    arguments = build_world(tmp_path, FEATURE_WITH_BOTH)
+    code, output = run_gate(capsys, arguments)
+    assert code == trace_check.EXIT_COVERED, f"a complete world must pass; output {output!r}"
+    assert "all 2 IDs covered" in output, f"unexpected output {output!r}"
+
+
 def test_an_id_removed_from_the_features_fails_the_gate(tmp_path, capsys):
-    features = copy_features_without(tmp_path, REMOVED_ID)
-    code, output = run_gate(capsys, ["--features", str(features)])
+    arguments = build_world(tmp_path, FEATURE_WITHOUT_S2)
+    code, output = run_gate(capsys, arguments)
     assert code == trace_check.EXIT_GAPS, f"expected exit {trace_check.EXIT_GAPS}, got {code}; output {output!r}"
     assert "trace-check: missing %s in features" % REMOVED_ID in output, f"unexpected output {output!r}"
 
 
 def test_a_pending_entry_that_is_now_covered_fails_the_gate(tmp_path, capsys):
-    pending = tmp_path / "pending.json"
-    entries = json.loads((REPO_ROOT / "scripts" / "gates" / "trace_pending.json").read_text())
-    pending.write_text(json.dumps(entries + [{"id": "V1", "place": "tests"}]))
-    code, output = run_gate(capsys, ["--pending", str(pending)])
+    arguments = build_world(tmp_path, FEATURE_WITH_BOTH)
+    (tmp_path / "pending.json").write_text(json.dumps([{"id": "V1", "place": "features"}]))
+    code, output = run_gate(capsys, arguments)
     assert code == trace_check.EXIT_GAPS, f"expected exit {trace_check.EXIT_GAPS}, got {code}; output {output!r}"
-    assert "pending entry V1 in tests is now covered" in output, f"unexpected output {output!r}"
+    assert "pending entry V1 in features is now covered" in output, f"unexpected output {output!r}"
+
+
+def test_a_pending_file_that_is_not_a_list_is_rejected():
+    with pytest.raises(AssertionError) as raised:
+        trace_check.parse_pending('{"id": "V1"}')
+    assert "must hold a list" in str(raised.value), f"unexpected message {str(raised.value)!r}"
+
+
+def test_a_test_name_inside_a_string_does_not_cover_an_id(tmp_path):
+    (tmp_path / "test_a.py").write_text('TEXT = "def test_S2_fake():\\n    pass"\n\n\ndef test_V1_real():\n    assert True\n')
+    names = trace_check.collected_test_names(tmp_path)
+    assert names == {"V1_real"}, f"only the real function may count, got {names}"

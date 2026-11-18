@@ -241,18 +241,3 @@ disable = [
   # "long-file",                       # warning, on by default. Split the file by responsibility into modules of a few hundred lines.
   # ...and 325 catalogue questions, named for their family such as "cwe-89" or "ext-distributed-001", that --infer asks about each function, file or the project's build files; select or disable them by name like any rule.
 ]
-
-[paths."tests/guards/"]
-disable = ["filesystem-in-test", "process-in-test"]
-
-[paths."tests/repo/"]
-disable = ["filesystem-in-test"]
-
-[paths."tests/gates/"]
-disable = ["filesystem-in-test", "process-in-test"]
-
-[paths."src/willitharness/plan.py"]
-disable = ["parameter-file-path"]
-
-[paths."tests/bdd/conftest.py"]
-disable = ["dead-symbol"]

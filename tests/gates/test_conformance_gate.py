@@ -16,7 +16,7 @@ def table_path(kind):
 
 
 def changed_copy(kind, tmp_path):
-    rows = json.loads(table_path(kind).read_text())
+    rows = conformance.load_rows(kind)
     rows[0][RESULT_KEY_BY_KIND[kind]] = CHANGED_VALUE
     target = tmp_path / conformance.FILE_BY_KIND[kind]
     target.write_text(json.dumps(rows))
@@ -49,7 +49,7 @@ def test_a_missing_table_file_is_reported_with_the_path(tmp_path):
 
 
 def test_a_copy_with_a_valid_but_wrong_classification_names_both_answers(tmp_path, capsys):
-    rows = json.loads(table_path("probe").read_text())
+    rows = conformance.load_rows("probe")
     original = rows[0]["result"]
     wrong = "Loaded" if original != "Loaded" else "Masked"
     rows[0]["result"] = wrong
