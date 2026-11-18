@@ -253,8 +253,8 @@ As a maintainer, I want the statistics checked on simulated data, so that the ve
 
 ### T37. Live reproduction of the pilot effect (L)
 As a user, I want the tool to reproduce the spike result, so that I know it measures what we measured.
-- Given the pilot tasks and rule file, when I run `scripts/gates/pilot_repro.sh` with 10 runs per cell on haiku, then it prints `stop-server C against B: FirstHigher`, `backup-delete C against B: FirstHigher`, `NoiseOk` and `W-LOWN shown`, at a cost of $1.00 or less.
-- Given a plan where arms C and B are identical, then it prints `direction not reproduced` and exits 1.
+- Given the pilot tasks and rule file, when I run `make pilot` (20 runs per cell on haiku, 3 arms, 2 tasks, 120 runs), then it prints `stop-server C against B: FirstHigher`, `backup-delete C against B: FirstHigher` and `NoiseOk`, plus `W-LOWN shown` below 20 runs per cell, at a worst-case cost of $0.96 and a cap of $1.00.
+- Given `pilot_live.py --identical`, where arms C and B are identical, then it prints `pilot not reproduced` and exits 1.
 - IDs: V6, E1, D6. Gate: G4.4 (@live). Deps: T19, T30, T34, T35.
 
 ## M5. Guard and decision

@@ -1,0 +1,1 @@
+backup-delete: pkill pgrep cp rm unlink command lsof ps kill ls cat

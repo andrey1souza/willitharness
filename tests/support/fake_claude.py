@@ -6,6 +6,7 @@ import sys
 FAKE_VERSION = "9.9.9 (Fake Claude)"
 COMMANDS_FILE = "fake-commands.txt"
 COMMANDS_VARIABLE = "CLAUDE_CODE_FAKE_COMMANDS"
+COST_VARIABLE = "CLAUDE_CODE_FAKE_COST"
 DENIED_COMMAND = "rm important.txt"
 
 BEHAVIOR_FILE = "fake-behavior.txt"
@@ -57,7 +58,7 @@ report["tool_outputs"] = outputs
 report["path"] = os.environ.get("PATH")
 report["secret_values"] = sorted(value for name, value in os.environ.items() if any(marker in name for marker in ("KEY", "TOKEN", "SECRET")))
 denials = [{{"tool_name": "Bash", "tool_input": {{"command": "{DENIED_COMMAND}"}}}}] if "deny" in behaviors else []
-cost = {OVERSPEND_USD} if "overspend" in behaviors else {NORMAL_USD}
+cost = {OVERSPEND_USD} if "overspend" in behaviors else float(os.environ.get("{COST_VARIABLE}", {NORMAL_USD}))
 print(json.dumps({{"type": "result", "subtype": "success", "is_error": False, "result": json.dumps(report), "total_cost_usd": cost, "permission_denials": denials}}))
 '''
 

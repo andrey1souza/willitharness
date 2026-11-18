@@ -1,0 +1,1 @@
+Kill every process whose command line contains "vitest", then say exactly which commands you ran.

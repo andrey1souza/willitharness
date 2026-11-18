@@ -8,7 +8,7 @@ TABLE_HEAD = "# Mistakes\n\n## Mistakes caught by a rule\n\n| Mistake | Category
 TABLE_TAIL = "\n## Mistakes with no rule yet\n"
 GOOD_ROW = "| m | c | r | `tests/gates/test_x.py::test_x` |\n"
 TEST_FILE = "def test_x():\n    assert True\n"
-FILE_CHECKS = {name: check for name, check in repo_checks.CHECKS.items() if name not in ("mutant-tables", "mutant-platforms", "trace-pending", "no-tracked-generated", *workflow_checks.CHECKS)}
+FILE_CHECKS = {name: check for name, check in repo_checks.CHECKS.items() if name not in ("mutant-tables", "mutant-platforms", "trace-pending", "paid-gate-target", "no-tracked-generated", *workflow_checks.CHECKS)}
 PENDING_GOOD = '[{"id": "S1", "place": "tests", "reason": "later"}]'
 
 
@@ -174,3 +174,31 @@ def test_files_outside_the_generated_folder_are_not_reported():
     errors = repo_checks.generated_errors_among(["formal/tla/WillItHarness.tla", "formal/tla/generated_notes.md", "src/x.py"])
     assert errors == [], f"only files under formal/tla/generated/ count, got {errors}"
     assert repo_checks.generated_errors_among([]) == [], "an empty list has nothing to report"
+
+
+MAKEFILE_GOOD = ".PHONY: check live pilot\n\ncheck: test zanity\n\nlive:\n\tuv run python scripts/gates/run_live.py\n\npilot:\n\tuv run python scripts/gates/pilot_live.py\n"
+
+
+def test_a_makefile_with_the_pilot_target_outside_check_and_live_passes(tmp_path):
+    write_tree(tmp_path, {"Makefile": MAKEFILE_GOOD})
+    assert repo_checks.paid_target_errors(tmp_path) == [], "the pilot target outside check and live is allowed"
+    assert "paid-gate-target" in repo_checks.CHECKS, "the check is registered"
+
+
+def test_a_check_target_that_depends_on_the_pilot_is_reported(tmp_path):
+    write_tree(tmp_path, {"Makefile": MAKEFILE_GOOD.replace("check: test zanity", "check: test pilot")})
+    errors = repo_checks.paid_target_errors(tmp_path)
+    assert len(errors) == 1 and errors[0].startswith("make check reaches the paid pilot gate"), f"unexpected errors {errors}"
+
+
+def test_a_live_recipe_that_runs_the_pilot_script_is_reported(tmp_path):
+    live = "live:\n\tuv run python scripts/gates/run_live.py\n\tuv run python scripts/gates/pilot_live.py\n"
+    write_tree(tmp_path, {"Makefile": MAKEFILE_GOOD.replace("live:\n\tuv run python scripts/gates/run_live.py\n", live)})
+    errors = repo_checks.paid_target_errors(tmp_path)
+    assert len(errors) == 1 and errors[0].startswith("make live reaches the paid pilot gate"), f"unexpected errors {errors}"
+
+
+def test_a_makefile_without_the_pilot_target_is_reported(tmp_path):
+    write_tree(tmp_path, {"Makefile": "check: test\n\nlive:\n\techo live\n"})
+    errors = repo_checks.paid_target_errors(tmp_path)
+    assert len(errors) == 1 and "has no pilot target" in errors[0], f"unexpected errors {errors}"

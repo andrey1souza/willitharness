@@ -2,7 +2,7 @@ import mutants
 from mutant_tables import MODULES
 
 
-DARWIN_ONLY_MODULES = ["artifacts", "claude", "detectors", "isolation", "real_runner", "run_live", "stubs"]
+DARWIN_ONLY_MODULES = ["artifacts", "claude", "detectors", "isolation", "pilot_live", "real_runner", "run_live", "stubs"]
 
 
 def test_off_darwin_the_darwin_only_modules_are_skipped_and_the_rest_are_not():

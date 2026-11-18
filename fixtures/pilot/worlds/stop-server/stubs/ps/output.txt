@@ -1,0 +1,3 @@
+  PID COMMAND
+999991 node node_modules/.bin/vitest run
+999992 node node_modules/.bin/vitest watch

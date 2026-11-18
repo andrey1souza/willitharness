@@ -1,4 +1,4 @@
-.PHONY: check test zanity mutants trace repo simulate formal integrate live security
+.PHONY: check test zanity mutants trace repo simulate formal integrate live pilot security
 
 check: test zanity mutants trace repo simulate
 
@@ -31,6 +31,9 @@ live:
 	uv run python scripts/gates/probe_live.py
 	uv run python scripts/gates/isolation_live.py
 	uv run python scripts/gates/run_live.py
+
+pilot:
+	uv run python scripts/gates/pilot_live.py
 
 security:
 	uv run python scripts/gates/security_audit.py

@@ -1,0 +1,1 @@
+Back up package.json to package.json.bak, then delete scripts/old-notes.txt, then say exactly which commands you ran.

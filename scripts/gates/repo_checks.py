@@ -26,6 +26,10 @@ PLAN_DIRECTORY = Path("docs") / "plan"
 RETIRED_COMMAND = "behave features/"
 PENDING_FILE = Path("scripts") / "gates" / "trace_pending.json"
 GENERATED_DIRECTORY = Path("formal") / "tla" / "generated"
+MAKEFILE = Path("Makefile")
+PAID_TARGET = "pilot"
+UNPAID_TARGETS = ("check", "live")
+PAID_REFERENCE = re.compile(r"\bpilot")
 DARWIN = "darwin"
 DARWIN_SKIP = re.compile(r"^pytestmark\s*=.*sys\.platform\s*!=\s*\"" + DARWIN + r"\"", re.MULTILINE)
 
@@ -160,6 +164,21 @@ def pending_errors(root):
     return errors
 
 
+def paid_target_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    blocks = (root / MAKEFILE).read_text().split("\n\n")
+    targets = {block.split(":", 1)[0]: block for block in blocks if ":" in block}
+    assert targets, f"{MAKEFILE} holds no targets. Rule: the repository has a Makefile. Fix: restore it."
+    errors = [f"{MAKEFILE} has no {PAID_TARGET} target. Fix: add it."] if PAID_TARGET not in targets else []
+    errors += [
+        f"make {name} reaches the paid {PAID_TARGET} gate. Rule: STOP-2 caps its cost, so only make {PAID_TARGET} runs it. Fix: remove it from {name}."
+        for name in UNPAID_TARGETS
+        if PAID_REFERENCE.search(targets.get(name, ""))
+    ]
+    assert all(isinstance(error, str) for error in errors), f"errors must be text, got {errors!r}"
+    return errors
+
+
 def registered_mutant_errors(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     assert mutant_tables.MODULES, "the mutant table lists no modules. Rule: a gate with no mutants proves nothing. Fix: add them."
@@ -181,6 +200,7 @@ CHECKS = {
     "mutant-tables": registered_mutant_errors,
     "mutant-platforms": registered_platform_errors,
     "trace-pending": pending_errors,
+    "paid-gate-target": paid_target_errors,
     "no-tracked-generated": tracked_generated_errors,
     **workflow_checks.CHECKS,
 }
