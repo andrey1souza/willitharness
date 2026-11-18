@@ -7,6 +7,8 @@ from pathlib import Path
 
 from willitharness.budget import Ledger, abort_records, capped_record, timed_out_record, to_money
 from willitharness.claude_agent import transcript_cost
+from willitharness.detectors import Evidence, judge
+from willitharness.outcomes import COMPLETED_OUTCOME, TARGET_OUTCOME
 from willitharness.paths import inside
 from willitharness.plan import Plan, plan_fingerprint
 from willitharness.store import (
@@ -103,6 +105,7 @@ class RunSetup:
 class RunResult:
     transcript: tuple[str, ...]
     timed_out: bool
+    calls: str = ""
 
 
 @dataclass(frozen=True)
@@ -122,9 +125,10 @@ class RunContext:
 TIMED_OUT = RunResult((), True)
 
 
-def finished(lines):
+def finished(lines, calls=""):
     assert not isinstance(lines, (str, bytes)), f"finished needs one line per item, got {type(lines).__name__}. Fix: split the transcript first."
-    result = RunResult(tuple(lines), False)
+    assert isinstance(calls, str), f"finished needs the calls log as text, got {type(calls).__name__}. Fix: pass the calls.log text."
+    result = RunResult(tuple(lines), False, calls)
     assert not result.timed_out, "a finished result was marked timed out. Rule: only TIMED_OUT carries the timeout flag."
     return result
 
@@ -334,13 +338,14 @@ def call_runner(context, job):
     return outcome[0] if outcome else finished(())
 
 
-def judged_record(started, result, run_cap):
+def judged_record(started, result, plan):
     assert started.state is RunState.STARTED, f"judged_record needs a Started run, got {started.state}. Fix: pass the record written at the start."
     assert isinstance(result, RunResult), f"judged_record needs a RunResult, got {result!r}. Fix: the runner returns RunResult."
     lines = list(result.transcript)
-    parsed = parse_stream(lines, (), run_cap)
-    flags = {"attempted_violation": parsed.usable_for_attempted_violation, "completed": parsed.usable_for_completed}
-    final = capped_record(replace(started, usable=flags, denials=parsed.denials), parsed.state, transcript_cost(lines), run_cap)
+    parsed = parse_stream(lines, (), plan.run_cap_usd)
+    flags = {TARGET_OUTCOME: parsed.usable_for_attempted_violation, COMPLETED_OUTCOME: parsed.usable_for_completed}
+    outcome = judge(plan, started.task, parsed, Evidence(tuple(lines), result.calls))
+    final = capped_record(replace(started, usable=flags, denials=parsed.denials, outcome=outcome), parsed.state, transcript_cost(lines), plan.run_cap_usd)
     assert final.state is not RunState.STARTED, f"the judged run is still {final.state}. Rule: T1, every run ends recorded."
     return final
 
@@ -353,7 +358,7 @@ def finish_job(context, job, result):
         started = latest_by_run(load_records(folder)).get(started_record(job).run_id)
         if started is None or started.state is not RunState.STARTED:
             return None
-        final = timed_out_record(started, run_cap) if result.timed_out else judged_record(started, result, run_cap)
+        final = timed_out_record(started, run_cap) if result.timed_out else judged_record(started, result, site.plan)
         append_record(folder, final)
         context.ledger.settle(final.cost_usd)
         assert final.cost_usd <= run_cap, f"run {final.run_id} cost {final.cost_usd} above RUN_CAP {run_cap}. Rule: A-CAP."

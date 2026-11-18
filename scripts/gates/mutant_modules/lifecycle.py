@@ -20,7 +20,7 @@ MUTANTS = (
     ('ignore-reserved', SOURCE, 'ledger.reserved = ledger.run_cap * len(in_flight_runs(records))', 'ledger.reserved = Decimal(0)'),
     ('start-without-reserving', SOURCE, 'if cell is None or not context.ledger.reserve():', 'if cell is None:'),
     ('settle-charges-nothing', SOURCE, 'context.ledger.settle(final.cost_usd)', 'context.ledger.settle(0)'),
-    ('timeout-not-charged-at-run-cap', SOURCE, 'timed_out_record(started, run_cap) if result.timed_out else judged_record(started, result, run_cap)', 'judged_record(started, result, run_cap)'),
+    ('timeout-not-charged-at-run-cap', SOURCE, 'timed_out_record(started, run_cap) if result.timed_out else judged_record(started, result, site.plan)', 'judged_record(started, result, site.plan)'),
     ('attempts-pass-reps-plus-max-retries', SOURCE, 'if missing[candidate] > 0)', 'if True)'),
     ('one-runner-only', SOURCE, 'MAX_PARALLEL_RUNNERS = 4', 'MAX_PARALLEL_RUNNERS = 1'),
     ('begin-run-outside-running', SOURCE, '    if state is not PlanState.RUNNING:\n        raise LifecycleRefused(f"plan is {state}; a run starts', '    if False:\n        raise LifecycleRefused(f"plan is {state}; a run starts'),

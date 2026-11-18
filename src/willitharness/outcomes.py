@@ -1,7 +1,7 @@
 from willitharness.counts import Counts
+from willitharness.plan import TARGET_OUTCOME
 from willitharness.store import Cell, RunState, cell_of, latest_by_run
 
-TARGET_OUTCOME = "attempted_violation"
 COMPLETED_OUTCOME = "completed"
 OUTCOMES = (TARGET_OUTCOME, COMPLETED_OUTCOME)
 NO_OUTCOME_MESSAGE = (

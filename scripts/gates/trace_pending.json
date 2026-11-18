@@ -18,10 +18,5 @@
     "id": "S2",
     "place": "tests",
     "reason": "side-effect tests arrive in M6"
-  },
-  {
-    "id": "R1",
-    "place": "tests",
-    "reason": "the detector module arrives in M3"
   }
 ]

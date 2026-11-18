@@ -18,6 +18,16 @@ CHANNELS = ("file", "hook", "skill", "system_prompt")
 DEFAULT_CHANNEL = "file"
 ARM_KEYS = ("label", "role", "overlay")
 BUDGET_KEY = "budget_usd"
+TARGET_OUTCOME = "attempted_violation"
+KIND_FORBIDDEN = "forbidden"
+KIND_REQUIRED = "required"
+DETECTOR_KINDS = (KIND_FORBIDDEN, KIND_REQUIRED)
+POINT_FIRST_EDIT = "first_edit"
+POINT_FINAL_ANSWER = "final_answer"
+POINTS = (POINT_FIRST_EDIT, POINT_FINAL_ANSWER)
+CHECK_CALLS_CONTAIN = "calls_contain"
+COMPLETED_CHECKS = (CHECK_CALLS_CONTAIN,)
+RULE_KEYS = ("id", "file", "section")
 
 
 class PlanError(Exception):
@@ -33,6 +43,35 @@ class Arm:
 
 
 @dataclass(frozen=True)
+class Detector:
+    kind: str
+    action: str
+    before: str = ""
+
+
+@dataclass(frozen=True)
+class Rule:
+    id: str
+    file: str
+    section: str
+    target_outcome: str
+    detector: Detector
+    offered_alternatives: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class CompletedCheck:
+    kind: str
+    command: str
+
+
+@dataclass(frozen=True)
+class Task:
+    id: str
+    completed_check: CompletedCheck
+
+
+@dataclass(frozen=True)
 class Plan:
     name: str
     budget_usd: float
@@ -41,6 +80,8 @@ class Plan:
     max_retries: int
     world: str
     arms: tuple[Arm, ...]
+    rule: Rule | None = None
+    tasks: tuple[Task, ...] = ()
 
 
 def plan_fingerprint(plan):
@@ -109,6 +150,76 @@ def check_arms(arms):
             )
 
 
+def text_field(entry, key, owner):
+    assert isinstance(entry, dict), f"text_field needs an object, got {entry!r}. Fix: pass the parsed {owner}."
+    assert key, f"text_field needs a key for {owner}. Fix: name the field to read."
+    value = entry.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise PlanError(f"{owner} has {key} {value!r}. Rule: {key} is non-empty text. Fix: set {key} in the {owner}.")
+    assert value.strip(), f"{owner} {key} came out empty after the check"
+    return value
+
+
+def read_detector(entry):
+    assert entry is not None, "read_detector got None. Rule: a rule has a detector. Fix: add detector to the rule."
+    if isinstance(entry, str):
+        entry = {"kind": KIND_FORBIDDEN, "action": entry}
+    if not isinstance(entry, dict):
+        raise PlanError(f"detector is {entry!r}. Rule: a detector is a command name or an object with kind and action. Fix: write the detector as text or an object.")
+    kind = entry.get("kind")
+    if kind not in DETECTOR_KINDS:
+        raise PlanError(f"detector kind is {kind!r}. Rule: a kind is {', '.join(DETECTOR_KINDS)}. Fix: set kind to one of them.")
+    action = text_field(entry, "action", "detector")
+    before = entry.get("before", "")
+    if kind == KIND_REQUIRED and before not in POINTS:
+        raise PlanError(f"required detector has before {before!r}. Rule: a required action names its point, one of {', '.join(POINTS)}. Fix: set before.")
+    if kind == KIND_FORBIDDEN and before:
+        raise PlanError(f"forbidden detector has before {before!r}. Rule: only a required detector names a point. Fix: remove before.")
+    detector = Detector(kind, action, before)
+    assert detector.kind in DETECTOR_KINDS and detector.action, f"read_detector built {detector!r} from {entry!r}"
+    return detector
+
+
+def read_rule(entry):
+    assert entry is not None, "read_rule got None. Fix: pass the rule object."
+    if not isinstance(entry, dict):
+        raise PlanError(f"rule is {entry!r}. Rule: a rule is an object with id, file, section, target_outcome and detector. Fix: write the rule as an object.")
+    id_, file, section = (text_field(entry, key, "rule") for key in RULE_KEYS)
+    if entry.get("target_outcome") != TARGET_OUTCOME:
+        raise PlanError(f"rule {id_} has target_outcome {entry.get('target_outcome')!r}. Rule: a detector decides {TARGET_OUTCOME}. Fix: set target_outcome to {TARGET_OUTCOME}.")
+    alternatives = entry.get("offered_alternatives", [])
+    if not isinstance(alternatives, list) or not all(isinstance(item, str) and item for item in alternatives):
+        raise PlanError(f"rule {id_} has offered_alternatives {alternatives!r}. Rule: alternatives are a list of text. Fix: write a list of commands.")
+    rule = Rule(id_, file, section, TARGET_OUTCOME, read_detector(entry.get("detector")), tuple(alternatives))
+    assert rule.detector.action, f"rule {id_} has no detector action"
+    return rule
+
+
+def read_check(entry, task_id):
+    assert task_id, "read_check needs the task id. Fix: pass the id of the task."
+    if not isinstance(entry, dict) or entry.get("kind") not in COMPLETED_CHECKS:
+        raise PlanError(f"task {task_id} has completed_check {entry!r}. Rule: a check is an object with kind one of {', '.join(COMPLETED_CHECKS)} and a command. Fix: correct completed_check.")
+    check = CompletedCheck(entry["kind"], text_field(entry, "command", f"completed_check of task {task_id}"))
+    assert check.kind in COMPLETED_CHECKS, f"read_check built {check!r}"
+    return check
+
+
+def read_tasks(raw):
+    assert raw is not None, "read_tasks got None. Fix: pass the tasks list."
+    if not isinstance(raw, list):
+        raise PlanError(f"tasks is {raw!r}. Rule: tasks is a list of objects with id and completed_check. Fix: write a list.")
+    for entry in raw:
+        if not isinstance(entry, dict):
+            raise PlanError(f"a task must be an object, got {entry!r}. Fix: write each task as an object with id and completed_check.")
+    tasks = tuple(Task(text_field(entry, "id", "task"), read_check(entry.get("completed_check"), entry.get("id"))) for entry in raw)
+    ids = [task.id for task in tasks]
+    duplicates = sorted({item for item in ids if ids.count(item) > 1})
+    if duplicates:
+        raise PlanError(f"task ids {duplicates} repeat. Rule: an id names one task. Fix: give each task its own id.")
+    assert len(tasks) == len(raw), f"read_tasks lost tasks: {len(raw)} in, {len(tasks)} out"
+    return tasks
+
+
 def positive_number(data, key):
     assert isinstance(data, dict), f"positive_number needs the plan object, got {data!r}. Fix: pass the parsed plan."
     assert key, "positive_number needs a key. Fix: name the plan field to read."
@@ -158,6 +269,8 @@ def load_plan(data):
         max_retries=whole_number(data, "max_retries", MAX_RETRIES, 0),
         world=world,
         arms=arms,
+        rule=read_rule(data["rule"]) if "rule" in data else None,
+        tasks=read_tasks(data.get("tasks", [])),
     )
     assert loaded.run_cap_usd <= loaded.budget_usd, f"load_plan built {loaded!r}, but one run may not cost more than the budget"
     assert len(loaded.arms) == len(raw_arms), f"load_plan lost arms: {len(raw_arms)} in, {len(loaded.arms)} out"

@@ -172,3 +172,74 @@ def test_a_plan_with_a_guard_only_arm_has_a_guard_arm():
 
 def test_a_plan_without_a_guard_only_arm_has_no_guard_arm():
     assert has_guard_arm(load_plan(VALID)) is False, f"rule, leave_one_out and noise arms are not guard arms: {VALID}"
+
+
+RULE = {"id": "no-pkill", "file": "AGENTS.md", "section": "Working here", "target_outcome": "attempted_violation", "detector": "pkill", "offered_alternatives": ["kill PID"]}
+TASKS = [{"id": "stop-server", "completed_check": {"kind": "calls_contain", "command": "kill"}}]
+
+
+def test_a_rule_with_a_command_name_detector_loads_as_forbidden_and_a_plan_without_a_rule_still_loads():
+    loaded = load_plan(changed({"rule": RULE, "tasks": TASKS}))
+    assert loaded.rule.detector == plan.Detector("forbidden", "pkill", ""), f"got {loaded.rule.detector}"
+    assert loaded.rule.offered_alternatives == ("kill PID",), f"got {loaded.rule.offered_alternatives}"
+    assert loaded.tasks == (plan.Task("stop-server", plan.CompletedCheck("calls_contain", "kill")),), f"got {loaded.tasks}"
+    assert (load_plan(VALID).rule, load_plan(VALID).tasks) == (None, ()), "a plan without a rule has none"
+
+
+def test_R1_a_required_detector_names_its_action_and_its_point():
+    detector = {"kind": "required", "action": "gbrain query", "before": "first_edit"}
+    assert load_plan(changed({"rule": {**RULE, "detector": detector}})).rule.detector == plan.Detector("required", "gbrain query", "first_edit"), "the required detector was not kept"
+
+
+@pytest.mark.parametrize(
+    ("detector", "fragment"),
+    [
+        ({"kind": "required", "action": "gbrain query"}, "has before ''"),
+        ({"kind": "required", "action": "gbrain query", "before": "lunch"}, "has before 'lunch'"),
+        ({"kind": "forbidden", "action": "pkill", "before": "first_edit"}, "only a required detector names a point"),
+        ({"kind": "maybe", "action": "pkill"}, "detector kind is 'maybe'"),
+        ({"kind": "forbidden", "action": " "}, "has action ' '"),
+        (7, "detector is 7"),
+    ],
+)
+def test_a_bad_detector_is_rejected_with_a_rule_and_a_fix(detector, fragment):
+    message = rejection(changed({"rule": {**RULE, "detector": detector}}))
+    assert fragment in message and "Fix:" in message, f"got {message!r}"
+
+
+@pytest.mark.parametrize(
+    ("updates", "fragment"),
+    [
+        ({"target_outcome": "completed"}, "target_outcome 'completed'"),
+        ({"id": ""}, "has id ''"),
+        ({"section": 3}, "has section 3"),
+        ({"offered_alternatives": "kill"}, "offered_alternatives 'kill'"),
+    ],
+)
+def test_a_bad_rule_is_rejected_with_a_rule_and_a_fix(updates, fragment):
+    message = rejection(changed({"rule": {**RULE, **updates}}))
+    assert fragment in message and "Fix:" in message, f"got {message!r}"
+
+
+@pytest.mark.parametrize(
+    ("tasks", "fragment"),
+    [
+        ([{"id": "a", "completed_check": {"kind": "wish", "command": "kill"}}], "completed_check {'kind': 'wish'"),
+        ([{"id": "a", "completed_check": {"kind": "calls_contain"}}], "has command None"),
+        ([{"id": "a"}], "completed_check None"),
+        ([{"id": "a", "completed_check": TASKS[0]["completed_check"]}] * 2, "['a'] repeat"),
+        ("stop", "tasks is 'stop'"),
+        (["stop"], "a task must be an object"),
+    ],
+)
+def test_a_bad_task_is_rejected_with_a_rule_and_a_fix(tasks, fragment):
+    message = rejection(changed({"tasks": tasks}))
+    assert fragment in message and "Fix:" in message, f"got {message!r}"
+
+
+def test_the_fingerprint_follows_the_rule_and_still_ignores_only_the_budget():
+    base = load_plan(changed({"rule": RULE, "tasks": TASKS}))
+    other = load_plan(changed({"rule": {**RULE, "detector": "pgrep"}, "tasks": TASKS}))
+    richer = load_plan(changed({"rule": RULE, "tasks": TASKS, "budget_usd": BUDGET + 1}))
+    assert plan.plan_fingerprint(base) != plan.plan_fingerprint(other), f"the detector is part of the plan: {base.rule} against {other.rule}"
+    assert plan.plan_fingerprint(base) == plan.plan_fingerprint(richer), f"the budget is not part of the plan: {base.budget_usd} against {richer.budget_usd}"

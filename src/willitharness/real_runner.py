@@ -258,5 +258,6 @@ def run_cell(runner, cell, rep, attempt):
         command = build_command(prompt, runner.model, site.plan.run_cap_usd, policy)
         deadline = time.monotonic() + runner.setup.timeout_seconds
         output = watch(start_agent(command, profile, work, environment), deadline, lifecycle_dir(site.root, site.plan))
-        keep_run(site, RunKey(cell, rep, attempt), RunArtifacts(output or "", calls_text(work)), environment)
-    return TIMED_OUT if output is None else finished(output.splitlines())
+        calls = calls_text(work)
+        keep_run(site, RunKey(cell, rep, attempt), RunArtifacts(output or "", calls), environment)
+    return TIMED_OUT if output is None else finished(output.splitlines(), calls)

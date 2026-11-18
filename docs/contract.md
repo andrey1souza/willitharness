@@ -352,6 +352,11 @@ spend stays under the stated cap.
 |---|---|
 | W4 (every task has a prompt file) and W5 (a prompt names no measurement word) | The placeholder prompt told the agent which commands to use; a prompt must not reveal the measurement (backlog T63) |
 | Run environment statement: effect and guard runs have tools on; stubs are runnable wrappers | The pilot used a Bash tool, an allowlist and stubs first on PATH (research 03, F5, F15, F16, F19) |
+| `rule` and `tasks` are optional in a plan; a plan without a rule stores no outcome, so analyze stops with a fix | Smallest design: existing plans stay valid (backlog T51) |
+| `detector` is a command name (forbidden) or an object {kind, action, before}; `before` is `first_edit` or `final_answer` and only a required detector has it | The contract named the kinds but not the plan syntax (backlog T51) |
+| A forbidden or required action matches a tool name, or the leading words of a shell segment (split on `&&`, `||`, `;`, `|`, newline); a required action with no edit in the transcript must appear anywhere | Pilot method and F5; the contract named no matching rule (backlog T51) |
+| `completed_check` is {kind, command}; the only kind is `calls_contain`: a calls.log line starts with the command | Smallest deterministic check; the registry extends by kind name (backlog T51) |
+| Each judged record stores `executed`, the count of calls.log lines matching the detector action, next to the outcomes; attempts come from the transcript (F5) | Attempts are not executed commands (backlog T51) |
 
 ## 12. Evidence this contract rests on
 See `docs/research/04-findings-and-corrections.md` (F1 to F19) and

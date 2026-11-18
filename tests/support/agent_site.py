@@ -15,13 +15,9 @@ OVERLAY_NAME = "A.md"
 SECRET_MARKERS = ("KEY", "TOKEN", "SECRET")
 
 
-def prepare_project_with_fake_agent(tmp_path, monkeypatch, spec, behavior):
+def install_fake_agent_environment(tmp_path, monkeypatch):
     for name in [name for name in os.environ if any(marker in name for marker in SECRET_MARKERS)]:
         monkeypatch.delenv(name)
-    site = ready_site(tmp_path / "project", spec)
-    outside = tmp_path / "outside"
-    write_tree(site.root, {"A.md/fake-behavior.txt": behavior, "A.md/rule.txt": "the rule text", f"A.md/{ESCAPE_TARGET_FILE}": str(outside / "escaped.txt")})
-    outside.mkdir()
     config = tmp_path / "config"
     config.mkdir()
     bin_dir = install_fake_claude(tmp_path / "bin")
@@ -29,6 +25,15 @@ def prepare_project_with_fake_agent(tmp_path, monkeypatch, spec, behavior):
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(config))
     monkeypatch.setenv(SECRET_VARIABLE, "leak")
     assert (bin_dir / "claude").is_file(), f"the fake agent is missing in {bin_dir}"
+    return bin_dir
+
+
+def prepare_project_with_fake_agent(tmp_path, monkeypatch, spec, behavior):
+    install_fake_agent_environment(tmp_path, monkeypatch)
+    site = ready_site(tmp_path / "project", spec)
+    outside = tmp_path / "outside"
+    write_tree(site.root, {"A.md/fake-behavior.txt": behavior, "A.md/rule.txt": "the rule text", f"A.md/{ESCAPE_TARGET_FILE}": str(outside / "escaped.txt")})
+    outside.mkdir()
     return site
 
 

@@ -55,7 +55,7 @@ def capped_record(started, state, cost_usd, run_cap):
     assert state in (RunState.RECORDED_USABLE, RunState.RECORDED_UNUSABLE), f"a run ends usable or unusable, got {state}. Fix: pass one of them."
     cost = to_money(cost_usd)
     if cost > to_money(run_cap):
-        return replace(started, state=RunState.RECORDED_UNUSABLE, usable=dict(UNUSABLE_FLAGS), cost_usd=float(run_cap))
+        return replace(started, state=RunState.RECORDED_UNUSABLE, usable=dict(UNUSABLE_FLAGS), outcome={}, cost_usd=float(run_cap))
     return replace(started, state=state, cost_usd=float(cost))
 
 
