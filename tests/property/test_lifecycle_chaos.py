@@ -1,6 +1,6 @@
 from dataclasses import dataclass, replace
 
-from hypothesis import HealthCheck, given, settings
+from hypothesis import HealthCheck, example, given, settings
 from hypothesis import strategies as st
 from lifecycle_site import SiteSpec, costing_runner, make_site, run_setup, success_transcript, validate_site
 
@@ -75,8 +75,10 @@ def apply_end_step(site, step):
     raised = replace(site, plan=replace(site.plan, budget_usd=step.budget))
     try:
         if step.operation == "resume":
+            was_stopped = read_state(lifecycle_dir(site.root, site.plan)) in RESUMABLE_FROM
             resume_if_stopped(raised)
-            return raised
+            resumed = was_stopped and read_state(lifecycle_dir(site.root, site.plan)) is PlanState.RUNNING
+            return raised if resumed else site
         if step.operation == "analyze":
             analyze_gate(site.root, site.plan)
     except LifecycleRefused:
@@ -131,8 +133,18 @@ def check_invariants(site, before, ever_running):
     return after
 
 
+PINNED_RESUME_BEFORE_RUNNING = [
+    Step("validate", 0, Reach.LOADED, 0.05),
+    Step("reach", 0, Reach.LOADED, 0.05),
+    Step("reach", 1, Reach.LOADED, 0.05),
+    Step("resume", 0, Reach.LOADED, 0.05),
+    Step("start", 0, Reach.LOADED, 0.05),
+]
+
+
 @chaos_settings
 @given(steps)
+@example(PINNED_RESUME_BEFORE_RUNNING)
 def test_L1_to_L12_hold_after_every_step_of_a_random_sequence(tmp_path, sequence):
     site = make_site(tmp_path / f"example-{len(list(tmp_path.iterdir()))}", SPEC)
     held = []
