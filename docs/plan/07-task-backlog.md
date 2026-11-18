@@ -389,6 +389,6 @@ As a maintainer, I want random sequences of starts, records, aborts, timeouts an
 
 ### T58. Clean the old examples (M)
 As a maintainer, I want the inherited zanity findings removed, so that no agent copies the old pattern.
-- Given the 30 baseline findings in the legacy formal helper scripts, when each is fixed or its script deleted, then the baseline file holds fewer entries and the ceiling in `repo_checks` drops to the new count.
-- Given a baseline above the ceiling, then `repo_checks` fails.
+- Done: the 30 findings in the legacy formal helper scripts were fixed, the baseline file was deleted, and CI, both hooks and the Makefile run `zanity check . --fail-on warning` with no baseline and no disabled rule.
+- Given a `zanity-baseline.json` in the tree, then `repo_checks` fails.
 - IDs: none. Gate: repo checks. Deps: none.

@@ -19,7 +19,6 @@ TEST_REFERENCE = re.compile(r"`(tests/[\w/]+\.py)::(\w+)`")
 IGNORE_FILE = Path(".gitignore")
 WATCHER_FILES = (".testmondata", ".testmondata-shm", ".testmondata-wal")
 BASELINE_FILE = Path("zanity-baseline.json")
-BASELINE_CEILING = 30
 ZANITY_CONFIG = Path("zanity.toml")
 PLAN_DIRECTORY = Path("docs") / "plan"
 RETIRED_COMMAND = "behave features/"
@@ -62,14 +61,10 @@ def gitignore_errors(root):
 
 def baseline_errors(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
-    findings = json.loads((root / BASELINE_FILE).read_text())["findings"]
-    errors = []
-    if not findings:
-        errors.append("the zanity baseline is empty; remove the ceiling check instead")
-    if len(findings) > BASELINE_CEILING:
-        errors.append(f"the zanity baseline holds {len(findings)} findings, above the ceiling of {BASELINE_CEILING}; fix new findings instead of adding them")
-    assert all(isinstance(error, str) for error in errors), f"errors must be text, got {errors!r}"
-    return errors
+    assert BASELINE_FILE.suffix == ".json", f"{BASELINE_FILE} must name a JSON file"
+    if (root / BASELINE_FILE).exists():
+        return [f"{BASELINE_FILE} exists; the repository has no inherited findings, so fix new ones instead of recording them"]
+    return []
 
 
 def zanity_config_errors(root):
@@ -132,7 +127,7 @@ def registered_mutant_errors(root):
 CHECKS = {
     "mistakes-table": mistakes_table_errors,
     "gitignore": gitignore_errors,
-    "zanity-baseline": baseline_errors,
+    "no-zanity-baseline": baseline_errors,
     "zanity-config": zanity_config_errors,
     "plan-commands": plan_command_errors,
     "mutant-tables": registered_mutant_errors,

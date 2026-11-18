@@ -1,4 +1,6 @@
-# Contract issues: status against contract v0.2
+# Contract issues: status against contract v0.3
+
+Contract v0.3 settles N1, N2, N3, N4, N5, N6 and N10 below. Lean now models them: coverage is a three-value input (Full, Partial, NoneSeen), a guard arm with too few runs or NoneSeen coverage gives GuardUntested, and `reported_table.json` gives the implementation a golden table for `Reported`. N7 to N9, N11 and N12 stay as listed.
 
 ## Earlier issues (from the v0.1 proofs)
 | # | Issue | Status in v0.2 |

@@ -7,8 +7,8 @@ from willitharness import conformance
 
 GOLDEN = Path(__file__).resolve().parents[2] / "formal" / "lean"
 CHANGED_VALUE = "ChangedByTheTest"
-RESULT_KEY_BY_KIND = {"decision": "decision", "effect": "effect", "probe": "result", "guard": "guard"}
-CASES_BY_KIND = {"decision": 45, "effect": 12, "probe": 140, "guard": 20}
+RESULT_KEY_BY_KIND = {"decision": "decision", "effect": "effect", "probe": "result", "guard": "guard", "reported": "canReport"}
+CASES_BY_KIND = {"decision": 45, "effect": 12, "probe": 140, "guard": 30, "reported": 54}
 
 
 def table_path(kind):

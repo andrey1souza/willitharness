@@ -1,5 +1,5 @@
 ---- MODULE Mutant_L7 ----
-(* Bounded model of the willitharness run lifecycle (contract v0.2, section 7).
+(* Bounded model of the willitharness run lifecycle (contract v0.3, section 7).
    Operator names L1 to L9, T1, T2 and T2a are the contract IDs.
    V6 is the noise rule of contract section 4, lifted to the lifecycle.
    Abstractions, stated plainly:
@@ -43,15 +43,15 @@ MaxAttempts == Reps + MaxRetries
 
 VARIABLES planState, worldOk, planArms, reach, endedBy,
           started, usable, unusable, cost,
-          noiseStatus, effect, reportedN,
+          noiseStatus, effect, reportedN, analyzed,
           timeouts, worldChanges
 
 planVars == <<planState, worldOk, planArms, reach, endedBy>>
 runVars == <<started, usable, unusable, cost>>
-verdictVars == <<noiseStatus, effect, reportedN>>
+verdictVars == <<noiseStatus, effect, reportedN, analyzed>>
 counterVars == <<timeouts, worldChanges>>
 vars == <<planState, worldOk, planArms, reach, endedBy, started, usable, unusable, cost,
-          noiseStatus, effect, reportedN, timeouts, worldChanges>>
+          noiseStatus, effect, reportedN, analyzed, timeouts, worldChanges>>
 
 PlanCells == planArms \X Tasks
 EffectArms == planArms \ {LooArm, NoiseArm}
@@ -89,6 +89,7 @@ Init == /\ planState = "Drafted"
         /\ noiseStatus = "none"
         /\ effect = [a \in Arms |-> "none"]
         /\ reportedN = [a \in Arms |-> 0]
+        /\ analyzed = FALSE
         /\ timeouts = 0
         /\ worldChanges = 0
 
@@ -106,7 +107,7 @@ WorldChanged ==
     /\ worldOk' = FALSE
     /\ planState' = (IF planState = "Running" THEN "Running" ELSE "Drafted")
     /\ worldChanges' = worldChanges + 1
-    /\ UNCHANGED <<planArms, reach, endedBy, runVars, verdictVars, timeouts>>
+    /\ UNCHANGED <<planArms, reach, endedBy, runVars, verdictVars, timeouts>>  (* MUT:W3 *)
 
 CheckReach(a) ==
     /\ planState = "WorldValidated"
@@ -150,7 +151,7 @@ Timeout(c) ==
     /\ c \in PlanCells
     /\ InFlightCell(c) > 0
     /\ unusable' = [unusable EXCEPT ![c] = @ + 1]
-    /\ cost' = [cost EXCEPT ![c] = @ + RunCap]
+    /\ cost' = [cost EXCEPT ![c] = @ + RunCap]  (* MUT:T *)
     /\ timeouts' = timeouts + 1
     /\ UNCHANGED <<planVars, started, usable, verdictVars, worldChanges>>
 
@@ -175,6 +176,7 @@ Analyze ==
     /\ planState \in {"Complete", "BudgetStopped"}
     /\ planState' = "Analyzed"
     /\ reportedN' = [a \in Arms |-> UsableCount(a)]  (* MUT:L6 *)
+    /\ analyzed' = TRUE
     /\ UNCHANGED <<worldOk, planArms, reach, endedBy, runVars, noiseStatus, effect, counterVars>>
 
 AssessNoise ==
@@ -182,7 +184,7 @@ AssessNoise ==
     /\ noiseStatus = "none"
     /\ noiseStatus' \in (IF NoiseMeasurable THEN {"NoiseOk", "NoiseFloorTooHigh"}
                          ELSE {"NoiseUnmeasured"})
-    /\ UNCHANGED <<planVars, runVars, effect, reportedN, counterVars>>
+    /\ UNCHANGED <<planVars, runVars, effect, reportedN, analyzed, counterVars>>
 
 Outcome(x) ==
     IF FALSE THEN "Withheld"
@@ -195,7 +197,7 @@ EmitEffect(x) ==
     /\ effect[x] = "none"
     /\ noiseStatus # "none"
     /\ effect' = [effect EXCEPT ![x] = Outcome(x)]
-    /\ UNCHANGED <<planVars, runVars, noiseStatus, reportedN, counterVars>>
+    /\ UNCHANGED <<planVars, runVars, noiseStatus, reportedN, analyzed, counterVars>>
 
 Report ==
     /\ planState = "Analyzed"
@@ -206,13 +208,11 @@ Report ==
 
 Abort ==
     /\ AllowAbort
-    /\ planState \notin {"Reported", "Aborted"}
+    /\ planState \notin {"Analyzed", "Reported", "Aborted"}  (* MUT:abort *)
     /\ planState' = "Aborted"
     /\ unusable' = [c \in Cells |-> unusable[c] + InFlightCell(c)]
     /\ cost' = [c \in Cells |-> cost[c] + RunCap * InFlightCell(c)]
-    /\ noiseStatus' = "none"
-    /\ effect' = [a \in Arms |-> "none"]
-    /\ UNCHANGED <<worldOk, planArms, reach, endedBy, started, usable, reportedN, counterVars>>
+    /\ UNCHANGED <<worldOk, planArms, reach, endedBy, started, usable, verdictVars, counterVars>>
 
 Terminated ==
     /\ planState \in {"Reported", "Aborted"}
@@ -268,6 +268,7 @@ TypeOK ==
     /\ noiseStatus \in NoiseVals
     /\ effect \in [Arms -> EffectVals]
     /\ reportedN \in [Arms -> Nat]
+    /\ analyzed \in BOOLEAN
     /\ timeouts \in Nat
     /\ worldChanges \in 0..MaxWorldChanges
 
@@ -285,6 +286,15 @@ L7 == \A x \in Arms : effect[x] = "Reported" => reach[x] # "Unknown"
 L8 == \A x \in Arms : effect[x] = "Reported" => (NoiseArm \in planArms /\ noiseStatus = "NoiseOk")
 L9 == \A c \in Cells : started[c] <= MaxAttempts
 V6 == \A x \in Arms : effect[x] = "Reported" => noiseStatus = "NoiseOk"
+
+AbortBeforeAnalyzed == analyzed => planState # "Aborted"
+W3 == [][worldChanges' > worldChanges =>
+            /\ reach' = reach
+            /\ (planState \in {"WorldValidated", "ReachabilityChecked"} => planState' = "Drafted")
+            /\ (planState = "Running" => planState' = "Running")]_vars
+TimeoutCharges == [][timeouts' > timeouts =>
+                     /\ Spent' = Spent + RunCap
+                     /\ \A c \in Cells : started'[c] = started[c]]_vars
 
 T1 == (InFlight > 0) ~> (InFlight = 0)
 T2 == (planState = "Running") ~> (planState \in {"Complete", "BudgetStopped"})

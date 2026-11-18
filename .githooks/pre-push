@@ -19,7 +19,7 @@ while read -r _local_ref local_sha _remote_ref _remote_sha; do
   done
 done
 
-zanity check . --baseline zanity-baseline.json --new-only --fail-on warning --agent
+zanity check . --fail-on warning --agent
 uv run pytest
 uv run python scripts/gates/mutants.py all
 uv run python scripts/gates/trace_check.py

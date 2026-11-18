@@ -45,6 +45,8 @@ PROBES = (
     ("NeverWithheldForUnknown", "unknown_reach"),
     ("NeverAborted", "abort"),
     ("NeverAbortAfterVerdict", "abort"),
+    ("NeverAnalyzed", "nominal"),
+    ("NeverCompleteWithShortCell", "unusable"),
     ("NeverReachMasked", "nominal"),
     ("NeverWorldChanged", "world_change"),
     ("NeverStartBlockedByWorld", "world_change"),
@@ -64,7 +66,13 @@ MUTANTS = (
     ("L7", "unknown_reach", "invariant", '    IF FALSE THEN "Withheld"', "L7"),
     ("L8", "nominal", "invariant", '    ELSE IF TRUE THEN "Reported"', "L8"),
     ("L9", "unusable", "invariant", "               /\\ TRUE", "L9"),
+    ("abort", "abort", "invariant", '    /\\ planState \\notin {"Reported", "Aborted"}', "AbortBeforeAnalyzed"),
+    ("W3", "world_change", "property",
+     '    /\\ reach\' = [a \\in Arms |-> "none"]\n    /\\ UNCHANGED <<planArms, endedBy, runVars, verdictVars, timeouts>>', "W3"),
+    ("T", "unusable", "property", "    /\\ cost' = [cost EXCEPT ![c] = @]", "TimeoutCharges"),
 )
+KINDS = ("invariant", "property")
+EXPECTED_VERDICTS = (PASS, VIOLATION, "error", "timeout")
 
 
 @dataclass(frozen=True)
@@ -88,21 +96,32 @@ class Result:
 
 
 def read_text(name):
-    return (HERE / name).read_text()
+    assert name and "/" not in name, f"read_text needs a plain file name in {HERE}, got {name!r}. Fix: pass the name only."
+    text = (HERE / name).read_text()
+    assert text.strip(), f"{name} is empty. Rule: every model file has content. Fix: restore the file."
+    return text
 
 
 def constants_block(cfg_text):
+    assert "CONSTANTS" in cfg_text, f"the cfg has no CONSTANTS block: {cfg_text[:60]!r}. Fix: restore the scenario cfg."
+    assert cfg_text.strip(), "the cfg is empty. Fix: restore the scenario cfg."
     kept = []
     for line in cfg_text.splitlines():
         if line.startswith(("INVARIANT", "PROPERT")):
             break
         kept.append(line)
-    return "\n".join(kept) + "\n"
+    block = "\n".join(kept) + "\n"
+    assert "INVARIANT" not in block and "PROPERT" not in block, f"the constants block kept a checked name: {block!r}"
+    return block
 
 
 def cfg_checking(scenario, kind, name):
+    assert kind in KINDS, f"kind {kind!r} is not one of {KINDS}. Fix: use invariant or property."
+    assert name, f"cfg_checking needs the name of what to check in {scenario}. Fix: pass the name."
     keyword = "INVARIANT" if kind == "invariant" else "PROPERTY"
-    return constants_block(read_text(f"{scenario}.cfg")) + f"{keyword}\n    {name}\n"
+    text = constants_block(read_text(f"{scenario}.cfg")) + f"{keyword}\n    {name}\n"
+    assert text.rstrip().endswith(name), f"the cfg for {scenario} does not end with {name}: {text[-60:]!r}"
+    return text
 
 
 def mutate(source, mutant_id, new_line):
@@ -132,12 +151,18 @@ def build_runs():
         module = f"Mutant_{mutant_id}"
         runs.append(Run(f"mutant {mutant_id} in {scenario}", module, mutate(spec_text, mutant_id, new_line),
                         cfg_checking(scenario, kind, broken), VIOLATION, broken))
+    names = [run.name for run in runs]
+    assert len(set(names)) == len(names), f"run names must be distinct, got duplicates in {names}"
+    assert len(runs) == len(SCENARIOS) + 1 + len(PROBES) + len(MUTANTS), f"unexpected run count {len(runs)}"
     return runs
 
 
 def parse_output(output):
+    assert isinstance(output, str), f"TLC output must be text, got {type(output).__name__}. Fix: decode the output."
+    assert output.strip(), "TLC printed nothing. Rule: a run always prints a result. Fix: check the java path and the jar."
     counts = re.search(r"([\d,]+) states generated, ([\d,]+) distinct states found", output)
     generated, distinct = (int(group.replace(",", "")) for group in counts.groups()) if counts else (0, 0)
+    assert generated >= distinct >= 0, f"TLC reported {generated} generated and {distinct} distinct states"
     if "No error has been found" in output:
         return PASS, "", generated, distinct
     named = re.search(r"(?:Invariant|Action property) (\w+) is violated", output)
@@ -149,6 +174,8 @@ def parse_output(output):
 
 
 def keep_generated(run):
+    assert run.cfg_text.strip(), f"run {run.name} has an empty cfg. Fix: build the cfg before keeping it."
+    assert run.expected in (PASS, VIOLATION), f"run {run.name} expects {run.expected!r}. Fix: use pass or violation."
     if run.expected == PASS and run.module == SPEC_MODULE:
         return
     GENERATED.mkdir(exist_ok=True)
@@ -159,6 +186,8 @@ def keep_generated(run):
 
 
 def execute(run, jar, java):
+    assert jar.is_file(), f"the TLA tools jar {jar} does not exist. Fix: pass --jar with the path of tla2tools.jar."
+    assert run.module_text.strip(), f"run {run.name} has an empty module. Fix: build the module text first."
     keep_generated(run)
     with tempfile.TemporaryDirectory(prefix="willitharness-tlc-") as directory:
         work = Path(directory)
@@ -175,20 +204,27 @@ def execute(run, jar, java):
         output = done.stdout + done.stderr
     verdict, property_name, generated, distinct = parse_output(output)
     tail = "\n".join(output.strip().splitlines()[-TAIL_LINES:])
+    assert verdict in EXPECTED_VERDICTS, f"unknown verdict {verdict!r} for run {run.name}"
     return Result(verdict, property_name, generated, distinct, time.monotonic() - started, tail)
 
 
 def matches(run, result):
+    assert run.expected in (PASS, VIOLATION), f"run {run.name} expects {run.expected!r}. Fix: use pass or violation."
+    assert result.verdict in EXPECTED_VERDICTS, f"unknown verdict {result.verdict!r} for run {run.name}"
     if result.verdict != run.expected:
         return False
     return run.expected == PASS or result.property_name == run.expected_property
 
 
 def describe_expected(run):
+    assert run.expected in (PASS, VIOLATION), f"run {run.name} expects {run.expected!r}. Fix: use pass or violation."
+    assert run.expected == PASS or run.expected_property, f"run {run.name} expects a violation but names no property."
     return run.expected if run.expected == PASS else f"violation of {run.expected_property}"
 
 
 def describe_result(result):
+    assert result.verdict in EXPECTED_VERDICTS, f"unknown verdict {result.verdict!r}"
+    assert result.verdict != VIOLATION or result.property_name, f"a {result.verdict} result names no property: {result}"
     return result.verdict if result.verdict != VIOLATION else f"violation of {result.property_name}"
 
 
@@ -200,6 +236,7 @@ def main():
     parser.add_argument("--list", action="store_true")
     args = parser.parse_args()
     runs = [run for run in build_runs() if args.only in run.name]
+    assert runs, f"no run name contains {args.only!r}. Fix: pass --only with part of a name from --list."
     if args.list:
         print("\n".join(run.name for run in runs))
         return 0

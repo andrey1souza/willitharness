@@ -61,16 +61,46 @@ theorem wrong_P2_control_ignored (runs t c : Nat) (h : 0 < c) :
   unfold wrongProbeIgnoresControl
   split <;> simp_all
 
-def wrongGuardIgnoresBypass : Option Verdict → Rat → Rat → GuardResult
+def wrongGuardIgnoresBypass : Option Verdict → Coverage → Rat → GuardResult
   | none, _, _ => .guardUntested
-  | some completed, blockCoverage, _ =>
-    if completed ≠ .firstLower ∧ completed ≠ .inconclusiveSmallN ∧ blockCoverage = 1
+  | some completed, coverage, _ =>
+    if GuardEvidenceMissing completed coverage then .guardUntested
+    else if completed ≠ .firstLower ∧ completed ≠ .inconclusiveSmallN ∧ coverage = .full
     then .guardMatchesRule else .guardWorse
 
-theorem wrong_G1_bypass_ignored (cv : Option Verdict) (bc br : Rat) (h : br ≠ 0) :
-    wrongGuardIgnoresBypass cv bc br ≠ .guardMatchesRule := by
+theorem wrong_G1_bypass_ignored (cv : Option Verdict) (cov : Coverage) (br : Rat) (h : br ≠ 0) :
+    wrongGuardIgnoresBypass cv cov br ≠ .guardMatchesRule := by
   cases cv with
   | none => simp [wrongGuardIgnoresBypass]
   | some v => simp [wrongGuardIgnoresBypass]
+
+def wrongGuardSmallNWorse : Option Verdict → Coverage → Rat → GuardResult
+  | none, _, _ => .guardUntested
+  | some completed, coverage, bypassRate =>
+    if coverage = .noneSeen then .guardUntested
+    else if GuardConditions completed coverage bypassRate then .guardMatchesRule else .guardWorse
+
+theorem wrong_G1_small_n_is_worse (cov : Coverage) (br : Rat) :
+    wrongGuardSmallNWorse (some .inconclusiveSmallN) cov br = .guardUntested := by
+  cases cov <;> simp [wrongGuardSmallNWorse, GuardConditions]
+
+def wrongGuardNoneSeenAsFull : Option Verdict → Coverage → Rat → GuardResult
+  | none, _, _ => .guardUntested
+  | some completed, coverage, bypassRate =>
+    if completed = .inconclusiveSmallN then .guardUntested
+    else if completed ≠ .firstLower ∧ coverage ≠ .partly ∧ bypassRate = 0 then .guardMatchesRule
+    else .guardWorse
+
+theorem wrong_G1_none_seen_matches (br : Rat) (h : br = 0) :
+    wrongGuardNoneSeenAsFull (some .inconclusive) .noneSeen br = .guardUntested := by
+  simp [wrongGuardNoneSeenAsFull, h]
+
+def wrongCanReportNoPairNeeded (p : PlanFacts) : Prop :=
+  p.noise = .noiseOk ∧ LooValid p.looProbe ∧ p.ruleReach ≠ .unknown
+
+theorem wrong_L8_no_pair_needed (p : PlanFacts) (h : p.hasNoisePair = false) :
+    ¬ wrongCanReportNoPairNeeded p := by
+  intro hp
+  simp_all [wrongCanReportNoPairNeeded, LooValid]
 
 end Wrong

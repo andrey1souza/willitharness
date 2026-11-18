@@ -3,11 +3,12 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+from willitharness.analysis import PlanFacts, can_report
 from willitharness.decision import decide
 from willitharness.effect import map_effect
 from willitharness.guard import evaluate
 from willitharness.probe import classify
-from willitharness.vocabulary import Decision, EffectResult, GuardResult, NoiseStatus, Reach, Verdict
+from willitharness.vocabulary import Coverage, Decision, EffectResult, GuardResult, NoiseStatus, Reach, Verdict
 
 GOLDEN_DIRECTORY = Path(__file__).resolve().parents[2] / "formal" / "lean"
 NO_GUARD_ARM = "NoGuardArm"
@@ -20,6 +21,7 @@ FILE_BY_KIND = {
     "effect": "effect_table.json",
     "probe": "probe_table.json",
     "guard": "guard_table.json",
+    "reported": "reported_table.json",
 }
 
 
@@ -92,14 +94,14 @@ def probe_mismatches(rows: list[dict], classify_function: Callable = classify) -
 
 def guard_mismatches(rows: list[dict], evaluate_function: Callable = evaluate) -> list[str]:
     assert rows, f"no guard rows to check, got {rows!r}"
-    assert all({"completed", "blockCoverageFull", "bypassRateZero", "guard"} <= row.keys() for row in rows), (
+    assert all({"completed", "coverage", "bypassRateZero", "guard"} <= row.keys() for row in rows), (
         f"guard rows are incomplete: {rows[:1]!r}"
     )
     found = []
     for row in rows:
         try:
             completed = None if row["completed"] == NO_GUARD_ARM else Verdict(row["completed"])
-            got = evaluate_function(completed, row["blockCoverageFull"], row["bypassRateZero"])
+            got = evaluate_function(completed, Coverage(row["coverage"]), row["bypassRateZero"])
             expected = GuardResult(row["guard"])
         except ValueError as error:
             found.append(f"guard {row}: {error}")
@@ -109,11 +111,30 @@ def guard_mismatches(rows: list[dict], evaluate_function: Callable = evaluate) -
     return found
 
 
+def reported_mismatches(rows: list[dict], report_function: Callable = can_report) -> list[str]:
+    assert rows, f"no reported rows to check, got {rows!r}"
+    assert all({"hasNoisePair", "noise", "looProbe", "ruleReach", "canReport"} <= row.keys() for row in rows), (
+        f"reported rows are incomplete: {rows[:1]!r}"
+    )
+    found = []
+    for row in rows:
+        try:
+            facts = PlanFacts(row["hasNoisePair"], NoiseStatus(row["noise"]), Reach(row["looProbe"]), Reach(row["ruleReach"]))
+        except ValueError as error:
+            found.append(f"reported {row}: {error}")
+            continue
+        got = report_function(facts)
+        if got != row["canReport"]:
+            found.append(f"reported {row}: lean={row['canReport']} python={got}")
+    return found
+
+
 MISMATCH_FUNCTION_BY_KIND = {
     "decision": decision_mismatches,
     "effect": effect_mismatches,
     "probe": probe_mismatches,
     "guard": guard_mismatches,
+    "reported": reported_mismatches,
 }
 
 

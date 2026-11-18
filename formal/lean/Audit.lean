@@ -19,9 +19,11 @@ open Willitharness
 #print axioms allInputs_complete
 #print axioms exhaustive_D10_D11_D12
 #print axioms G1_bool_bridge
+#print axioms G1_untested_iff
+#print axioms G1_small_n_untested
+#print axioms G1_none_seen_untested
 #print axioms G1_matches_iff
 #print axioms G1_matches_implies_conditions
-#print axioms G1_untested_iff
 #print axioms G1_bypass_blocks_match
 #print axioms G1_partial_coverage_blocks_match
 #print axioms G1_first_lower_blocks_match
@@ -44,6 +46,8 @@ open Willitharness
 #print axioms E1_not_ok_loaded_cannot_decide
 #print axioms E1_not_ok_never_effect_decision
 #print axioms E1_exhaustive
+#print axioms CanReport_flags
+#print axioms CanReport_exhaustive
 #print axioms V6_no_effect_unless_noise_ok
 #print axioms L8_no_noise_pair_no_effect
 #print axioms L8_noise_not_ok_no_effect

@@ -28,6 +28,12 @@ class Reach(StrEnum):
     UNKNOWN = "Unknown"
 
 
+class Coverage(StrEnum):
+    FULL = "Full"
+    PARTIAL = "Partial"
+    NONE_SEEN = "NoneSeen"
+
+
 class GuardResult(StrEnum):
     GUARD_MATCHES_RULE = "GuardMatchesRule"
     GUARD_WORSE = "GuardWorse"

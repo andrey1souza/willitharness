@@ -20,6 +20,8 @@ NeverEffectReported == \A x \in Arms : effect[x] # "Reported"
 NeverWithheldForUnknown == \A x \in Arms : ~(effect[x] = "Withheld" /\ reach[x] = "Unknown")
 NeverAborted == planState # "Aborted"
 NeverAbortAfterVerdict == ~(planState = "Aborted" /\ endedBy # "none")
+NeverAnalyzed == ~analyzed
+NeverCompleteWithShortCell == ~(planState = "Complete" /\ \E c \in PlanCells : usable[c] < Reps)
 NeverReachMasked == \A a \in Arms : reach[a] # "Masked"
 NeverWorldChanged == worldChanges = 0
 NeverStartBlockedByWorld == ~(planState = "Running" /\ ~worldOk /\ \E c \in PlanCells : CanStart(c))

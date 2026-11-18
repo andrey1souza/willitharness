@@ -1,6 +1,6 @@
 # Contract issues found while writing the TLA+ model
 
-Source: `/tmp/ext-research/willitharness/00-domain-contract.md` (v0.2, not edited).
+Source: `docs/contract.md` (v0.3). Part 3 gives the status of the nine gaps in Part 2 against v0.3.
 Part 1 gives the status of the 12 issues raised against v0.1. Part 2 lists the new gaps
 found while updating the model to v0.2.
 
@@ -34,3 +34,22 @@ found while updating the model to v0.2.
 | N7 | A-CAP | A timeout may cost less than `RUN_CAP`. The contract does not say what to charge. | The full `RUN_CAP`, and the run counts as an attempt. This is the safe choice. | State the charge. |
 | N8 | P4 | P4 says the plan cannot report an effect if the LOO arm is not Loaded. That is not one of L1 to L9. | Not modelled. | Add it as a property, or fold it into L7 for the LOO arm. |
 | N9 | Section 4 | "Usable per outcome" has two meanings (`attempted_violation`, `completed`). The model has one usable counter. | One abstract outcome. L6 checks only that one. | Model two usable counters if per-outcome mistakes matter. W-DENIAL is not modelled either. |
+
+## Part 3. Status of N1 to N9 in contract v0.3
+
+| # | Status | Where the model checks it |
+|---|---|---|
+| N1 | Resolved. Section 7 counts runs in flight in "Pending". | `CanStart`. Mutant L4 removes the in-flight count and must violate L4. |
+| N2 | Resolved. Section 7 assumes the world changes finitely often. | `MaxWorldChanges` bounds `WorldChanged`. |
+| N3 | Resolved. Section 7 says what a world change does in each state. | Property `W3`. Mutant W3 erases reachability results and must violate it. The probe `NeverStartBlockedByWorld` shows a Running plan with starts blocked. |
+| N4 | Resolved by forbidding abort after Analyzed. | `Abort` excludes Analyzed and Reported. Invariant `AbortBeforeAnalyzed` uses the history flag `analyzed`. Mutant abort allows abort after Analyzed and must violate it. The probe `NeverAnalyzed` shows the state is reachable. `Abort` no longer resets noise status or effects, because an Aborted plan cannot hold them (L5). |
+| N5 | Resolved. V6 says a missing pair is NoiseUnmeasured. | `NoiseMeasurable` needs the noise arm. L8 and the probe `NeverNoPairReported` cover the no-pair path. |
+| N6 | Resolved. Section 7 says exhausted retries still end Complete. | The probe `NeverCompleteWithShortCell` shows a Complete plan with a cell short of `Reps`. |
+| N7 | Resolved. Section 7 says a timeout charges the full `RUN_CAP`. | Property `TimeoutCharges`. Mutant T charges nothing and must violate it. |
+| N8 | Open in the model. v0.3 gives a failed P4 the EffectResult Invalid and folds the check into L7 for the rule arm only. | Not modelled. The Lean and Python parts cover it. |
+| N9 | Open. Per-outcome usable counts are still one abstract counter. | Not modelled. |
+
+Unclear in the contract: section 7 says Abort is reachable from "any state before
+Analyzed". The model reads that as Drafted to Complete or BudgetStopped. The history flag
+`analyzed` is a model variable, not a contract term. The finite-world-changes assumption is
+stated in prose, not as a numbered item.

@@ -7,4 +7,4 @@ cd "${repo_root}"
 python3 scripts/guards/identity.py
 gitleaks git --staged --redact --no-banner
 python3 scripts/guards/private_names.py --staged
-zanity check . --baseline zanity-baseline.json --new-only --fail-on warning --agent
+zanity check . --fail-on warning --agent

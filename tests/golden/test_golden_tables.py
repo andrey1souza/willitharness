@@ -8,17 +8,19 @@ from willitharness.conformance import (
     load_rows,
     main,
     probe_mismatches,
+    reported_mismatches,
 )
+from willitharness.analysis import PlanFacts, can_report
 from willitharness.decision import decide
 from willitharness.effect import map_effect
 from willitharness.guard import evaluate
 from willitharness.probe import classify
 from willitharness.vocabulary import Decision, EffectResult, NoiseStatus, Reach
 
-ROW_COUNT_BY_KIND = {"decision": 45, "effect": 12, "probe": 140, "guard": 20}
+ROW_COUNT_BY_KIND = {"decision": 45, "effect": 12, "probe": 140, "guard": 30, "reported": 54}
 USAGE_EXIT_CODE = 2
 SUCCESS_EXIT_CODE = 0
-TABLE_FILE_NAMES = ["decision_table.json", "effect_table.json", "guard_table.json", "probe_table.json"]
+TABLE_FILE_NAMES = ["decision_table.json", "effect_table.json", "guard_table.json", "probe_table.json", "reported_table.json"]
 
 
 def wrong_decide_masked_keeps(reach, effect, guard):
@@ -34,8 +36,12 @@ def wrong_classify_ignores_control(runs, target_hits, control_hits):
     return classify(runs, target_hits, 0)
 
 
-def wrong_evaluate_ignores_bypass(completed, full_block_coverage, zero_bypass):
-    return evaluate(completed, full_block_coverage, True)
+def wrong_evaluate_ignores_bypass(completed, coverage, zero_bypass):
+    return evaluate(completed, coverage, True)
+
+
+def wrong_can_report_ignores_noise(facts):
+    return can_report(PlanFacts(facts.has_noise_pair, NoiseStatus.NOISE_OK, facts.loo_probe, facts.rule_reach))
 
 
 @pytest.mark.parametrize(("kind", "count"), ROW_COUNT_BY_KIND.items())
@@ -62,6 +68,16 @@ def test_P1_to_P4_probe_table_conforms():
 def test_G1_guard_table_conforms():
     found = guard_mismatches(load_rows("guard"))
     assert found == [], f"{found=}"
+
+
+def test_L8_reported_table_conforms():
+    found = reported_mismatches(load_rows("reported"))
+    assert found == [], f"{found=}"
+
+
+def test_proof_it_can_fail_V6_reporting_despite_a_noise_problem_is_detected():
+    found = reported_mismatches(load_rows("reported"), wrong_can_report_ignores_noise)
+    assert found != [], f"{found=} for a report gate that ignores the noise status"
 
 
 def test_proof_it_can_fail_D1_masked_keeps_is_detected():

@@ -144,6 +144,27 @@ structure PlanFacts where
 def CanReport (p : PlanFacts) : Prop :=
   p.hasNoisePair = true ∧ p.noise = .noiseOk ∧ LooValid p.looProbe ∧ p.ruleReach ≠ .unknown
 
+instance (p : PlanFacts) : Decidable (CanReport p) := by
+  unfold CanReport LooValid
+  exact inferInstance
+
+def allPlanFacts : List PlanFacts :=
+  [false, true].flatMap fun hasNoisePair =>
+    allNoise.flatMap fun noise =>
+      allReach.flatMap fun looProbe => allReach.map fun ruleReach => ⟨hasNoisePair, noise, looProbe, ruleReach⟩
+
+theorem CanReport_flags (p : PlanFacts) :
+    decide (CanReport p) = (p.hasNoisePair && decide (p.noise = .noiseOk) &&
+      decide (p.looProbe = .loaded) && !decide (p.ruleReach = .unknown)) := by
+  unfold CanReport LooValid
+  cases p with
+  | mk hasNoisePair noise looProbe ruleReach =>
+    cases hasNoisePair <;> cases noise <;> cases looProbe <;> cases ruleReach <;> decide
+
+theorem CanReport_exhaustive :
+    allPlanFacts.length = 54 ∧ (allPlanFacts.filter fun p => decide (CanReport p)).length = 2 := by
+  decide
+
 def Reported (p : PlanFacts) (e : EffectResult) : Prop :=
   CanReport p ∧ ∃ v, e = effectOf p.noise v
 

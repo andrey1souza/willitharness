@@ -34,10 +34,15 @@ def probeRow (runs t c : Nat) : String :=
   "  {\"runs\": " ++ toString runs ++ ", \"targetHits\": " ++ toString t ++
     ", \"controlHits\": " ++ toString c ++ ", \"result\": \"" ++ (probeResult runs t c).name ++ "\"}"
 
-def guardRow (cv : Option Verdict) (fullCoverage zeroBypass : Bool) : String :=
-  "  {\"completed\": \"" ++ completedName cv ++ "\", \"blockCoverageFull\": " ++ boolName fullCoverage ++
-    ", \"bypassRateZero\": " ++ boolName zeroBypass ++ ", \"guard\": \"" ++
-    (guardOfBool cv fullCoverage zeroBypass).name ++ "\"}"
+def guardRow (cv : Option Verdict) (coverage : Coverage) (zeroBypass : Bool) : String :=
+  "  {\"completed\": \"" ++ completedName cv ++ "\", \"coverage\": \"" ++ coverage.name ++
+    "\", \"bypassRateZero\": " ++ boolName zeroBypass ++ ", \"guard\": \"" ++
+    (guardOfBool cv coverage zeroBypass).name ++ "\"}"
+
+def reportedRow (p : PlanFacts) : String :=
+  "  {\"hasNoisePair\": " ++ boolName p.hasNoisePair ++ ", \"noise\": \"" ++ noiseName p.noise ++
+    "\", \"looProbe\": \"" ++ p.looProbe.name ++ "\", \"ruleReach\": \"" ++ p.ruleReach.name ++
+    "\", \"canReport\": " ++ boolName (decide (CanReport p)) ++ "}"
 
 def maxProbeRuns : Nat := 6
 
@@ -54,8 +59,11 @@ def probeTable : String :=
 def guardTable : String :=
   let completedValues : List (Option Verdict) := none :: allVerdict.map some
   jsonList (completedValues.flatMap fun cv =>
-    [false, true].flatMap fun fullCoverage => [false, true].map fun zeroBypass =>
-      guardRow cv fullCoverage zeroBypass)
+    allCoverage.flatMap fun coverage => [false, true].map fun zeroBypass =>
+      guardRow cv coverage zeroBypass)
+
+def reportedTable : String :=
+  jsonList (allPlanFacts.map reportedRow)
 
 def main (args : List String) : IO UInt32 := do
   match args with
@@ -63,6 +71,7 @@ def main (args : List String) : IO UInt32 := do
   | ["effect"] => IO.println effectTable; return 0
   | ["probe"] => IO.println probeTable; return 0
   | ["guard"] => IO.println guardTable; return 0
+  | ["reported"] => IO.println reportedTable; return 0
   | _ =>
-    IO.eprintln "usage: export_table decision|effect|probe|guard"
+    IO.eprintln "usage: export_table decision|effect|probe|guard|reported"
     return 2

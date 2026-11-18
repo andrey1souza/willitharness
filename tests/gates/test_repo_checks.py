@@ -7,10 +7,8 @@ TABLE_HEAD = "# Mistakes\n\n## Mistakes caught by a rule\n\n| Mistake | Category
 TABLE_TAIL = "\n## Mistakes with no rule yet\n"
 GOOD_ROW = "| m | c | r | `tests/gates/test_x.py::test_x` |\n"
 TEST_FILE = "def test_x():\n    assert True\n"
-BASELINE_SIZE = 3
 FILE_CHECKS = {name: check for name, check in repo_checks.CHECKS.items() if name not in ("mutant-tables", "trace-pending")}
 PENDING_GOOD = '[{"id": "S1", "place": "tests", "reason": "later"}]'
-OVER_CEILING = repo_checks.BASELINE_CEILING + 1
 
 
 def valid_files(rows):
@@ -18,7 +16,6 @@ def valid_files(rows):
         "docs/mistakes-to-rules.md": TABLE_HEAD + rows + TABLE_TAIL,
         "tests/gates/test_x.py": TEST_FILE,
         ".gitignore": "build/\n.testmondata*\n",
-        "zanity-baseline.json": json.dumps({"findings": [{}] * BASELINE_SIZE}),
         "zanity.toml": '# disable = ["example"]\n[infer]\nconcurrency = 8\n',
         "docs/plan/01.md": "Run pytest tests/bdd.\n",
     }
@@ -90,22 +87,16 @@ def test_a_gitignore_with_the_wildcard_has_no_errors(tmp_path):
     assert errors == [], f"the wildcard must cover every watcher file, got {errors}"
 
 
-def test_a_baseline_above_the_ceiling_is_reported(tmp_path):
-    write_tree(tmp_path, {"zanity-baseline.json": json.dumps({"findings": [{}] * OVER_CEILING})})
+def test_a_zanity_baseline_file_is_reported(tmp_path):
+    write_tree(tmp_path, {"zanity-baseline.json": json.dumps({"findings": [{}]})})
     errors = repo_checks.baseline_errors(tmp_path)
-    assert len(errors) == 1 and "above the ceiling" in errors[0], f"got {errors}"
+    assert len(errors) == 1 and "zanity-baseline.json exists" in errors[0], f"got {errors}"
 
 
-def test_an_empty_baseline_is_reported(tmp_path):
-    write_tree(tmp_path, {"zanity-baseline.json": json.dumps({"findings": []})})
+def test_a_tree_without_a_zanity_baseline_has_no_errors(tmp_path):
+    write_tree(tmp_path, {"zanity.toml": "[infer]\n"})
     errors = repo_checks.baseline_errors(tmp_path)
-    assert len(errors) == 1 and "is empty" in errors[0], f"got {errors}"
-
-
-def test_a_baseline_at_the_ceiling_has_no_errors(tmp_path):
-    write_tree(tmp_path, {"zanity-baseline.json": json.dumps({"findings": [{}] * repo_checks.BASELINE_CEILING})})
-    errors = repo_checks.baseline_errors(tmp_path)
-    assert errors == [], f"a baseline at the ceiling must pass, got {errors}"
+    assert errors == [], f"no baseline file must pass, got {errors}"
 
 
 def test_a_path_disable_in_the_zanity_config_is_reported(tmp_path):

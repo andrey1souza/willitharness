@@ -5,7 +5,7 @@ from typing import NamedTuple
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from willitharness import cli, fakeagent
-from willitharness.analysis import analyze_effect
+from willitharness.analysis import PlanFacts, analyze_effect
 from willitharness.arms import remove_section
 from willitharness.decision import decide
 from willitharness.fakeagent import Behavior, Location
@@ -17,6 +17,7 @@ FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "probe"
 SEED = 11
 NON_TARGET_LABEL = "Reference code"
 LOO_SECTION = "Working here as an agent"
+LOO_LABEL = "C"
 
 scenarios("../../features/reachability.feature")
 
@@ -171,7 +172,8 @@ def rule_arm_reachability(world, name):
 def analyze_the_plan(world):
     rule_reach = world.get("rule_reach", Reach.LOADED)
     loo_probe = world.get("loo_probe", Reach.LOADED)
-    analysis = analyze_effect(rule_reach, loo_probe, NoiseStatus.NOISE_OK, Verdict.FIRST_HIGHER)
+    facts = PlanFacts(True, NoiseStatus.NOISE_OK, loo_probe, rule_reach)
+    analysis = analyze_effect(facts, Verdict.FIRST_HIGHER, LOO_LABEL)
     world["analysis"] = analysis
     world["message"] = analysis.message or ""
     world["decision"] = decide(rule_reach, analysis.effect, GuardResult.GUARD_UNTESTED)

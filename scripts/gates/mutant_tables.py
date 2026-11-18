@@ -88,13 +88,27 @@ ARMS_MUTANTS = (
     ("last-line-of-the-file-kept", ARMS, "    end = len(lines)\n    for index", "    end = len(lines) - 1\n    for index"),
 )
 
-ANALYSIS_TESTS = ("tests/unit/test_analysis_unit.py", "tests/bdd/test_reachability.py")
+ANALYSIS_TESTS = ("tests/unit/test_analysis_unit.py", "tests/bdd/test_reachability.py", "tests/golden")
 ANALYSIS = "src/willitharness/analysis.py"
 
 ANALYSIS_MUTANTS = (
-    ("unknown-rule-arm-may-emit-a-verdict", ANALYSIS, "elif rule_reach is not Reach.LOADED:", "elif rule_reach is Reach.MASKED:"),
-    ("loo-arm-always-valid", ANALYSIS, "if not loo_arm_valid(loo_probe):", "if False:"),
+    ("unknown-rule-arm-may-report", ANALYSIS, "        and facts.rule_reach is not Reach.UNKNOWN\n", "        and True\n"),
+    ("loo-arm-always-valid", ANALYSIS, "        and loo_arm_valid(facts.loo_probe)\n", "        and True\n"),
+    ("noise-problem-still-reports", ANALYSIS, "        and facts.noise is NoiseStatus.NOISE_OK\n", "        and True\n"),
+    ("no-noise-pair-still-reports", ANALYSIS, "        facts.has_noise_pair\n        and facts.noise", "        True\n        and facts.noise"),
     ("loo-message-changed", ANALYSIS, '"LOO arm does not load its other rules; the effect cannot be reported"', '"LOO arm invalid"'),
+    ("no-pair-message-changed", ANALYSIS, '"no noise pair; add a repeat of arm {loo} with role noise_of:{loo}"', '"no noise pair"'),
+)
+
+GUARD_TESTS = ("tests/unit/test_guard_unit.py", "tests/golden")
+GUARD = "src/willitharness/guard.py"
+
+GUARD_MUTANTS = (
+    ("too-few-runs-counts-as-worse", GUARD, "UNTESTED_COMPLETED_VERDICTS = frozenset({Verdict.INCONCLUSIVE_SMALL_N})", "UNTESTED_COMPLETED_VERDICTS = frozenset()"),
+    ("none-seen-counts-as-worse", GUARD, " or coverage is Coverage.NONE_SEEN\n", "\n"),
+    ("bypass-ignored", GUARD, "coverage is Coverage.FULL and zero_bypass:", "coverage is Coverage.FULL:"),
+    ("partial-coverage-accepted", GUARD, "coverage is Coverage.FULL and zero_bypass:", "coverage is not Coverage.NONE_SEEN and zero_bypass:"),
+    ("lower-completed-verdict-accepted", GUARD, "NOT_MATCHING_COMPLETED_VERDICTS = frozenset({Verdict.FIRST_LOWER})", "NOT_MATCHING_COMPLETED_VERDICTS = frozenset()"),
 )
 
 MODULES = {
@@ -104,4 +118,5 @@ MODULES = {
     "probe": (PROBE_TESTS, PROBE_MUTANTS),
     "arms": (ARMS_TESTS, ARMS_MUTANTS),
     "analysis": (ANALYSIS_TESTS, ANALYSIS_MUTANTS),
+    "guard": (GUARD_TESTS, GUARD_MUTANTS),
 }
