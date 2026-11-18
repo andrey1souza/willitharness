@@ -1,11 +1,15 @@
 import pytest
 
 from willitharness.counts import Counts
-from willitharness.intervals import difference_interval, wilson
+from willitharness.intervals import difference_interval, difference_interval_at, wilson, wilson_at
+from willitharness.verdict import verdict_at, verdict_of
+from willitharness.vocabulary import Verdict
 
 KNOWN_TOLERANCE = 1e-3
 SWAP_TOLERANCE = 1e-9
 PERCENT = 100
+NARROW_Z = 1.0
+WIDE_Z = 3.0
 PILOT_PAIRS = [
     pytest.param(Counts(16, 20), Counts(0, 20), 53, 92, id="stop-server-A-vs-B"),
     pytest.param(Counts(16, 20), Counts(17, 20), -29, 19, id="stop-server-A-vs-A2"),
@@ -63,3 +67,19 @@ def test_DI_2_swap_negates_and_reverses_the_interval():
     swapped_low, swapped_high = difference_interval(second, first)
     assert swapped_low == pytest.approx(-high, abs=SWAP_TOLERANCE), f"{swapped_low=} {high=}"
     assert swapped_high == pytest.approx(-low, abs=SWAP_TOLERANCE), f"{swapped_high=} {low=}"
+
+
+def test_a_smaller_z_narrows_the_wilson_interval_and_a_larger_z_widens_it():
+    low_default, high_default = wilson(Counts(10, 20))
+    low_narrow, high_narrow = wilson_at(Counts(10, 20), NARROW_Z)
+    low_wide, high_wide = wilson_at(Counts(10, 20), WIDE_Z)
+    assert low_default < low_narrow < 0.5 < high_narrow < high_default, f"NARROW_Z must narrow {(low_default, high_default)} to {(low_narrow, high_narrow)}"
+    assert low_wide < low_default and high_wide > high_default, f"WIDE_Z must widen {(low_default, high_default)} to {(low_wide, high_wide)}"
+
+
+def test_the_difference_interval_and_the_verdict_follow_z():
+    first, second = Counts(8, 20), Counts(3, 20)
+    assert difference_interval_at(first, second, NARROW_Z)[0] > difference_interval(first, second)[0], f"a smaller z raises the lower bound for {first} against {second} at {NARROW_Z}"
+    low, high = difference_interval_at(first, second, NARROW_Z)
+    assert abs(low - 0.10950864) < KNOWN_TOLERANCE and abs(high - 0.37831208) < KNOWN_TOLERANCE, f"hand-computed Newcombe bounds at z 1.0 are 0.1095 and 0.3783, got {(low, high)}"
+    assert verdict_of(first, second) is Verdict.INCONCLUSIVE and verdict_at(first, second, NARROW_Z) is Verdict.FIRST_HIGHER, f"{NARROW_Z} must turn {first} against {second} decisive; expected {Verdict.FIRST_HIGHER}"

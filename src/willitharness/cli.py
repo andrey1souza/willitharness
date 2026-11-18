@@ -5,6 +5,8 @@ from pathlib import Path
 
 from willitharness import claude_agent, fakeagent
 from willitharness.claude_agent import AgentUnavailable
+from willitharness.analyzed import finish_analysis
+from willitharness.analysis import AnalysisInput, analyze_plan, has_verdict, messages_of, report_lines
 from willitharness.fakeagent import Behavior, Location
 from willitharness.lifecycle import (
     LifecycleRefused,
@@ -13,11 +15,13 @@ from willitharness.lifecycle import (
     RunSetup,
     abort_plan,
     analyze_gate,
+    read_reach,
     resume_if_stopped,
     finished,
     lifecycle_dir,
     execute_plan,
 )
+from willitharness.outcomes import AnalysisError
 from willitharness.plan import PlanError, read_plan
 from willitharness.paths import PathOutsideRoot, inside
 from willitharness.real_runner import check_channels, claude_runner
@@ -38,7 +42,8 @@ USAGE = (
 EXIT_CODES = (EXIT_OK, EXIT_DOMAIN_FAILURE, EXIT_USAGE, EXIT_AGENT_MISSING, EXIT_BUDGET_STOPPED)
 FAKE_RUN_COST_USD = 0.01
 DEFAULT_RUN_TIMEOUT_SECONDS = 600.0
-ANALYSIS_PENDING = "analysis is built in M4"
+ENDS_RESUME_WARNING = "warning: analyze ends resume; the plan is Analyzed and cannot run again"
+NO_VERDICT_MESSAGE = "no verdict produced; the plan keeps its state"
 NO_TASKS = "the world has no tasks. Rule: a plan runs its arms on the tasks of tasks.txt. Fix: add a task line to the world."
 PLAN_ARGUMENT_COUNT = 3
 WORLD_ARGUMENT_COUNT = 3
@@ -187,23 +192,43 @@ def run_plan_command(argv, runners, setup_runners):
 
 def plan_command(argv, name):
     assert isinstance(argv, list), f"{name} needs a list of arguments, got {argv!r}. Fix: pass the arguments after {name}."
-    assert name in ("abort", "analyze"), f"plan_command serves abort and analyze, got {name!r}. Fix: route only those two."
+    assert name == "abort", f"plan_command serves abort, got {name!r}. Fix: route analyze to analyze_command."
     parser = argparse.ArgumentParser(prog=f"willitharness {name}")
     parser.add_argument("plan")
     arguments = parser.parse_args(argv)
     root = Path.cwd()
     try:
-        plan = read_plan(root, arguments.plan)
-        if name == "abort":
-            abort_plan(root, plan)
-            print(f"plan {PlanState.ABORTED}")
-            return EXIT_OK
-        analyze_gate(root, plan)
+        abort_plan(root, read_plan(root, arguments.plan))
     except (PlanError, LifecycleRefused) as error:
         print(str(error), file=sys.stderr)
         return EXIT_DOMAIN_FAILURE
-    print(ANALYSIS_PENDING, file=sys.stderr)
-    return EXIT_USAGE
+    print(f"plan {PlanState.ABORTED}")
+    return EXIT_OK
+
+
+def analyze_command(argv):
+    assert isinstance(argv, list), f"analyze_command needs a list of arguments, got {argv!r}. Fix: pass the arguments after analyze."
+    assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
+    parser = argparse.ArgumentParser(prog="willitharness analyze")
+    parser.add_argument("plan")
+    parser.add_argument("--pooled", action="store_true")
+    arguments = parser.parse_args(argv)
+    root = Path.cwd()
+    try:
+        plan = read_plan(root, arguments.plan)
+        analyze_gate(root, plan)
+        folder = lifecycle_dir(root, plan)
+        analysis = analyze_plan(AnalysisInput(plan, load_records(folder), read_reach(folder), arguments.pooled), True)
+    except (PathOutsideRoot, PlanError, LifecycleRefused, AnalysisError) as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_DOMAIN_FAILURE
+    print("\n".join(report_lines(analysis)))
+    if not has_verdict(analysis):
+        print("\n".join([*messages_of(analysis), NO_VERDICT_MESSAGE]), file=sys.stderr)
+        return EXIT_DOMAIN_FAILURE
+    if finish_analysis(root, plan) is PlanState.BUDGET_STOPPED:
+        print(ENDS_RESUME_WARNING, file=sys.stderr)
+    return EXIT_OK
 
 
 def main(argv):
@@ -218,8 +243,10 @@ def main(argv):
         return probe_command(rest, RUNNERS)
     if command == ["run"]:
         return run_plan_command(rest, RUN_RUNNERS, SETUP_RUNNERS)
-    if command in (["abort"], ["analyze"]):
+    if command == ["abort"]:
         return plan_command(rest, argv[0])
+    if command == ["analyze"]:
+        return analyze_command(rest)
     print(f"unknown command {argv!r}. Rule: v0 has plan check, world check, probe, run, abort and analyze so far. Fix: {USAGE}", file=sys.stderr)
     return EXIT_USAGE
 

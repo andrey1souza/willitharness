@@ -113,7 +113,7 @@ def test_G3_11_abort_after_analyze_exits_one_and_the_plan_stays_analyzed(tmp_pat
     assert state_file(site) == "Analyzed", f"got {state_file(site)}"
 
 
-def test_G3_7_analyze_on_a_running_plan_exits_one_and_on_a_complete_plan_exits_two_with_the_m4_message(tmp_path, monkeypatch, capsys):
+def test_G3_7_analyze_on_a_running_plan_exits_one_and_on_a_complete_plan_without_a_comparison_exits_one_too(tmp_path, monkeypatch, capsys):
     site = ready_site(tmp_path, ROOMY)
     start_running(site)
     monkeypatch.chdir(tmp_path)
@@ -121,7 +121,7 @@ def test_G3_7_analyze_on_a_running_plan_exits_one_and_on_a_complete_plan_exits_t
     run_cli(capsys, RUN_ARGUMENTS)
     complete_code, complete_out, complete_err = run_cli(capsys, ["analyze", "plan.json"])
     assert running_code == 1 and "plan still running; analyze after Complete or BudgetStopped" in running_err, f"got {running_code} {running_err!r}"
-    assert complete_code == 2 and "analysis is built in M4" in complete_err, f"got {complete_code} {complete_err!r}"
+    assert complete_code == 1 and "no leave_one_out arm or no rule arm to compare" in complete_err, f"got {complete_code} {complete_err!r}"
 
 
 def test_G3_6_four_parallel_runners_never_let_spent_plus_reserved_pass_the_budget(tmp_path):
@@ -189,10 +189,10 @@ def test_L10_run_on_a_complete_plan_exits_one_and_says_there_is_nothing_to_resum
 
 
 @pytest.mark.parametrize("spec, expected", [(TIGHT, "BudgetStopped"), (ROOMY, "Complete")])
-def test_L5_analyze_before_m4_leaves_a_finished_plan_in_its_state(tmp_path, monkeypatch, capsys, spec, expected):
+def test_L5_an_analyze_that_cannot_produce_a_verdict_leaves_a_finished_plan_in_its_state(tmp_path, monkeypatch, capsys, spec, expected):
     site = ready_site(tmp_path, spec)
     monkeypatch.chdir(tmp_path)
     run_cli(capsys, RUN_ARGUMENTS)
     code, out, err = run_cli(capsys, ["analyze", "plan.json"])
-    assert code == 2 and "analysis is built in M4" in err, f"got {code} {err!r}"
+    assert code == 1 and "no leave_one_out arm or no rule arm to compare" in err, f"got {code} {err!r}"
     assert state_file(site) == expected and "resume" not in err, f"analyze moved the plan to {state_file(site)}, expected {expected}; err {err!r}"

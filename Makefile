@@ -1,6 +1,6 @@
-.PHONY: check test zanity mutants trace repo formal integrate live
+.PHONY: check test zanity mutants trace repo simulate formal integrate live
 
-check: test zanity mutants trace repo
+check: test zanity mutants trace repo simulate
 
 test:
 	uv run pytest
@@ -16,6 +16,9 @@ trace:
 
 repo:
 	uv run python scripts/gates/repo_checks.py
+
+simulate:
+	uv run python scripts/gates/simulate.py --trials 400 --n 20 --seed 20261117
 
 formal:
 	python3 formal/lean/check_lean.py

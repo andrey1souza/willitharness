@@ -9,12 +9,18 @@ Interval = tuple[float, float]
 def wilson(counts: Counts) -> Interval:
     assert counts.runs >= 1, f"a Wilson interval needs at least one run, got {counts.runs}"
     assert counts.successes <= counts.runs, f"successes {counts.successes} cannot exceed runs {counts.runs}"
+    return wilson_at(counts, WILSON_Z)
+
+
+def wilson_at(counts: Counts, z: float) -> Interval:
+    assert counts.runs >= 1, f"a Wilson interval needs at least one run, got {counts.runs}"
+    assert counts.successes <= counts.runs, f"successes {counts.successes} cannot exceed runs {counts.runs}"
     proportion = counts.rate()
-    squared_z = WILSON_Z**2
+    squared_z = z**2
     denominator = 1 + squared_z / counts.runs
     center = (proportion + squared_z / (2 * counts.runs)) / denominator
     spread = proportion * (1 - proportion) / counts.runs + squared_z / (4 * counts.runs**2)
-    half_width = WILSON_Z * math.sqrt(spread) / denominator
+    half_width = z * math.sqrt(spread) / denominator
     low = min(max(0.0, center - half_width), proportion)
     high = max(min(1.0, center + half_width), proportion)
     assert 0.0 <= low <= proportion <= high <= 1.0, f"V5 broken: {low}, {proportion}, {high}"
@@ -24,9 +30,15 @@ def wilson(counts: Counts) -> Interval:
 def difference_interval(first: Counts, second: Counts) -> Interval:
     assert first.runs >= 1, f"the first arm needs at least one run, got {first.runs}"
     assert second.runs >= 1, f"the second arm needs at least one run, got {second.runs}"
+    return difference_interval_at(first, second, WILSON_Z)
+
+
+def difference_interval_at(first: Counts, second: Counts, z: float) -> Interval:
+    assert first.runs >= 1, f"the first arm needs at least one run, got {first.runs}"
+    assert second.runs >= 1, f"the second arm needs at least one run, got {second.runs}"
     first_rate, second_rate = first.rate(), second.rate()
-    first_low, first_high = wilson(first)
-    second_low, second_high = wilson(second)
+    first_low, first_high = wilson_at(first, z)
+    second_low, second_high = wilson_at(second, z)
     difference = first_rate - second_rate
     lower_reach = math.sqrt((first_rate - first_low) ** 2 + (second_high - second_rate) ** 2)
     upper_reach = math.sqrt((first_high - first_rate) ** 2 + (second_rate - second_low) ** 2)

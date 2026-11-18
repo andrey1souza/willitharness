@@ -1,5 +1,5 @@
 from willitharness.counts import Counts
-from willitharness.intervals import difference_interval
+from willitharness.intervals import WILSON_Z, difference_interval_at
 from willitharness.vocabulary import NoiseStatus, Verdict
 
 MIN_RUNS = 5
@@ -21,12 +21,18 @@ def verdict_from_interval(low: float, high: float) -> Verdict:
 
 def verdict_of(first: Counts, second: Counts) -> Verdict:
     assert first.runs >= 0 and second.runs >= 0, f"run counts must not be negative: {first.runs}, {second.runs}"
+    assert WILSON_Z > 0, f"WILSON_Z must be above 0, got {WILSON_Z}"
+    return verdict_at(first, second, WILSON_Z)
+
+
+def verdict_at(first: Counts, second: Counts, z: float) -> Verdict:
+    assert first.runs >= 0 and second.runs >= 0, f"run counts must not be negative: {first.runs}, {second.runs}"
     assert MIN_RUNS >= 1, f"MIN_RUNS must keep intervals defined, got {MIN_RUNS}"
     small = min(first.runs, second.runs) < MIN_RUNS
     if small:
         result = Verdict.INCONCLUSIVE_SMALL_N
     else:
-        low, high = difference_interval(first, second)
+        low, high = difference_interval_at(first, second, z)
         result = verdict_from_interval(low, high)
     assert (result is Verdict.INCONCLUSIVE_SMALL_N) == small, (
         f"V2 broken: small-n rule gave {result} for runs {first.runs}, {second.runs}"

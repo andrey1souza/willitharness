@@ -3,7 +3,7 @@ import pytest
 import mutants
 from mutant_tables import MODULES
 
-STATS_MUTANT_COUNT = 8
+STATS_MUTANT_COUNT = 11
 FAILING_TEST = "def test_always_fails():\n    assert False, 'planted failure'\n"
 
 
@@ -11,7 +11,7 @@ def stats_mutants():
     return MODULES["stats"][1]
 
 
-def test_the_stats_module_lists_eight_mutants_with_distinct_names():
+def test_the_stats_module_lists_eleven_mutants_with_distinct_names():
     names = [mutant[0] for mutant in stats_mutants()]
     assert len(names) == STATS_MUTANT_COUNT, f"expected {STATS_MUTANT_COUNT} stats mutants, got {names}"
     assert len(set(names)) == len(names), f"mutant names must be distinct, got {names}"

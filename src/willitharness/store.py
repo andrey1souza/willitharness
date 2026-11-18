@@ -1,6 +1,6 @@
 import json
 from collections import Counter
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from pathlib import Path
 from typing import NamedTuple
@@ -38,6 +38,8 @@ class Record:
     state: RunState
     usable: dict
     cost_usd: float
+    outcome: dict = field(default_factory=dict)
+    denials: int = 0
 
 
 @dataclass(frozen=True)

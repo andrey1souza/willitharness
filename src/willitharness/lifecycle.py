@@ -340,7 +340,7 @@ def judged_record(started, result, run_cap):
     lines = list(result.transcript)
     parsed = parse_stream(lines, (), run_cap)
     flags = {"attempted_violation": parsed.usable_for_attempted_violation, "completed": parsed.usable_for_completed}
-    final = capped_record(replace(started, usable=flags), parsed.state, transcript_cost(lines), run_cap)
+    final = capped_record(replace(started, usable=flags, denials=parsed.denials), parsed.state, transcript_cost(lines), run_cap)
     assert final.state is not RunState.STARTED, f"the judged run is still {final.state}. Rule: T1, every run ends recorded."
     return final
 
@@ -467,4 +467,3 @@ def analyze_gate(root, plan):
         raise LifecycleRefused(ANALYZE_BEFORE_RUN)
     assert state in ANALYZABLE, f"analyze_gate let state {state} pass. Rule: L5, a verdict needs Complete or BudgetStopped."
     return state
-
