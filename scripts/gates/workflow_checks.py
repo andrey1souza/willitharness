@@ -1,4 +1,5 @@
 import re
+import tomllib
 from pathlib import Path
 
 WORKFLOW_DIRECTORY = Path(".github") / "workflows"
@@ -17,6 +18,15 @@ UNTRUSTED_EXPRESSION = re.compile(r"\$\{\{[^}]*github\.(?:event\.|head_ref)[^}]*
 UNLOCKED_SYNC = re.compile(r"uv sync(?! --locked)")
 CATCH_ALL_OWNER = re.compile(r"^\*\s+@\S+", re.MULTILINE)
 ECOSYSTEM_LINE = re.compile(r"package-ecosystem:\s*['\"]?([\w-]+)")
+PYTHON_VERSION_FILE = Path(".python-version")
+PYPROJECT_FILE = Path("pyproject.toml")
+REQUIRED_JOBS = ("test", "zanity", "macos")
+JOBS_HEADER = re.compile(r"^jobs:\s*$", re.MULTILINE)
+JOB_KEY = re.compile(r"^  ([\w-]+):\s*$", re.MULTILINE)
+UV_USE = re.compile(r"setup-uv|\buv (?:sync|run)\b")
+EXPLICIT_PYTHON = re.compile(r"python-version:|\bUV_PYTHON\b|--python\b")
+MAJOR_MINOR = re.compile(r"(\d+)\.(\d+)")
+MINIMUM_SPECIFIER = re.compile(r"^>=\s*(\d+)\.(\d+)$")
 BLOCK_SCALARS = ("|", ">", "|-", ">-", "|+", ">+")
 
 
@@ -72,6 +82,35 @@ def unlocked_sync(text):
     return ["uv sync without --locked can change the lockfile in CI"] if UNLOCKED_SYNC.search(text) else []
 
 
+def job_blocks(text):
+    assert isinstance(text, str), f"workflow text must be str, got {type(text).__name__}. Fix: pass read_text output."
+    header = JOBS_HEADER.search(text)
+    if not header:
+        return {}
+    body = text[header.end():]
+    keys = list(JOB_KEY.finditer(body))
+    blocks = {key.group(1): body[key.start():keys[index + 1].start() if index + 1 < len(keys) else len(body)] for index, key in enumerate(keys)}
+    assert len(blocks) == len(keys), f"two jobs share a name in {[key.group(1) for key in keys]!r}. Fix: rename one."
+    return blocks
+
+
+def missing_jobs(text):
+    assert isinstance(text, str), f"workflow text must be str, got {type(text).__name__}. Fix: pass read_text output."
+    assert REQUIRED_JOBS, "no jobs are required. Rule: a gate with no expectations proves nothing."
+    present = job_blocks(text)
+    return [f"job {name} is missing; the ruleset requires a status check with that name" for name in REQUIRED_JOBS if name not in present]
+
+
+def unsourced_python_jobs(text):
+    assert isinstance(text, str), f"workflow text must be str, got {type(text).__name__}. Fix: pass read_text output."
+    assert EXPLICIT_PYTHON.pattern, "the explicit-python pattern is empty"
+    return [
+        f"job {name} runs uv without an explicit python-version and {PYTHON_VERSION_FILE} is missing"
+        for name, block in job_blocks(text).items()
+        if UV_USE.search(block) and not EXPLICIT_PYTHON.search(block)
+    ]
+
+
 def workflow_errors(root, text_check):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     assert callable(text_check), f"text_check must be a function, got {text_check!r}"
@@ -111,6 +150,34 @@ def locked_sync_errors(root):
     return workflow_errors(root, unlocked_sync)
 
 
+def required_job_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert REQUIRED_JOBS, "no jobs are required. Rule: a gate with no expectations proves nothing."
+    return workflow_errors(root, missing_jobs)
+
+
+def python_source_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert UV_USE.pattern, "the uv pattern is empty"
+    if (root / PYTHON_VERSION_FILE).is_file():
+        return []
+    return workflow_errors(root, unsourced_python_jobs)
+
+
+def python_version_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert MINIMUM_SPECIFIER.pattern, "the specifier pattern is empty"
+    pinned = MAJOR_MINOR.match((root / PYTHON_VERSION_FILE).read_text().strip()) if (root / PYTHON_VERSION_FILE).is_file() else None
+    if not pinned:
+        return [f"{PYTHON_VERSION_FILE} is missing or does not start with major.minor, so local and CI Python are not pinned"]
+    specifier = tomllib.loads((root / PYPROJECT_FILE).read_text()).get("project", {}).get("requires-python", "")
+    minimum = MINIMUM_SPECIFIER.match(specifier)
+    if not minimum:
+        return [f"requires-python {specifier!r} is not of the form '>=X.Y', so {PYTHON_VERSION_FILE} cannot be checked against it"]
+    satisfied = tuple(map(int, pinned.groups())) >= tuple(map(int, minimum.groups()))
+    return [] if satisfied else [f"{PYTHON_VERSION_FILE} pins {pinned.group(0)}, below requires-python {specifier}"]
+
+
 def security_file_errors(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     assert REQUIRED_FILES, "no security files are required. Rule: a gate with no expectations proves nothing."
@@ -142,6 +209,9 @@ CHECKS = {
     "workflow-triggers": trigger_errors,
     "workflow-injection": injection_errors,
     "workflow-locked-sync": locked_sync_errors,
+    "workflow-required-jobs": required_job_errors,
+    "workflow-python-source": python_source_errors,
+    "python-version-file": python_version_errors,
     "security-files": security_file_errors,
     "codeowners": codeowners_errors,
     "dependabot": dependabot_errors,

@@ -3,9 +3,11 @@ import workflow_checks
 from files import write_tree
 
 PINNED = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-GOOD_WORKFLOW = f"name: ci\non:\n  push:\npermissions:\n  contents: read\njobs:\n  test:\n    steps:\n      - uses: {PINNED} # v7\n      - run: uv sync --locked\n"
+GOOD_WORKFLOW = f"name: ci\non:\n  push:\npermissions:\n  contents: read\njobs:\n  test:\n    steps:\n      - uses: {PINNED} # v7\n      - run: uv sync --locked\n  zanity:\n    steps:\n      - run: echo zanity\n  macos:\n    steps:\n      - run: uv run pytest\n"
 GOOD_FILES = {
     ".github/workflows/ci.yml": GOOD_WORKFLOW,
+    ".python-version": "3.13\n",
+    "pyproject.toml": "[project]\nrequires-python = \">=3.11\"\n",
     "SECURITY.md": "report privately\n",
     ".github/CODEOWNERS": "* @owner\n",
     ".github/dependabot.yml": "updates:\n  - package-ecosystem: github-actions\n  - package-ecosystem: uv\n",
@@ -132,4 +134,53 @@ def test_a_tree_without_workflows_fails_instead_of_passing_vacuously(tmp_path):
 def test_the_workflow_checks_are_registered_in_the_repo_checks():
     missing = [name for name in workflow_checks.CHECKS if name not in repo_checks.CHECKS]
     assert missing == [], f"repo_checks must run every workflow check, missing {missing}"
-    assert len(workflow_checks.CHECKS) == 8, f"expected eight workflow checks, got {sorted(workflow_checks.CHECKS)}"
+    assert len(workflow_checks.CHECKS) == 11, f"expected eleven workflow checks, got {sorted(workflow_checks.CHECKS)}"
+
+
+def test_a_missing_required_job_is_reported(tmp_path):
+    failures = failures_for(tmp_path, {".github/workflows/ci.yml": GOOD_WORKFLOW.replace("  macos:", "  macos-renamed:")})
+    assert failures["workflow-required-jobs"] == ["ci.yml: job macos is missing; the ruleset requires a status check with that name"], f"got {failures}"
+    assert workflow_checks.job_blocks(GOOD_WORKFLOW).keys() == {"test", "zanity", "macos"}, "job_blocks must find each top-level job"
+    assert workflow_checks.job_blocks("name: ci\n") == {}, "a file without jobs has no blocks"
+
+
+def test_a_workflow_without_a_jobs_section_misses_every_required_job():
+    errors = workflow_checks.missing_jobs("name: ci\n")
+    assert len(errors) == 3, f"every required job must be reported, got {errors}"
+    assert workflow_checks.missing_jobs(GOOD_WORKFLOW) == [], "the good workflow has every required job"
+
+
+def test_a_missing_python_version_file_fails_both_python_checks(tmp_path):
+    write_tree(tmp_path, {**GOOD_FILES})
+    (tmp_path / ".python-version").unlink()
+    sourced = workflow_checks.python_source_errors(tmp_path)
+    assert sourced == ["ci.yml: job test runs uv without an explicit python-version and .python-version is missing", "ci.yml: job macos runs uv without an explicit python-version and .python-version is missing"], f"got {sourced}"
+    assert len(workflow_checks.python_version_errors(tmp_path)) == 1, "the pin file itself must be required"
+
+
+def test_an_explicit_python_version_replaces_the_pin_file(tmp_path):
+    explicit = GOOD_WORKFLOW.replace("      - run: uv sync --locked\n", "      - run: uv sync --locked\n        env:\n          UV_PYTHON: \"3.14\"\n").replace("      - run: uv run pytest\n", "      - run: uv run --python 3.14 pytest\n")
+    write_tree(tmp_path, {".github/workflows/ci.yml": explicit})
+    assert workflow_checks.python_source_errors(tmp_path) == [], "no pin file needed when every uv job names its Python"
+    assert workflow_checks.unsourced_python_jobs(GOOD_WORKFLOW) == [f"job {name} runs uv without an explicit python-version and .python-version is missing" for name in ("test", "macos")], "without either source both uv jobs are reported"
+
+
+def test_a_pin_below_requires_python_is_reported(tmp_path):
+    failures = failures_for(tmp_path, {".python-version": "3.10\n"})
+    assert failures["python-version-file"] == [".python-version pins 3.10, below requires-python >=3.11"], f"got {failures}"
+    equal = failures_for(tmp_path, {".python-version": "3.11.4\n"})
+    assert equal["python-version-file"] == [], f"a patch version at the minimum must pass, got {equal}"
+
+
+def test_a_pin_with_a_higher_minor_than_the_minimum_passes(tmp_path):
+    failures = failures_for(tmp_path, {".python-version": "3.13\n", "pyproject.toml": "[project]\nrequires-python = \">=3.9\"\n"})
+    assert failures["python-version-file"] == [], f"3.13 satisfies >=3.9, got {failures}"
+    major = failures_for(tmp_path, {".python-version": "4.0\n"})
+    assert major["python-version-file"] == [], f"a higher major satisfies >=3.11, got {major}"
+
+
+def test_an_unparsable_pin_or_specifier_is_reported(tmp_path):
+    bad_pin = failures_for(tmp_path, {".python-version": "cpython\n"})
+    assert len(bad_pin["python-version-file"]) == 1, f"a pin without major.minor must be reported, got {bad_pin}"
+    bad_specifier = failures_for(tmp_path, {"pyproject.toml": "[project]\nrequires-python = \"~=3.11\"\n"})
+    assert bad_specifier["python-version-file"] == ["requires-python '~=3.11' is not of the form '>=X.Y', so .python-version cannot be checked against it"], f"got {bad_specifier}"
