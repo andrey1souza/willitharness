@@ -13,7 +13,8 @@ CODE_SPAN = re.compile(r"`([^`]+)`")
 QUESTION_COLUMNS = ("Question", "Name", "Asks", "Answer")
 DECISION_COLUMNS = ("Case", "When", "Decision")
 GATE_COLUMNS = ("Gate", "Status", "Result")
-LIVE_COLUMNS = ("Task", "Arm C", "Arm B", "Verdict", "Noise")
+LIVE_COLUMNS = ("Task", "Arm C", "Arm B", "Verdict", "Noise", "Effect")
+COMPLETED_COLUMNS = ("Task", "Arm C", "Arm B", "Verdict", "Note")
 TONES = {
     "FixLoading": "warn",
     "Keep": "keep",
@@ -26,6 +27,7 @@ TONES = {
     "FirstHigher": "keep",
     "FirstLower": "bad",
     "NoiseOk": "keep",
+    "RuleLowersViolations": "keep",
 }
 
 
@@ -112,9 +114,33 @@ def live_cells(item):
         arm_cell(item["second_arm"], item["second_hits"], item["second_runs"]),
         status_cell(item["verdict"]),
         status_cell(item["noise"]),
+        status_cell(item["effect"]),
     ]
     assert len(cells) == len(LIVE_COLUMNS), f"a live row has {len(LIVE_COLUMNS)} cells, got {len(cells)}. Fix: match the table head."
     return cells
+
+
+def completed_cells(item):
+    assert "note" in item, f"a completed item needs a note, got {sorted(item)}. Fix: pass extract output."
+    cells = [
+        identifier(item["task"]),
+        arm_cell(item["first_arm"], item["first_hits"], item["first_runs"]),
+        arm_cell(item["second_arm"], item["second_hits"], item["second_runs"]),
+        status_cell(item["verdict"]),
+        plain(item["note"]),
+    ]
+    assert len(cells) == len(COMPLETED_COLUMNS), f"a completed row has {len(COMPLETED_COLUMNS)} cells, got {len(cells)}. Fix: match the table head."
+    return cells
+
+
+def earlier_run_text(earlier):
+    assert earlier["cost_usd"] > 0, f"the earlier run needs a cost, got {earlier}. Fix: restore the result file."
+    text = (
+        f"Run {earlier['run']} cost ${earlier['cost_usd']!r}. Arm C of stop-server had {earlier['stop_server_first_hits']} hits. "
+        f"The completed row of backup-delete read {earlier['completed_backup_delete']}. {earlier['explanation']}"
+    )
+    assert earlier["explanation"] in text, f"the explanation must stay in the text, got {text!r}"
+    return escape(text, quote=False)
 
 
 def list_items(file, entries):
@@ -146,6 +172,8 @@ def page_values(data):
         "live_file": escape(live_file),
         "live_outcome": escape(live["outcome"]),
         "live_rows": table_rows(live_file, live["rows"], live_cells),
+        "completed_rows": table_rows(live_file, live["completed_rows"], completed_cells),
+        "earlier_run": earlier_run_text(live["earlier_run"]),
         "live_limits": list_items(live_file, live["limits"]),
         "limits": list_items(readme["file"], readme["limits"]),
         "readme_file": escape(readme["file"]),

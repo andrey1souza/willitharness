@@ -37,7 +37,7 @@ def test_live_rows_show_hits_and_runs(built):
 def test_limits_render_code_spans_and_source_lines(built):
     page = built["index.html"]
     assert '<li data-source="README.md:6">The spike used toy tasks and one <code>small</code> model.</li>' in page, f"a README limit keeps its code span and its line; got {page!r}"
-    assert '<li data-source="fixtures/results/g4_4.json:35">The commands are stubs.</li>' in page, f"a live limit cites the JSON line; got {page!r}"
+    assert '<li data-source="fixtures/results/g4_4.json:60">The commands are stubs.</li>' in page, f"a live limit cites the JSON line; got {page!r}"
 
 
 def test_a_quote_in_the_description_is_escaped_in_the_attribute(tmp_path):

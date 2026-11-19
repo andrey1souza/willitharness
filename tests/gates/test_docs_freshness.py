@@ -103,19 +103,6 @@ def test_an_unknown_flag_is_reported(tmp_path):
     assert "flags ['--turbo']" in error, f"{error!r} lacks the expected text"
 
 
-def test_a_planned_command_is_allowed_only_in_planned_documents(tmp_path):
-    errors = errors_for(tmp_path, {"docs/plan/07-task-backlog.md": BACKLOG + "`willitharness report <plan>`\n"})
-    assert errors == [], f"the backlog may name a planned command, got {errors}"
-    error = single_error(tmp_path, "run `willitharness report <plan>`\n")
-    assert "documents `willitharness report`" in error, f"{error!r} lacks the expected text"
-
-
-def test_a_planned_command_that_is_built_is_reported(tmp_path):
-    cli = CLI.replace('"| willitharness probe', '"| willitharness report <plan> | willitharness probe')
-    errors = errors_for(tmp_path, {"src/willitharness/cli.py": cli, "docs/plan/07-task-backlog.md": BACKLOG + "`willitharness report <plan>`\n"})
-    assert len(errors) == 1 and "as planned, but USAGE lists it" in errors[0], f"got {errors}"
-
-
 def test_an_unknown_make_target_is_reported(tmp_path):
     error = single_error(tmp_path, "run `make deploy`\n")
     assert "`make deploy`" in error, f"{error!r} lacks the expected text"
@@ -138,11 +125,47 @@ def test_a_missing_referenced_file_is_reported(tmp_path):
     assert "points at docs/gone.md" in error, f"{error!r} lacks the expected text"
 
 
-def test_a_planned_document_may_name_files_that_do_not_exist_yet(tmp_path):
-    errors = errors_for(tmp_path, {"docs/plan/07-task-backlog.md": BACKLOG + "run `scripts/gates/later.sh`\n"})
-    assert errors == [], f"the backlog specifies files before they exist, got {errors}"
-    error = single_error(tmp_path, "run `scripts/gates/later.sh`\n")
-    assert "points at scripts/gates/later.sh" in error, f"{error!r} lacks the expected text"
+def test_a_gate_row_naming_a_missing_script_is_reported(tmp_path):
+    row = "| G0.3 | `uv run python scripts/gates/missing.py` | out | bad |\n"
+    errors = errors_for(tmp_path, {"docs/plan/03-milestones-and-checkpoints.md": MILESTONES + row})
+    assert len(errors) == 1 and "points at scripts/gates/missing.py" in errors[0], f"a missing script must fail, got {errors}"
+    assert errors[0].startswith("docs/plan/03-milestones-and-checkpoints.md:3"), f"the error must cite the row, got {errors[0]}"
+
+
+def test_a_gate_row_naming_a_missing_test_path_or_module_is_reported(tmp_path):
+    rows = "| G0.4 | `uv run pytest tests/missing_test.py` | out | bad |\n| G0.5 | `uv run python -m willitharness.missing` | out | bad |\n"
+    errors = errors_for(tmp_path, {"docs/plan/03-milestones-and-checkpoints.md": MILESTONES + rows})
+    assert len(errors) == 2, f"both rows must fail, got {errors}"
+    assert "points at tests/missing_test.py" in errors[0] and "runs module willitharness.missing" in errors[1], f"got {errors}"
+
+
+def test_existing_scripts_tests_and_modules_pass(tmp_path):
+    rows = "| G0.3 | `uv run pytest tests/test_fixture.py -m live` | out | bad |\n| G0.4 | `uv run python -m willitharness.cli` | out | bad |\n| G0.5 | `uv run python scripts/gates/trace_check.py` | out | bad |\n"
+    files = {"src/willitharness/cli.py": CLI, "tests/test_fixture.py": "x = 1\n", "scripts/gates/trace_check.py": "x = 1\n", "docs/plan/03-milestones-and-checkpoints.md": MILESTONES + rows}
+    assert errors_for(tmp_path, files) == [], "real paths and modules must pass"
+    assert docs_freshness.read_facts(tmp_path)["task_ids"] == {"T01", "T02", "T03"}, "task ids come from the backlog headings"
+
+
+def test_a_not_built_marker_exempts_its_row_and_its_task_section(tmp_path):
+    backlog = BACKLOG.replace("### T03. c", "### T03. c not built (T03)") + "- run `scripts/gates/later.sh` and `willitharness report <plan>`\n"
+    row = "| G0.3 | `not built (T02)` run `scripts/gates/later.sh` | out | bad |\n"
+    files = {"docs/plan/07-task-backlog.md": backlog, "docs/plan/03-milestones-and-checkpoints.md": MILESTONES + row}
+    assert errors_for(tmp_path, files) == [], "a marked row and a marked task section may name what does not exist"
+    assert docs_freshness.planned_lines(backlog) == {13: "T03", 14: "T03"}, "the marked heading and the lines under it are planned"
+
+
+def test_text_after_an_unmarked_heading_is_checked(tmp_path):
+    backlog = BACKLOG.replace("### T03. c", "### T03. c not built (T03)") + "## M2. Next\n- run `scripts/gates/later.sh`\n"
+    errors = errors_for(tmp_path, {"docs/plan/07-task-backlog.md": backlog})
+    assert len(errors) == 1 and "points at scripts/gates/later.sh" in errors[0], f"a new heading ends the planned section, got {errors}"
+    assert errors[0].startswith("docs/plan/07-task-backlog.md:15"), f"got {errors[0]}"
+
+
+def test_a_marker_without_a_task_id_or_with_an_unknown_one_is_reported(tmp_path):
+    unmarked = single_error(tmp_path, "| G1.1 | not built | out | bad |\n")
+    assert "says 'not built' without a task id" in unmarked, f"{unmarked!r} lacks the expected text"
+    unknown = single_error(tmp_path, "| G1.1 | `not built (T99)` | out | bad |\n")
+    assert "marks a row not built for T99" in unknown, f"{unknown!r} lacks the expected text"
 
 
 def test_a_reference_beside_the_document_and_a_glob_pass(tmp_path):

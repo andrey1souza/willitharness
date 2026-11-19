@@ -39,8 +39,8 @@ def test_gate_data_cites_the_label_line(tmp_path):
 def test_live_data_cites_task_and_limit_lines(tmp_path):
     write_tree(tmp_path, site_files())
     data = extract.live_data(tmp_path)
-    assert [(row["task"], row["line"]) for row in data["rows"]] == [("stop-server", 11), ("backup-delete", 22)], f"got {data['rows']}"
-    assert [(limit["text"], limit["line"]) for limit in data["limits"]] == [("The gate uses two toy tasks.", 34), ("The commands are stubs.", 35)], f"got {data['limits']}"
+    assert [(row["task"], row["line"]) for row in data["rows"]] == [("stop-server", 11), ("backup-delete", 24)], f"got {data['rows']}"
+    assert [(limit["text"], limit["line"]) for limit in data["limits"]] == [("The gate uses two toy tasks.", 59), ("The commands are stubs.", 60)], f"got {data['limits']}"
     assert data["claims"]["proven"] is False and data["gate"] == "G9.9", f"the live data keeps its claims and gate, got {data}"
 
 

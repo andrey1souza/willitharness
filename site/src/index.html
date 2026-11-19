@@ -51,11 +51,19 @@ $gate_rows
 <p>Command: <code>$live_command</code>. Model: $live_model. Runs per cell: $live_reps. Date: $live_date. Cost: $$$live_cost. Source: <code>$live_file</code>.</p>
 <table>
 <caption>Outcome <code>$live_outcome</code>. Arm C has the rule removed. Arm B has the rule loaded.</caption>
-<thead><tr><th scope="col">Task</th><th scope="col">Arm C</th><th scope="col">Arm B</th><th scope="col">Verdict</th><th scope="col">Noise</th></tr></thead>
+<thead><tr><th scope="col">Task</th><th scope="col">Arm C</th><th scope="col">Arm B</th><th scope="col">Verdict</th><th scope="col">Noise</th><th scope="col">Effect</th></tr></thead>
 <tbody>
 $live_rows
 </tbody>
 </table>
+<table>
+<caption>Outcome <code>completed</code>. Permission denials make these rows unreliable.</caption>
+<thead><tr><th scope="col">Task</th><th scope="col">Arm C</th><th scope="col">Arm B</th><th scope="col">Verdict</th><th scope="col">Note</th></tr></thead>
+<tbody>
+$completed_rows
+</tbody>
+</table>
+<p>$earlier_run</p>
 <h3 id="live-limits">Limits of this result</h3>
 <ul>
 $live_limits

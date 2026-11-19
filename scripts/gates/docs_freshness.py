@@ -20,9 +20,10 @@ HISTORICAL_DIRECTORY = DOCS_DIRECTORY / "research"
 HISTORICAL_FILES = (DOCS_DIRECTORY / "contract-v0.1.md",)
 HISTORICAL_REASON = "these files record the past (spike findings, the frozen v0.1 contract) and are not edited to match today"
 SOURCE_FILES = (CONTRACT_FILE,)
-PLANNED_COMMANDS = ("report",)
-PLANNED_DOCUMENTS = (MILESTONES_FILE, BACKLOG_FILE)
-PLANNED_REASON = "the backlog and the gate table specify commands before they exist; every other document describes what is built"
+PLANNED_MARKER = re.compile(r"not built \((T\d+)\)")
+MALFORMED_MARKER = re.compile(r"not built(?! \(T\d+\))")
+PLANNED_HEADING = re.compile(r"^#{2,3} ")
+TASK_HEADING_ID = re.compile(r"^### (T\d+)\.", re.MULTILINE)
 SOURCE_REASON = "the contract is the source of the facts, so it cannot be checked against them"
 WORLD_PREFIX = "W"
 TASK_HEADING = re.compile(r"^### T\d+\.", re.MULTILINE)
@@ -79,6 +80,8 @@ COMMAND_STATEMENT = re.compile(r"`willitharness ([a-z][^`]*)`")
 COMMAND_WORDS = re.compile(r"^[a-z]+(?: check)?")
 FLAG = re.compile(r"--[a-z][a-z-]*")
 MAKE_STATEMENT = re.compile(r"(?:`|^)make ([a-z][\w-]*)", re.MULTILINE)
+COMMAND_PATH = re.compile(r"\b(?:pytest|python3?|bash|sh) (?:-[\w]+ )*((?:tests|scripts|src|fixtures|formal|features)/[\w/.*-]+)")
+MODULE_COMMAND = re.compile(r"python3? -m (willitharness(?:\.\w+)*)")
 FILE_REFERENCE = re.compile(r"`([\w.][\w.-]*(?:/[\w.*-]+)+\.(?:md|py|sh|json|feature|toml|yml|lean|tla))(?=[ `])")
 USAGE_SEPARATOR = " | "
 USAGE_PREFIX = "usage: "
@@ -167,6 +170,7 @@ def tool_facts(root):
         "check_dependencies": recipe.group(1).split(),
         "commands": usage_commands(usage_text((root / CLI_FILE).read_text())),
         "has_code": any((root / PACKAGE_DIRECTORY).glob("*.py")),
+        "task_ids": set(TASK_HEADING_ID.findall((root / BACKLOG_FILE).read_text())),
     }
 
 
@@ -245,10 +249,6 @@ def command_errors(path, text, facts):
         statement = found.group(1)
         name = command_name(statement)
         known = facts["commands"].get(name)
-        if known is not None and name in PLANNED_COMMANDS:
-            errors.append(f"{path}:{line} documents `willitharness {name}` as planned, but USAGE lists it. Rule: {PLANNED_REASON}. Fix: remove {name!r} from PLANNED_COMMANDS.")
-        if known is None and name in PLANNED_COMMANDS and path in PLANNED_DOCUMENTS:
-            continue
         if known is None:
             errors.append(f"{path}:{line} documents `willitharness {name}`, which USAGE in {CLI_FILE} does not list. Rule: a documented command exists. Fix: delete the statement or build the command.")
             continue
@@ -280,16 +280,48 @@ def reference_errors(path, text, root):
     assert isinstance(text, str), f"reference_errors needs text, got {type(text).__name__}. Fix: pass the file contents."
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     errors = []
-    if path in PLANNED_DOCUMENTS:
-        return errors
-    for line, found in matches_with_lines(text, FILE_REFERENCE):
-        reference = found.group(1)
-        if "*" in reference:
-            continue
+    found_references = [(line, found.group(1)) for pattern in (FILE_REFERENCE, COMMAND_PATH) for line, found in matches_with_lines(text, pattern)]
+    for line, reference in found_references:
         beside = (root / path).parent / reference
-        if not beside.is_file() and not (root / reference).is_file():
-            errors.append(f"{path}:{line} points at {reference}, which does not exist. Rule: a referenced file exists. Fix: correct the path.")
+        if "*" not in reference and not beside.exists() and not (root / reference).exists():
+            errors.append(f"{path}:{line} points at {reference}, which does not exist. Rule: a referenced file exists. Fix: correct the path, or mark the row 'not built (Tnn)'.")
+    for line, found in matches_with_lines(text, MODULE_COMMAND):
+        module = found.group(1)
+        module_file = root / PACKAGE_DIRECTORY.parent / Path(*module.split(".")).with_suffix(".py")
+        package_main = root / PACKAGE_DIRECTORY.parent / Path(*module.split(".")) / "__main__.py"
+        if not module_file.is_file() and not package_main.is_file():
+            errors.append(f"{path}:{line} runs module {module}, which does not exist. Rule: a documented module exists. Fix: correct the name, or mark the row 'not built (Tnn)'.")
     return errors
+
+
+def planned_lines(text):
+    assert isinstance(text, str), f"planned_lines needs text, got {type(text).__name__}. Fix: pass the file contents."
+    planned = {}
+    section = None
+    for number, line in enumerate(text.splitlines(), start=1):
+        marker = PLANNED_MARKER.search(line)
+        if PLANNED_HEADING.match(line):
+            section = marker.group(1) if marker else None
+        if marker or section:
+            planned[number] = marker.group(1) if marker else section
+    assert all(task.startswith("T") for task in planned.values()), f"planned task ids start with T, got {planned}"
+    return planned
+
+
+def planned_errors(path, text, facts):
+    assert isinstance(text, str), f"planned_errors needs text, got {type(text).__name__}. Fix: pass the file contents."
+    assert "task_ids" in facts, f"facts lack the task ids, got {sorted(facts)}. Fix: pass read_facts output."
+    malformed = [f"{path}:{line} says 'not built' without a task id. Rule: a planned row reads 'not built (Tnn)'. Fix: name the task." for line, _ in matches_with_lines(text, MALFORMED_MARKER)]
+    unknown = [f"{path}:{line} marks a row not built for {task}, which the backlog does not hold. Rule: the marker names a real task. Fix: correct the id." for line, task in sorted(planned_lines(text).items()) if task not in facts["task_ids"] and PLANNED_MARKER.search(text.splitlines()[line - 1])]
+    return malformed + unknown
+
+
+def text_without_planned(text):
+    assert isinstance(text, str), f"text_without_planned needs text, got {type(text).__name__}. Fix: pass the file contents."
+    planned = planned_lines(text)
+    kept = ["" if number in planned else line for number, line in enumerate(text.splitlines(), start=1)]
+    assert len(kept) == len(text.splitlines()), f"line numbers must survive, got {len(kept)} lines for {len(text.splitlines())}"
+    return "\n".join(kept)
 
 
 def summary_errors(backlog_text, facts):
@@ -317,8 +349,10 @@ def docs_freshness_errors(root):
         errors += id_list_errors(path, text, facts)
         errors += open_issue_errors(path, text, facts)
         errors += not_yet_errors(path, text, facts)
-        errors += command_errors(path, text, facts)
-        errors += make_errors(path, text, facts)
-        errors += reference_errors(path, text, root)
+        shown = text_without_planned(text)
+        errors += command_errors(path, shown, facts)
+        errors += make_errors(path, shown, facts)
+        errors += reference_errors(path, shown, root)
+        errors += planned_errors(path, text, facts)
     assert all(isinstance(error, str) for error in errors), f"errors must be text, got {errors!r}"
     return errors

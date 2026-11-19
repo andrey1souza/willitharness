@@ -5,7 +5,7 @@ TESTS = (
 )
 
 MUTANTS = (
-    ('html-not-escaped', SOURCE, 'escape(text, quote=False)', 'text'),
+    ('html-not-escaped', SOURCE, 'rendered = CODE_SPAN.sub(lambda found: f"<code>{found.group(1)}</code>", escape(text, quote=False))', 'rendered = CODE_SPAN.sub(lambda found: f"<code>{found.group(1)}</code>", text)'),
     ('unknown-status-is-bad', SOURCE, 'TONES.get(word, "warn")', 'TONES.get(word, "bad")'),
     ('failed-is-keep', SOURCE, '"failed": "bad"', '"failed": "keep"'),
     ('hits-above-runs-allowed', SOURCE, 'assert 0 <= hits <= runs,', 'assert 0 <= hits,'),

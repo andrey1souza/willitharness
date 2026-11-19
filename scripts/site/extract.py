@@ -110,10 +110,11 @@ def gate_data(root):
 
 def live_data(root):
     lines, document = json_source(root, LIVE_RESULT_FILE)
-    rows = [{**row, "line": json_line(lines, f'"task": {json.dumps(row["task"])}')} for row in document["rows"]]
+    rows = [{**row, "line": json_line(lines, f'"row": {json.dumps(row["row"])}')} for row in document["rows"]]
+    completed = [{**row, "line": json_line(lines, f'"row": {json.dumps(row["row"])}')} for row in document["completed_rows"]]
     limits = [{"text": limit, "line": json_line(lines, json.dumps(limit))} for limit in document["limits"]]
     assert rows and limits, f"{LIVE_RESULT_FILE} needs rows and limits. Rule: the page shows the result with its limits. Fix: restore them."
-    data = {**document, "file": LIVE_RESULT_FILE, "rows": rows, "limits": limits}
+    data = {**document, "file": LIVE_RESULT_FILE, "rows": rows, "completed_rows": completed, "limits": limits}
     assert isinstance(data["claims"], dict), f"{LIVE_RESULT_FILE} needs a claims table, got {data.get('claims')!r}. Rule: held-back phrases are checked against it. Fix: add claims."
     return data
 
