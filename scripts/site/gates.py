@@ -9,6 +9,7 @@ from pathlib import Path
 
 import brand_gates
 import contrast
+import extract
 import render
 from markup import tags_of
 from willitharness.paths import PathOutsideRoot, inside
@@ -32,10 +33,16 @@ TRACE_COVERED = re.compile(r"all (\d+) IDs covered")
 REPO_PASSED = re.compile(r"(\d+) checks passed")
 MUTANT_RESULT = re.compile(r"(\d+) of (\d+) mutants killed")
 FIRST_NUMBER = re.compile(r"\d+")
+CELL = re.compile(r"<td\b[^>]*>(.*?)</td>", re.DOTALL)
+GATE_COLUMN_COUNT = 3
+STATUS_COMMAND = "scripts/site/build.py"
+COUNTED = "counted"
+PASSED = "passed"
 TESTS_LABEL = "Tests"
 MUTANTS_LABEL = "Mutants"
 TRACE_LABEL = "Contract IDs covered"
 REPO_LABEL = "Repository checks"
+GATE_LABELS = (TESTS_LABEL, MUTANTS_LABEL, TRACE_LABEL, REPO_LABEL)
 GATE_SCRIPTS = {TRACE_LABEL: ("scripts/gates/trace_check.py", TRACE_COVERED), REPO_LABEL: ("scripts/gates/repo_checks.py", REPO_PASSED)}
 
 
@@ -206,21 +213,36 @@ def recomputed_counts(root):
     return counts
 
 
-def status_problems(rows, counts):
-    assert {row["label"] for row in rows} == set(counts), f"gate rows {[row['label'] for row in rows]} differ from counts {sorted(counts)}. Fix: record every gate."
+def status_document(counts):
+    assert set(counts) == set(GATE_LABELS), f"counts {sorted(counts)} differ from the gates {sorted(GATE_LABELS)}. Rule: every gate is counted. Fix: pass recomputed_counts output."
     assert all(count > 0 for count in counts.values()), f"counts must be positive, got {counts}"
+    rows = [
+        {"label": TESTS_LABEL, "status": COUNTED, "result": f"{counts[TESTS_LABEL]} collected"},
+        {"label": MUTANTS_LABEL, "status": COUNTED, "result": f"{counts[MUTANTS_LABEL]} listed"},
+        {"label": TRACE_LABEL, "status": PASSED, "result": f"{counts[TRACE_LABEL]} covered"},
+        {"label": REPO_LABEL, "status": PASSED, "result": f"{counts[REPO_LABEL]} checks passed"},
+    ]
+    assert [row["label"] for row in rows] == list(GATE_LABELS), f"rows must follow GATE_LABELS, got {rows}"
+    return {"command": STATUS_COMMAND, "gates": rows}
+
+
+def rendered_count_problems(html, counts):
+    assert isinstance(html, str), f"rendered_count_problems needs page text, got {type(html).__name__}. Fix: pass the rendered page."
+    assert set(counts) == set(GATE_LABELS), f"counts {sorted(counts)} differ from the gates {sorted(GATE_LABELS)}. Fix: pass recomputed_counts output."
+    shown = {label: [] for label in counts}
+    for _, attributes, body in (found for found in SOURCE_ELEMENT.findall(html) if found[0] == "tr"):
+        cells = [element_text(cell) for cell in CELL.findall(body)]
+        if extract.GATE_STATUS_FILE in attributes and len(cells) == GATE_COLUMN_COUNT and cells[0] in shown:
+            shown[cells[0]].append(cells[-1])
     problems = []
-    for row in rows:
-        label, numbers = row["label"], [int(number) for number in FIRST_NUMBER.findall(row["result"])]
-        actual = counts[label]
-        if label == MUTANTS_LABEL:
-            killed, total = numbers
-            if total != actual or killed != total:
-                problems.append(f"{label}: the status records {killed} of {total} killed but the tables hold {actual}. Rule: status is not stale. Fix: rerun make check and scripts/site/status.py.")
-        elif numbers[0] != actual:
-            problems.append(f"{label}: the status records {numbers[0]} but the repository gives {actual}. Rule: status is not stale. Fix: rerun make check and scripts/site/status.py.")
-        if row["status"] != "passed":
-            problems.append(f"{label}: the recorded status is {row['status']!r}. Rule: the page shows only passing gate records. Fix: make the gate pass and record again.")
+    for label, results in shown.items():
+        rows = len(results)
+        numbers = FIRST_NUMBER.findall(results[0]) if rows == 1 else []
+        if rows != 1:
+            problems.append(f"{label}: the page shows {rows} rows for this gate. Rule: one row per gate. Fix: render the gate table from the generated record.")
+        elif not numbers or int(numbers[0]) != counts[label]:
+            problems.append(f"{label}: the page shows {results[0]!r} but this build counted {counts[label]}. Rule: the page text equals the counts of the same run. Fix: render the count unchanged.")
+    assert all(isinstance(problem, str) for problem in problems), f"problems must be text, got {problems!r}"
     return problems
 
 
@@ -247,5 +269,5 @@ def site_problems(root, files, data, counts):
         problems += brand_gates.meta_problems(page, html) + brand_gates.rendered_number_problems(page, html, corpus)
     problems += brand_gates.typed_number_problems(render.TEMPLATE_FILE, sources[render.TEMPLATE_FILE])
     problems += brand_gates.comment_problems({**sources, **files}) + brand_gates.stray_markdown_problems(root, SOURCE_FOLDERS)
-    problems += status_problems(data["gates"]["rows"], counts)
+    problems += rendered_count_problems(files[render.PAGE_NAME], counts)
     return problems

@@ -6,7 +6,7 @@ from willitharness.paths import inside
 
 README_FILE = "README.md"
 CONTRACT_FILE = "docs/contract.md"
-GATE_STATUS_FILE = "site/data/gate_status.json"
+GATE_STATUS_FILE = "build/gate_status.json"
 LIVE_RESULT_FILE = "fixtures/results/g4_4.json"
 LIMITS_HEADING = "## Honest limits"
 QUESTIONS_HEADING = "## 3. The four questions"
@@ -102,9 +102,9 @@ def json_source(root, relative):
 def gate_data(root):
     lines, document = json_source(root, GATE_STATUS_FILE)
     rows = [{**gate, "line": json_line(lines, f'"label": {json.dumps(gate["label"])}')} for gate in document["gates"]]
-    assert rows, f"{GATE_STATUS_FILE} lists no gates. Rule: the page shows gate status. Fix: run scripts/site/status.py."
-    data = {"file": GATE_STATUS_FILE, "command": document["command"], "date": document["date"], "rows": rows}
-    assert all("status" in row and "result" in row for row in rows), f"every gate row needs status and result, got {rows}. Fix: run scripts/site/status.py."
+    assert rows, f"{GATE_STATUS_FILE} lists no gates. Rule: the page shows gate status. Fix: run scripts/site/build.py."
+    data = {"file": GATE_STATUS_FILE, "command": document["command"], "rows": rows}
+    assert all("status" in row and "result" in row for row in rows), f"every gate row needs status and result, got {rows}. Fix: run scripts/site/build.py."
     return data
 
 

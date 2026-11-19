@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 import gates
-from extract import site_data
+from extract import GATE_STATUS_FILE, site_data
 from render import render_site
 from willitharness.paths import inside
 
@@ -17,11 +17,22 @@ EXIT_PROBLEMS = 1
 def build_problems(root):
     assert isinstance(root, Path), f"build_problems needs a Path root, got {root!r}. Fix: pass the repository root."
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    counts = gates.recomputed_counts(root)
+    write_gate_status(root, counts)
     data = site_data(root)
     files = render_site(root, data)
-    problems = gates.site_problems(root, files, data, gates.recomputed_counts(root))
+    problems = gates.site_problems(root, files, data, counts)
     assert isinstance(problems, list), f"site_problems must return a list, got {type(problems).__name__}"
     return files, problems
+
+
+def write_gate_status(root, counts):
+    assert isinstance(root, Path), f"write_gate_status needs a Path root, got {root!r}. Fix: pass the repository root."
+    assert counts, "write_gate_status got no counts. Rule: the record holds the counts of this build. Fix: pass recomputed_counts output."
+    destination = inside(root, GATE_STATUS_FILE)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(gates.status_document(counts), indent=2) + "\n")
+    assert json.loads(destination.read_text())["gates"], f"{destination} holds no gates after the write"
 
 
 def write_site(root, output, files):
@@ -49,7 +60,7 @@ def main(argv):
         return EXIT_PROBLEMS
     sizes = {name: len(text.encode()) for name, text in files.items()}
     if arguments.check:
-        print(f"site: checks passed, {sum(sizes.values())} bytes in {len(files)} files, nothing written")
+        print(f"site: checks passed, {sum(sizes.values())} bytes in {len(files)} files, no site written")
         return EXIT_BUILT
     write_site(arguments.root, arguments.output, files)
     print(f"site: built {json.dumps(sizes, sort_keys=True)} into {inside(arguments.root, arguments.output)}")

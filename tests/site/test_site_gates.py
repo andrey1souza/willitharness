@@ -154,37 +154,65 @@ def test_a_gate_that_prints_nothing_countable_fails_loudly(tmp_path):
     assert raised.type is AssertionError, f"expected an assertion failure, got {raised.type}"
 
 
-def test_stale_status_is_reported(tmp_path, site):
+def test_the_status_document_holds_the_counts_of_this_run():
+    document = gates.status_document({"Tests": 7, "Mutants": 5, "Contract IDs covered": 49, "Repository checks": 22})
+    assert document == {
+        "command": "scripts/site/build.py",
+        "gates": [
+            {"label": "Tests", "status": "counted", "result": "7 collected"},
+            {"label": "Mutants", "status": "counted", "result": "5 listed"},
+            {"label": "Contract IDs covered", "status": "passed", "result": "49 covered"},
+            {"label": "Repository checks", "status": "passed", "result": "22 checks passed"},
+        ],
+    }, f"got {document}"
+    assert gates.status_document(GOOD_COUNTS)["gates"][0]["result"] == "3 collected", "each count reaches its own row"
+
+
+def test_a_page_that_shows_the_counts_of_the_run_has_no_problems(tmp_path, site):
     data, files = site
-    rows = data["gates"]["rows"]
-    assert gates.status_problems(rows, GOOD_COUNTS) == [], "a matching status passes"
-    stale = gates.status_problems(rows, {**GOOD_COUNTS, "Tests": 4, "Contract IDs covered": 50})
-    assert [problem.split(":")[0] for problem in stale] == ["Tests", "Contract IDs covered"], f"two counts are stale, got {stale}"
-    assert "the status records 3 but the repository gives 4" in stale[0], f"got {stale[0]}"
+    assert gates.rendered_count_problems(files["index.html"], GOOD_COUNTS) == [], "the rendered rows equal the counts"
+    assert "3 collected" in files["index.html"], "the page shows the count as text"
 
 
-def test_stale_mutant_totals_and_survivors_are_reported(tmp_path, site):
+@pytest.mark.parametrize(
+    "shown, label, counted",
+    [("3 collected", "Tests", 4), ("2 listed", "Mutants", 3), ("49 covered", "Contract IDs covered", 50), ("22 checks passed", "Repository checks", 21)],
+)
+def test_a_page_count_that_differs_from_this_run_is_reported(tmp_path, site, shown, label, counted):
     data, files = site
-    rows = [dict(row) for row in data["gates"]["rows"]]
-    assert gates.status_problems(rows, {**GOOD_COUNTS, "Mutants": 3})[0].startswith("Mutants: the status records 2 of 2 killed but the tables hold 3"), "a changed total is stale"
-    rows[1]["result"] = "1 of 2 mutants killed"
-    problems = gates.status_problems(rows, GOOD_COUNTS)
-    assert len(problems) == 1 and "records 1 of 2 killed" in problems[0], f"a survivor is reported, got {problems}"
+    problems = gates.rendered_count_problems(files["index.html"], {**GOOD_COUNTS, label: counted})
+    assert problems == [f"{label}: the page shows {shown!r} but this build counted {counted}. Rule: the page text equals the counts of the same run. Fix: render the count unchanged."], f"got {problems}"
+    assert shown in files["index.html"], f"the page shows {shown!r}"
 
 
-def test_a_failed_record_is_reported(tmp_path, site):
+def test_a_missing_or_repeated_gate_row_is_reported(tmp_path, site):
     data, files = site
-    rows = [dict(row) for row in data["gates"]["rows"]]
-    rows[0]["status"] = "failed"
-    problems = gates.status_problems(rows, GOOD_COUNTS)
-    assert problems == ["Tests: the recorded status is 'failed'. Rule: the page shows only passing gate records. Fix: make the gate pass and record again."], f"got {problems}"
-    assert gates.status_problems(data["gates"]["rows"], GOOD_COUNTS) == [], "passing rows pass"
+    page = files["index.html"]
+    row = next(line for line in page.splitlines() if "3 collected" in line)
+    missing = gates.rendered_count_problems(page.replace(row, ""), GOOD_COUNTS)
+    assert missing == ["Tests: the page shows 0 rows for this gate. Rule: one row per gate. Fix: render the gate table from the generated record."], f"got {missing}"
+    twice = gates.rendered_count_problems(page.replace(row, row + "\n" + row), GOOD_COUNTS)
+    assert twice == ["Tests: the page shows 2 rows for this gate. Rule: one row per gate. Fix: render the gate table from the generated record."], f"got {twice}"
 
 
-def test_status_rows_and_counts_must_name_the_same_gates(tmp_path, site):
+def test_a_row_without_a_number_is_reported(tmp_path, site):
     data, files = site
-    with pytest.raises(AssertionError, match="differ from counts") as raised:
-        gates.status_problems(data["gates"]["rows"], {"Tests": 3})
+    problems = gates.rendered_count_problems(files["index.html"].replace("49 covered", "all covered"), GOOD_COUNTS)
+    assert len(problems) == 1 and problems[0].startswith("Contract IDs covered: the page shows 'all covered'"), f"got {problems}"
+    assert "49 covered" not in files["index.html"].replace("49 covered", "all covered"), "the number is gone from the page"
+
+
+def test_a_count_in_another_table_is_not_a_gate_row(tmp_path, site):
+    data, files = site
+    page = files["index.html"].replace('data-source="build/gate_status.json:5"', 'data-source="docs/contract.md:5"')
+    problems = gates.rendered_count_problems(page, GOOD_COUNTS)
+    assert problems == ["Tests: the page shows 0 rows for this gate. Rule: one row per gate. Fix: render the gate table from the generated record."], f"got {problems}"
+    assert 'data-source="build/gate_status.json:5"' in files["index.html"], "the fixture cites the generated record"
+
+
+def test_status_document_and_counts_must_name_the_same_gates(tmp_path, site):
+    with pytest.raises(AssertionError, match="differ from the gates") as raised:
+        gates.status_document({"Tests": 3})
     assert "Fix" in str(raised.value), f"the failure must say how to fix it, got {raised.value}"
     assert raised.type is AssertionError, f"expected an assertion failure, got {raised.type}"
 
@@ -195,7 +223,7 @@ def test_site_problems_collects_every_gate(tmp_path, site):
     (tmp_path / "site" / "extra.md").write_text("x")
     problems = gates.site_problems(tmp_path, broken, data, {**GOOD_COUNTS, "Tests": 9})
     joined = "\n".join(problems)
-    for fragment in ("2 h1 headings", "holds a comment", "'proven'", "site/extra.md", "Tests: the status records 3 but the repository gives 9"):
+    for fragment in ("2 h1 headings", "holds a comment", "'proven'", "site/extra.md", "Tests: the page shows '3 collected' but this build counted 9"):
         assert fragment in joined, f"expected {fragment!r} in the problems, got {joined}"
     assert json.dumps(data["live"]["claims"]).count("false") == 5, "the fixture marks every held-back claim false"
 
