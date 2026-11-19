@@ -21,6 +21,8 @@ while read -r _local_ref local_sha remote_ref _remote_sha; do
   done
 done
 
+while read -r name; do unset "${name}"; done < <(compgen -e | grep '^GIT_' || true)
+
 zanity check . --fail-on warning --agent
 uv run pytest
 uv run python scripts/gates/mutants.py all
