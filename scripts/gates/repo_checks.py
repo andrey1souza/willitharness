@@ -32,6 +32,17 @@ MAKEFILE = Path("Makefile")
 PAID_TARGET = "pilot"
 UNPAID_TARGETS = ("check", "live")
 PAID_REFERENCE = re.compile(r"\bpilot")
+README_FILE = Path("README.md")
+ISOLATION_HEADING = "## Limits of isolation"
+ISOLATION_MAX_LINES = 6
+ISOLATION_PHRASES = (
+    "isolation uses macos sandbox-exec",
+    "the network is not blocked",
+    "there is no sandbox on linux",
+    "run only plans you have read",
+    "not a security boundary against a hostile plan",
+    "the claude process itself is not confined",
+)
 DARWIN = "darwin"
 DARWIN_SKIP = re.compile(r"^pytestmark\s*=.*sys\.platform\s*!=\s*\"" + DARWIN + r"\"", re.MULTILINE)
 
@@ -56,6 +67,29 @@ def mistakes_table_errors(root):
             elif f"def {test_name}(" not in test_file.read_text():
                 errors.append(f"row names {relative_path}::{test_name}, which is not in the file")
     return errors
+
+
+def isolation_limit_errors(text):
+    assert isinstance(text, str), f"isolation_limit_errors needs text, got {type(text).__name__}. Fix: pass the README text."
+    assert ISOLATION_PHRASES, "no isolation phrases are required. Rule: the limits are checked word for word. Fix: restore ISOLATION_PHRASES."
+    lines = text.splitlines()
+    if lines.count(ISOLATION_HEADING) != 1:
+        return [f"the README has {lines.count(ISOLATION_HEADING)} {ISOLATION_HEADING!r} headings, not one. Rule: the limits have one home. Fix: restore the heading once."]
+    first = lines.index(ISOLATION_HEADING) + 1
+    following = [number for number, line in enumerate(lines[first:], start=first) if line.startswith("## ")]
+    body = [line for line in lines[first:following[0] if following else len(lines)] if line.strip()]
+    normalized = " ".join(" ".join(body).replace("`", "").lower().split())
+    errors = [f"the isolation limits lack the phrase {phrase!r}. Rule: the README states each limit. Fix: restore the sentence." for phrase in ISOLATION_PHRASES if phrase not in normalized]
+    if len(body) > ISOLATION_MAX_LINES:
+        errors.append(f"the isolation limits run {len(body)} lines, over {ISOLATION_MAX_LINES}. Rule: keep the paragraph short. Fix: cut it.")
+    assert all(isinstance(error, str) for error in errors), f"errors must be text, got {errors!r}"
+    return errors
+
+
+def readme_isolation_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert README_FILE.suffix == ".md", f"{README_FILE} must name a Markdown file"
+    return isolation_limit_errors((root / README_FILE).read_text())
 
 
 def gitignore_errors(root):
@@ -195,6 +229,7 @@ def registered_platform_errors(root):
 
 CHECKS = {
     "mistakes-table": mistakes_table_errors,
+    "readme-isolation-limits": readme_isolation_errors,
     "gitignore": gitignore_errors,
     "no-zanity-baseline": baseline_errors,
     "zanity-config": zanity_config_errors,

@@ -10,6 +10,12 @@ TABLE_TAIL = "\n## Mistakes with no rule yet\n"
 GOOD_ROW = "| m | c | r | `tests/gates/test_x.py::test_x` |\n"
 TEST_FILE = "def test_x():\n    assert True\n"
 FILE_CHECKS = {name: check for name, check in repo_checks.CHECKS.items() if name not in ("mutant-tables", "mutant-platforms", "trace-pending", "paid-gate-target", "no-tracked-generated", "docs_freshness", *workflow_checks.CHECKS, *hook_checks.CHECKS)}
+GOOD_README = (
+    "# t\n\n## Limits of isolation\n"
+    "Isolation uses macOS `sandbox-exec`. The network is not blocked. There is no sandbox on Linux.\n"
+    "Run only plans you have read. Isolation is not a security boundary against a hostile plan.\n"
+    "The `claude` process itself is not confined.\n\n## Next\n"
+)
 PENDING_GOOD = '[{"id": "S1", "place": "tests", "reason": "later"}]'
 
 
@@ -20,6 +26,7 @@ def valid_files(rows):
         ".gitignore": "build/\n.testmondata*\n",
         "zanity.toml": '# disable = ["example"]\n[infer]\nconcurrency = 8\n',
         "docs/plan/01.md": "Run pytest tests/bdd.\n",
+        "README.md": GOOD_README,
     }
 
 
