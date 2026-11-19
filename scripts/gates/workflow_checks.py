@@ -6,6 +6,10 @@ WORKFLOW_DIRECTORY = Path(".github") / "workflows"
 SECURITY_FILE = Path("SECURITY.md")
 CODEOWNERS_FILE = Path(".github") / "CODEOWNERS"
 DEPENDABOT_FILE = Path(".github") / "dependabot.yml"
+INCIDENT_HEADING = "## If something goes wrong"
+INCIDENT_MAX_LINES = 12
+INCIDENT_EVENTS = ("secret", "dependency", "workflow", "result")
+SECTION_HEADING = re.compile(r"^## ", re.MULTILINE)
 REQUIRED_FILES = (SECURITY_FILE, CODEOWNERS_FILE, DEPENDABOT_FILE)
 REQUIRED_ECOSYSTEMS = ("github-actions", "uv")
 LOCAL_ACTION_PREFIX = "./"
@@ -294,6 +298,33 @@ def security_file_errors(root):
     return [f"{path} is missing" for path in REQUIRED_FILES if not (root / path).is_file()]
 
 
+def section_under(text, heading):
+    assert isinstance(text, str), f"section_under needs text, got {type(text).__name__}. Fix: pass the file contents."
+    assert heading.startswith("## "), f"{heading!r} is not a level-two heading. Fix: pass a heading that starts with '## '."
+    start = text.find(f"{heading}\n")
+    if start < 0:
+        return None
+    body = text[start + len(heading):]
+    following = SECTION_HEADING.search(body)
+    return body[:following.start()] if following else body
+
+
+def security_policy_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert INCIDENT_EVENTS, "no incident events are required. Rule: a gate with no expectations proves nothing."
+    path = root / SECURITY_FILE
+    if not path.is_file():
+        return []
+    section = section_under(path.read_text(), INCIDENT_HEADING)
+    if section is None:
+        return [f"{SECURITY_FILE} has no '{INCIDENT_HEADING}' section, so nobody knows who acts or what to do first"]
+    errors = [f"{SECURITY_FILE} section '{INCIDENT_HEADING}' does not name the event {event!r}" for event in INCIDENT_EVENTS if event not in section.lower()]
+    lines = [line for line in section.splitlines() if line.strip()]
+    if len(lines) > INCIDENT_MAX_LINES:
+        errors.append(f"{SECURITY_FILE} section '{INCIDENT_HEADING}' has {len(lines)} lines, above {INCIDENT_MAX_LINES}. Rule: a plan read in a crisis stays short. Fix: shorten it")
+    return errors
+
+
 def codeowners_errors(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     assert CATCH_ALL_OWNER.pattern, "the owner pattern is empty"
@@ -326,6 +357,7 @@ CHECKS = {
     "workflow-python-source": python_source_errors,
     "python-version-file": python_version_errors,
     "security-files": security_file_errors,
+    "security-policy-headings": security_policy_errors,
     "codeowners": codeowners_errors,
     "dependabot": dependabot_errors,
 }

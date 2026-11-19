@@ -29,6 +29,9 @@ RETIRED_COMMAND = "behave features/"
 PENDING_FILE = Path("scripts") / "gates" / "trace_pending.json"
 GENERATED_PATHS = (Path("formal") / "tla" / "generated", Path("site") / "data" / "gate_status.json")
 MAKEFILE = Path("Makefile")
+DATA_HEADING = "## Data"
+DATA_MAX_LINES = 6
+DATA_TERMS = ("run records", "transcripts", "calls logs", "reachability", "state", "approvals", "task text", "redacted", "ignores", "rm -r .willitharness", ".willitharness/<plan>")
 PAID_TARGET = "pilot"
 UNPAID_TARGETS = ("check", "live")
 PAID_REFERENCE = re.compile(r"\bpilot")
@@ -218,6 +221,23 @@ def paid_target_errors(root):
     return errors
 
 
+def data_statement_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert DATA_TERMS, "no data terms are required. Rule: a gate with no expectations proves nothing."
+    store = docs_freshness.RUNTIME_PATHS[0]
+    section = workflow_checks.section_under((root / README_FILE).read_text(), DATA_HEADING)
+    if section is None:
+        return [f"{README_FILE} has no '{DATA_HEADING}' section, so users cannot tell what {store} stores or how to delete it"]
+    errors = [f"{README_FILE} section '{DATA_HEADING}' does not say {term!r}" for term in DATA_TERMS if term not in section]
+    lines = [line for line in section.splitlines() if line.strip()]
+    if len(lines) > DATA_MAX_LINES:
+        errors.append(f"{README_FILE} section '{DATA_HEADING}' has {len(lines)} lines, above {DATA_MAX_LINES}. Fix: shorten it")
+    patterns = [line for line in (root / IGNORE_FILE).read_text().splitlines() if line and not line.startswith("#")]
+    if not any(fnmatch(f"{store}/", pattern) for pattern in patterns):
+        errors.append(f"{IGNORE_FILE} does not ignore {store}/, so the README claim that git ignores it is false. Fix: add the pattern")
+    return errors
+
+
 def registered_mutant_errors(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     assert mutant_tables.MODULES, "the mutant table lists no modules. Rule: a gate with no mutants proves nothing. Fix: add them."
@@ -243,6 +263,7 @@ CHECKS = {
     "paid-gate-target": paid_target_errors,
     "no-tracked-generated": tracked_generated_errors,
     "docs_freshness": docs_freshness.docs_freshness_errors,
+    "readme-data-statement": data_statement_errors,
     **workflow_checks.CHECKS,
     **hook_checks.CHECKS,
 }

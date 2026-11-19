@@ -1,3 +1,5 @@
+import pytest
+
 import repo_checks
 import workflow_checks
 from files import write_tree
@@ -11,11 +13,12 @@ GOOD_WORKFLOW = "name: ci\non:\n  push:\npermissions:\n  contents: read\njobs:\n
     + (f"      - run: uv run pytest tests/{job}\n" if job == SECOND_JOB else f"      - run: echo {job}\n")
     for job in workflow_checks.REQUIRED_JOBS
 )
+GOOD_SECURITY = "report privately\n\n## If something goes wrong\nThe owner acts.\n- secret: revoke\n- dependency: pin\n- workflow: disable\n- result: rebuild\n\n## Other\nx\n"
 GOOD_FILES = {
     ".github/workflows/ci.yml": GOOD_WORKFLOW,
     ".python-version": "3.13\n",
     "pyproject.toml": "[project]\nrequires-python = \">=3.11\"\n",
-    "SECURITY.md": "report privately\n",
+    "SECURITY.md": GOOD_SECURITY,
     ".github/CODEOWNERS": "* @owner\n",
     ".github/dependabot.yml": "updates:\n  - package-ecosystem: github-actions\n  - package-ecosystem: uv\n",
 }
@@ -142,7 +145,7 @@ def test_a_tree_without_workflows_fails_instead_of_passing_vacuously(tmp_path):
 def test_the_workflow_checks_are_registered_in_the_repo_checks():
     missing = [name for name in workflow_checks.CHECKS if name not in repo_checks.CHECKS]
     assert missing == [], f"repo_checks must run every workflow check, missing {missing}"
-    assert len(workflow_checks.CHECKS) == 14, f"expected fourteen workflow checks, got {sorted(workflow_checks.CHECKS)}"
+    assert len(workflow_checks.CHECKS) == 15, f"expected fifteen workflow checks, got {sorted(workflow_checks.CHECKS)}"
 
 
 def test_a_missing_required_job_is_reported(tmp_path):
@@ -352,3 +355,36 @@ def test_required_jobs_may_be_split_across_workflows_and_a_job_missing_everywher
     assert failures["workflow-required-jobs"] == [], f"a required job in another file counts, got {failures['workflow-required-jobs']}"
     expected = [f"job {SECOND_JOB} is missing in every workflow; the ruleset requires a status check with that name"]
     assert workflow_checks.missing_jobs_across([split, SECOND_WORKFLOW]) == expected, "a job missing in every file is reported once, not once per file"
+
+
+def test_a_security_policy_without_the_incident_section_is_reported(tmp_path):
+    failures = failures_for(tmp_path, {"SECURITY.md": "report privately\n"})
+    assert failures["security-policy-headings"] == ["SECURITY.md has no '## If something goes wrong' section, so nobody knows who acts or what to do first"], f"got {failures}"
+    assert failures["security-files"] == [], f"the file exists, got {failures}"
+
+
+@pytest.mark.parametrize("event", ["secret", "dependency", "workflow", "result"])
+def test_an_incident_section_missing_an_event_is_reported(tmp_path, event):
+    failures = failures_for(tmp_path, {"SECURITY.md": GOOD_SECURITY.replace(event, "other")})
+    assert failures["security-policy-headings"] == [f"SECURITY.md section '## If something goes wrong' does not name the event {event!r}"], f"got {failures}"
+    assert sum(1 for errors in failures.values() if errors) == 1, f"only the policy check may fail, got {failures}"
+
+
+def test_an_event_word_outside_the_incident_section_does_not_count(tmp_path):
+    outside = "secret dependency workflow result\n\n## If something goes wrong\nThe owner acts.\n"
+    failures = failures_for(tmp_path, {"SECURITY.md": outside})
+    assert len(failures["security-policy-headings"]) == 4, f"words above the section must not count, got {failures}"
+    after = "## If something goes wrong\nThe owner acts.\n\n## Other\nsecret dependency workflow result\n"
+    assert len(workflow_checks.security_policy_errors(write_and_root(tmp_path, after))) == 4, "words after the section must not count"
+
+
+def write_and_root(tmp_path, text):
+    write_tree(tmp_path, {"SECURITY.md": text})
+    return tmp_path
+
+
+def test_an_incident_section_above_twelve_lines_is_reported_and_twelve_pass(tmp_path):
+    twelve = GOOD_SECURITY.replace("The owner acts.\n", "The owner acts.\n" + "x\n" * 7)
+    assert workflow_checks.security_policy_errors(write_and_root(tmp_path, twelve.replace("\n\n## Other\nx\n", "\n"))) == [], "twelve lines must pass"
+    errors = workflow_checks.security_policy_errors(write_and_root(tmp_path, twelve.replace("The owner acts.\n", "The owner acts.\nx\n")))
+    assert errors == ["SECURITY.md section '## If something goes wrong' has 13 lines, above 12. Rule: a plan read in a crisis stays short. Fix: shorten it"], f"got {errors}"
