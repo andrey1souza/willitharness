@@ -8,6 +8,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 import docs_freshness
+import hook_checks
 import mutant_tables
 import trace_check
 import workflow_checks
@@ -205,6 +206,7 @@ CHECKS = {
     "no-tracked-generated": tracked_generated_errors,
     "docs_freshness": docs_freshness.docs_freshness_errors,
     **workflow_checks.CHECKS,
+    **hook_checks.CHECKS,
 }
 
 
