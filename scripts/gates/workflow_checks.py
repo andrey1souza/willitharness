@@ -20,16 +20,32 @@ CATCH_ALL_OWNER = re.compile(r"^\*\s+@\S+", re.MULTILINE)
 ECOSYSTEM_LINE = re.compile(r"package-ecosystem:\s*['\"]?([\w-]+)")
 PYTHON_VERSION_FILE = Path(".python-version")
 PYPROJECT_FILE = Path("pyproject.toml")
-REQUIRED_JOBS = ("test", "zanity", "macos")
 JOB_NAMES = {
-    "test": "Tests, mutants, repo checks and site (Linux, pinned Python)",
-    "macos": "Tests, mutants and repo checks (macOS, pinned Python)",
-    "test-latest": "Tests, mutants and repo checks (Linux, latest Python)",
-    "macos-latest-python": "Tests, mutants and repo checks (macOS, latest Python)",
-    "zanity": "Zanity rules (Linux)",
+    "unit-tests": "Unit tests (Linux)",
+    "behavior-tests": "Behavior tests, BDD scenarios (Linux)",
+    "property-tests": "Property-based tests (Linux)",
+    "golden-tests": "Golden-table conformance tests (Linux)",
+    "tooling-tests": "Tests of the repo's own guards, gates and site builder (Linux)",
+    "mutation-tests": "Mutation tests, do the tests catch injected bugs (Linux)",
+    "traceability": "Traceability check, every contract rule has a test (Linux)",
+    "repo-rules": "Repository rule checks, static (Linux)",
+    "zanity": "Static analysis with zanity (Linux)",
     "gitleaks": "Secret scan with gitleaks (Linux)",
+    "site-build": "Site build and freshness check (Linux)",
+    "simulation": "Statistical simulation, false-positive rate and power (Linux)",
+    "macos-full": "Full test suite and mutation tests on macOS (sandbox tests)",
+    "latest-python-linux": "Full test suite and mutation tests on latest Python (Linux)",
+    "latest-python-macos": "Full test suite and mutation tests on latest Python (macOS)",
 }
+REQUIRED_JOBS = (
+    "unit-tests", "behavior-tests", "property-tests", "golden-tests", "tooling-tests", "mutation-tests",
+    "traceability", "repo-rules", "zanity", "site-build", "simulation", "macos-full",
+)
 REQUIRED_CHECK_NAMES = tuple(JOB_NAMES[job] for job in REQUIRED_JOBS)
+TESTS_DIRECTORY = Path("tests")
+UNRUN_TEST_DIRECTORIES = ("support",)
+IGNORE_OPTION = "--ignore"
+PYTEST_COMMAND = re.compile(r"^\s*-\s*run:\s*uv run pytest(?P<arguments>[^\n]*)$", re.MULTILINE)
 JOB_NAME_LINE = re.compile(r"^    name:\s*(.+?)\s*$", re.MULTILINE)
 JOBS_HEADER = re.compile(r"^jobs:\s*$", re.MULTILINE)
 JOB_KEY = re.compile(r"^  ([\w-]+):\s*$", re.MULTILINE)
@@ -186,6 +202,36 @@ def job_name_errors(root):
     return workflow_errors(root, job_name_problems)
 
 
+def tested_directories(workflow_text):
+    assert isinstance(workflow_text, str), f"workflow text must be str, got {type(workflow_text).__name__}. Fix: pass read_text output."
+    assert PYTEST_COMMAND.pattern, "the pytest command pattern is empty"
+    named = set()
+    for command in PYTEST_COMMAND.finditer(workflow_text):
+        arguments = command.group("arguments").split()
+        for previous, argument in zip([""] + arguments, arguments):
+            parts = Path(argument).parts
+            if previous != IGNORE_OPTION and len(parts) == 2 and parts[0] == TESTS_DIRECTORY.name:
+                named.add(parts[1])
+    assert all(name for name in named), f"a named test directory is empty in {named!r}"
+    return named
+
+
+def pytest_coverage_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    directory = root / TESTS_DIRECTORY
+    if not directory.is_dir():
+        return []
+    present = {path.name for path in directory.iterdir() if path.is_dir() and not path.name.startswith("__") and path.name not in UNRUN_TEST_DIRECTORIES}
+    workflows = sorted((root / WORKFLOW_DIRECTORY).glob("*.yml"))
+    named = set().union(*(tested_directories(path.read_text()) for path in workflows)) if workflows else set()
+    errors = [
+        f"{TESTS_DIRECTORY / name} is run by no CI job. Rule: every test directory runs in a job that names it, so a new directory cannot be skipped. Fix: add `uv run pytest {TESTS_DIRECTORY / name}` to a job in {WORKFLOW_DIRECTORY}"
+        for name in sorted(present - named)
+    ]
+    assert all(isinstance(error, str) for error in errors), f"coverage errors must be text, got {errors!r}"
+    return errors
+
+
 def python_source_errors(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     assert UV_USE.pattern, "the uv pattern is empty"
@@ -241,6 +287,7 @@ CHECKS = {
     "workflow-locked-sync": locked_sync_errors,
     "workflow-required-jobs": required_job_errors,
     "workflow-job-names": job_name_errors,
+    "workflow-pytest-coverage": pytest_coverage_errors,
     "workflow-python-source": python_source_errors,
     "python-version-file": python_version_errors,
     "security-files": security_file_errors,

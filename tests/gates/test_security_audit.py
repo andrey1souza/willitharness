@@ -5,10 +5,7 @@ import security_audit
 import workflow_checks
 from files import write_tree
 
-TEST_CHECK = workflow_checks.JOB_NAMES["test"]
-ZANITY_CHECK = workflow_checks.JOB_NAMES["zanity"]
-MACOS_CHECK = workflow_checks.JOB_NAMES["macos"]
-ALL_CHECKS = [{"context": TEST_CHECK}, {"context": ZANITY_CHECK}, {"context": MACOS_CHECK}]
+ALL_CHECKS = [{"context": name} for name in workflow_checks.REQUIRED_CHECK_NAMES]
 
 
 def status_rule(checks, strict=True):
@@ -81,15 +78,11 @@ def test_a_single_maintainer_ruleset_without_human_approval_passes():
 
 
 def test_each_required_status_check_is_needed():
-    only_test = [*GOOD_RULES[:-1], status_rule([{"context": TEST_CHECK}])]
-    errors = security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": only_test}]))
-    assert errors == [f"required status check {ZANITY_CHECK!r} is missing", f"required status check {MACOS_CHECK!r} is missing"], f"got {errors}"
-    only_zanity = [*GOOD_RULES[:-1], status_rule([{"context": ZANITY_CHECK}])]
-    errors = security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": only_zanity}]))
-    assert errors == [f"required status check {TEST_CHECK!r} is missing", f"required status check {MACOS_CHECK!r} is missing"], f"got {errors}"
-    without_macos = [*GOOD_RULES[:-1], status_rule(ALL_CHECKS[:2])]
-    errors = security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": without_macos}]))
-    assert errors == [f"required status check {MACOS_CHECK!r} is missing"], f"got {errors}"
+    assert len(ALL_CHECKS) == len(workflow_checks.REQUIRED_JOBS), f"one context per required job, got {ALL_CHECKS}"
+    for index, check in enumerate(ALL_CHECKS):
+        others = [other for position, other in enumerate(ALL_CHECKS) if position != index]
+        errors = security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": [*GOOD_RULES[:-1], status_rule(others)]}]))
+        assert errors == [f"required status check {check['context']!r} is missing"], f"dropping {check['context']!r} must give exactly one error, got {errors}"
 
 
 def test_status_checks_must_require_an_up_to_date_branch():
