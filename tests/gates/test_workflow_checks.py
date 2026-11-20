@@ -136,6 +136,7 @@ def test_a_tree_without_workflows_fails_instead_of_passing_vacuously(tmp_path):
     errors = workflow_checks.pinned_errors(tmp_path)
     assert errors == [".github/workflows holds no workflows, so the check could not run"], f"got {errors}"
     assert workflow_checks.injection_errors(tmp_path) == errors, "every workflow check must fail on an empty directory"
+    assert workflow_checks.required_job_errors(tmp_path) == errors, "the required jobs check must name the empty directory, not three missing jobs"
 
 
 def test_the_workflow_checks_are_registered_in_the_repo_checks():
@@ -146,7 +147,7 @@ def test_the_workflow_checks_are_registered_in_the_repo_checks():
 
 def test_a_missing_required_job_is_reported(tmp_path):
     failures = failures_for(tmp_path, {".github/workflows/ci.yml": GOOD_WORKFLOW.replace(f"  {SECOND_JOB}:", f"  {SECOND_JOB}-renamed:")})
-    assert failures["workflow-required-jobs"] == [f"ci.yml: job {SECOND_JOB} is missing; the ruleset requires a status check with that name"], f"got {failures}"
+    assert failures["workflow-required-jobs"] == [f"job {SECOND_JOB} is missing in every workflow; the ruleset requires a status check with that name"], f"got {failures}"
     assert workflow_checks.job_blocks(GOOD_WORKFLOW).keys() == set(workflow_checks.REQUIRED_JOBS), "job_blocks must find each top-level job"
     assert workflow_checks.job_blocks("name: ci\n") == {}, "a file without jobs has no blocks"
 
@@ -332,3 +333,22 @@ def test_every_expected_job_name_fits_in_the_github_limit():
 
 def test_the_github_limit_is_one_hundred_characters():
     assert workflow_checks.MAX_JOB_NAME_LENGTH == 100, f"GitHub showed a 105-character name cut to 100, got limit {workflow_checks.MAX_JOB_NAME_LENGTH}"
+
+SECOND_WORKFLOW = "name: pages\non:\n  push:\npermissions:\n  contents: read\njobs:\n  build:\n    name: " + workflow_checks.JOB_NAMES["build"] + "\n    steps:\n      - run: echo build\n"
+SECOND_JOB_BLOCK = f"  {SECOND_JOB}:\n    name: {workflow_checks.JOB_NAMES[SECOND_JOB]}\n    steps:\n      - run: uv run pytest tests/{SECOND_JOB}\n"
+
+
+def test_a_second_workflow_without_the_required_jobs_does_not_fail_the_required_jobs_check(tmp_path):
+    failures = failures_for(tmp_path, {".github/workflows/pages.yml": SECOND_WORKFLOW})
+    assert failures["workflow-required-jobs"] == [], f"the required jobs live in ci.yml, got {failures['workflow-required-jobs']}"
+    assert failures["workflow-job-names"] == [], f"the pages jobs are in the name table, got {failures['workflow-job-names']}"
+
+
+def test_required_jobs_may_be_split_across_workflows_and_a_job_missing_everywhere_is_reported_once(tmp_path):
+    assert SECOND_JOB_BLOCK in GOOD_WORKFLOW, f"the fixture must hold the {SECOND_JOB} job"
+    split = GOOD_WORKFLOW.replace(SECOND_JOB_BLOCK, "")
+    elsewhere = "name: other\non:\n  push:\npermissions:\n  contents: read\njobs:\n" + SECOND_JOB_BLOCK
+    failures = failures_for(tmp_path, {".github/workflows/ci.yml": split, ".github/workflows/other.yml": elsewhere})
+    assert failures["workflow-required-jobs"] == [], f"a required job in another file counts, got {failures['workflow-required-jobs']}"
+    expected = [f"job {SECOND_JOB} is missing in every workflow; the ruleset requires a status check with that name"]
+    assert workflow_checks.missing_jobs_across([split, SECOND_WORKFLOW]) == expected, "a job missing in every file is reported once, not once per file"

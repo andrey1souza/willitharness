@@ -16,7 +16,7 @@ MUTANTS = (
     ('security-md-not-required', SOURCE, 'REQUIRED_FILES = (SECURITY_FILE, ', 'REQUIRED_FILES = ('),
     ('any-star-is-catch-all', SOURCE, 're.compile(r"^\\*\\s+@\\S+", re.MULTILINE)', 're.compile(r"\\*", re.MULTILINE)'),
     ('actions-ecosystem-not-required', SOURCE, '("github-actions", "uv")', '("uv",)'),
-    ('empty-workflow-directory-passes', SOURCE, 'if not files:', 'if False:'),
+    ('empty-workflow-directory-passes', SOURCE, '    if not files:\n        return [f"{WORKFLOW_DIRECTORY} holds no workflows, so the check could not run"]\n    return [f"{path.name}', '    if False:\n        return [f"{WORKFLOW_DIRECTORY} holds no workflows, so the check could not run"]\n    return [f"{path.name}'),
     ('zanity-job-not-required', SOURCE, '"repo-rules", "zanity", "gitleaks"', '"repo-rules", "gitleaks"'),
     ('last-job-block-dropped', SOURCE, 'if index + 1 < len(keys) else len(body)', 'if index + 1 < len(keys) else key.end()'),
     ('uv-job-without-python-accepted', SOURCE, 'if UV_USE.search(block) and not EXPLICIT_PYTHON.search(block)', 'if False'),
@@ -49,4 +49,7 @@ MUTANTS = (
     ('name-length-limit-off-by-one', SOURCE, 'len(shown) > MAX_JOB_NAME_LENGTH', 'len(shown) >= MAX_JOB_NAME_LENGTH'),
     ('name-length-never-checked', SOURCE, 'if shown is not None and len(shown) > MAX_JOB_NAME_LENGTH:', 'if False:'),
     ('name-length-limit-raised', SOURCE, 'MAX_JOB_NAME_LENGTH = 100', 'MAX_JOB_NAME_LENGTH = 200'),
+    ('required-jobs-read-from-first-file-only', SOURCE, 'present = set().union(*(job_blocks(text) for text in texts))', 'present = set(job_blocks(texts[0]))'),
+    ('required-job-missing-everywhere-accepted', SOURCE, 'for name in REQUIRED_JOBS if name not in present]\n\n\ndef missing_jobs(text)', 'for name in REQUIRED_JOBS if False]\n\n\ndef missing_jobs(text)'),
+    ('required-jobs-check-skips-the-empty-directory-message', SOURCE, '    if not files:\n        return [f"{WORKFLOW_DIRECTORY} holds no workflows, so the check could not run"]\n    return missing_jobs_across', '    return missing_jobs_across'),
 )
