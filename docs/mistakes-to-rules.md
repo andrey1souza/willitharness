@@ -35,6 +35,7 @@ test that does not exist.
 | A committed gate status file went stale with every added test, so the site check failed until someone regenerated it. | Committed derived data | `scripts/site/build.py` computes the counts in each run; `repo_checks.py` refuses a tracked gate status file | `tests/site/test_build.py::test_adding_a_test_needs_no_regeneration` |
 | The user-level guard hook could point into a worktree that is later deleted. | A hook path that does not outlive its checkout | `scripts/guards/install_user_hook.py` refuses a script inside a linked worktree | `tests/guards/test_install_user_hook.py::test_a_script_in_a_linked_worktree_is_refused` |
 | The README named directories and scripts without a file suffix, and no check read them, so a renamed directory would leave a stale table row. | A stale path claim in the README | `scripts/gates/docs_freshness.py`, function `readme_path_errors` | `tests/gates/test_docs_freshness.py::test_a_missing_directory_in_the_readme_table_is_reported_with_value_rule_and_fix` |
+| Commits were signed with the work key, so GitHub showed them as unverified for the personal account. | Wrong signing key | `scripts/guards/identity.py`, called by `.githooks/pre-commit` | `tests/guards/test_identity.py::test_a_signing_key_that_is_not_listed_for_the_email_is_rejected_with_a_fix` |
 
 ## Mistakes with no rule yet
 
