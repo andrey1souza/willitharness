@@ -21,6 +21,16 @@ ECOSYSTEM_LINE = re.compile(r"package-ecosystem:\s*['\"]?([\w-]+)")
 PYTHON_VERSION_FILE = Path(".python-version")
 PYPROJECT_FILE = Path("pyproject.toml")
 REQUIRED_JOBS = ("test", "zanity", "macos")
+JOB_NAMES = {
+    "test": "Tests, mutants, repo checks and site (Linux, pinned Python)",
+    "macos": "Tests, mutants and repo checks (macOS, pinned Python)",
+    "test-latest": "Tests, mutants and repo checks (Linux, latest Python)",
+    "macos-latest-python": "Tests, mutants and repo checks (macOS, latest Python)",
+    "zanity": "Zanity rules (Linux)",
+    "gitleaks": "Secret scan with gitleaks (Linux)",
+}
+REQUIRED_CHECK_NAMES = tuple(JOB_NAMES[job] for job in REQUIRED_JOBS)
+JOB_NAME_LINE = re.compile(r"^    name:\s*(.+?)\s*$", re.MULTILINE)
 JOBS_HEADER = re.compile(r"^jobs:\s*$", re.MULTILINE)
 JOB_KEY = re.compile(r"^  ([\w-]+):\s*$", re.MULTILINE)
 UV_USE = re.compile(r"setup-uv|\buv (?:sync|run)\b")
@@ -101,6 +111,20 @@ def missing_jobs(text):
     return [f"job {name} is missing; the ruleset requires a status check with that name" for name in REQUIRED_JOBS if name not in present]
 
 
+def job_name_problems(text):
+    assert isinstance(text, str), f"workflow text must be str, got {type(text).__name__}. Fix: pass read_text output."
+    assert JOB_NAMES, "no job names are expected. Rule: a gate with no expectations proves nothing."
+    problems = []
+    for job, block in job_blocks(text).items():
+        found = JOB_NAME_LINE.search(block)
+        shown = found.group(1) if found else None
+        if job not in JOB_NAMES:
+            problems.append(f"job {job} has no expected name in JOB_NAMES. Rule: every job is named for what it runs. Fix: add it to JOB_NAMES")
+        elif shown != JOB_NAMES[job]:
+            problems.append(f"job {job} is named {shown!r}, expected {JOB_NAMES[job]!r}. Rule: the status check shows the job name, so it must say what runs")
+    return problems
+
+
 def unsourced_python_jobs(text):
     assert isinstance(text, str), f"workflow text must be str, got {type(text).__name__}. Fix: pass read_text output."
     assert EXPLICIT_PYTHON.pattern, "the explicit-python pattern is empty"
@@ -154,6 +178,12 @@ def required_job_errors(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     assert REQUIRED_JOBS, "no jobs are required. Rule: a gate with no expectations proves nothing."
     return workflow_errors(root, missing_jobs)
+
+
+def job_name_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert JOB_NAME_LINE.pattern, "the job name pattern is empty"
+    return workflow_errors(root, job_name_problems)
 
 
 def python_source_errors(root):
@@ -210,6 +240,7 @@ CHECKS = {
     "workflow-injection": injection_errors,
     "workflow-locked-sync": locked_sync_errors,
     "workflow-required-jobs": required_job_errors,
+    "workflow-job-names": job_name_errors,
     "workflow-python-source": python_source_errors,
     "python-version-file": python_version_errors,
     "security-files": security_file_errors,

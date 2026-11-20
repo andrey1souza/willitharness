@@ -14,6 +14,7 @@ concurrency:
 
 jobs:
   test:
+    name: Tests, mutants, repo checks and site (Linux, pinned Python)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -26,6 +27,7 @@ jobs:
       - run: uv run python scripts/site/build.py --check
 
   macos:
+    name: Tests, mutants and repo checks (macOS, pinned Python)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -37,6 +39,7 @@ jobs:
       - run: uv run python scripts/gates/repo_checks.py
 
   test-latest:
+    name: Tests, mutants and repo checks (Linux, latest Python)
     runs-on: ubuntu-latest
     env:
       UV_MANAGED_PYTHON: "1"
@@ -52,6 +55,7 @@ jobs:
       - run: uv run python scripts/gates/repo_checks.py
 
   macos-latest-python:
+    name: Tests, mutants and repo checks (macOS, latest Python)
     runs-on: macos-latest
     env:
       UV_MANAGED_PYTHON: "1"
@@ -67,6 +71,7 @@ jobs:
       - run: uv run python scripts/gates/repo_checks.py
 
   zanity:
+    name: Zanity rules (Linux)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -76,6 +81,7 @@ jobs:
           args: check . --fail-on warning
 
   gitleaks:
+    name: Secret scan with gitleaks (Linux)
     runs-on: ubuntu-latest
     env:
       GITLEAKS_VERSION: 8.30.1

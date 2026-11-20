@@ -17,4 +17,9 @@ MUTANTS = (
     ('write-permissions-accepted', SOURCE, 'READ_PERMISSIONS = "read"', 'READ_PERMISSIONS = "write"'),
     ('gh-failure-ignored', SOURCE, 'if completed.returncode != 0:', 'if False:'),
     ('failures-exit-zero', SOURCE, 'if errors:\n        return EXIT_FAILED', 'if False:\n        return EXIT_FAILED'),
+    ('strict-false-accepted', SOURCE, 'if strict is not True:', 'if strict is False:'),
+    ('strict-absent-accepted', SOURCE, 'if strict is not True:', 'if strict is not None and strict is not True:'),
+    ('strict-check-skipped', SOURCE, 'if strict is not True:', 'if False:'),
+    ('strict-wrong-parameter-read', SOURCE, 'STRICT_PARAMETER = "strict_required_status_checks_policy"', 'STRICT_PARAMETER = "strict_status_checks"'),
+    ('strict-error-without-value', SOURCE, '{STRICT_PARAMETER} is {strict!r}, not True', '{STRICT_PARAMETER} is not True'),
 )

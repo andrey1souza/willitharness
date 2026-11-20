@@ -3,7 +3,7 @@ import workflow_checks
 from files import write_tree
 
 PINNED = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-GOOD_WORKFLOW = f"name: ci\non:\n  push:\npermissions:\n  contents: read\njobs:\n  test:\n    steps:\n      - uses: {PINNED} # v7\n      - run: uv sync --locked\n  zanity:\n    steps:\n      - run: echo zanity\n  macos:\n    steps:\n      - run: uv run pytest\n"
+GOOD_WORKFLOW = f"name: ci\non:\n  push:\npermissions:\n  contents: read\njobs:\n  test:\n    name: {workflow_checks.JOB_NAMES['test']}\n    steps:\n      - uses: {PINNED} # v7\n      - run: uv sync --locked\n  zanity:\n    name: {workflow_checks.JOB_NAMES['zanity']}\n    steps:\n      - run: echo zanity\n  macos:\n    name: {workflow_checks.JOB_NAMES['macos']}\n    steps:\n      - run: uv run pytest\n"
 GOOD_FILES = {
     ".github/workflows/ci.yml": GOOD_WORKFLOW,
     ".python-version": "3.13\n",
@@ -134,7 +134,7 @@ def test_a_tree_without_workflows_fails_instead_of_passing_vacuously(tmp_path):
 def test_the_workflow_checks_are_registered_in_the_repo_checks():
     missing = [name for name in workflow_checks.CHECKS if name not in repo_checks.CHECKS]
     assert missing == [], f"repo_checks must run every workflow check, missing {missing}"
-    assert len(workflow_checks.CHECKS) == 11, f"expected eleven workflow checks, got {sorted(workflow_checks.CHECKS)}"
+    assert len(workflow_checks.CHECKS) == 12, f"expected twelve workflow checks, got {sorted(workflow_checks.CHECKS)}"
 
 
 def test_a_missing_required_job_is_reported(tmp_path):
@@ -184,3 +184,34 @@ def test_an_unparsable_pin_or_specifier_is_reported(tmp_path):
     assert len(bad_pin["python-version-file"]) == 1, f"a pin without major.minor must be reported, got {bad_pin}"
     bad_specifier = failures_for(tmp_path, {"pyproject.toml": "[project]\nrequires-python = \"~=3.11\"\n"})
     assert bad_specifier["python-version-file"] == ["requires-python '~=3.11' is not of the form '>=X.Y', so .python-version cannot be checked against it"], f"got {bad_specifier}"
+
+
+def test_a_job_with_a_generic_name_is_reported(tmp_path):
+    renamed = GOOD_WORKFLOW.replace(f"name: {workflow_checks.JOB_NAMES['macos']}", "name: macos")
+    problems = workflow_checks.job_name_problems(renamed)
+    assert len(problems) == 1 and "job macos is named 'macos'" in problems[0], f"got {problems}"
+    failures = failures_for(tmp_path, {".github/workflows/ci.yml": renamed})
+    assert [name for name, errors in failures.items() if errors] == ["workflow-job-names"], f"only the name check may fail, got {failures}"
+
+
+def test_a_job_without_a_name_is_reported():
+    unnamed = GOOD_WORKFLOW.replace(f"    name: {workflow_checks.JOB_NAMES['zanity']}\n", "")
+    problems = workflow_checks.job_name_problems(unnamed)
+    assert len(problems) == 1 and "job zanity is named None" in problems[0], f"got {problems}"
+
+
+def test_a_job_that_has_no_expected_name_is_reported():
+    extra = GOOD_WORKFLOW + "  extra:\n    name: Something\n    steps:\n      - run: echo extra\n"
+    problems = workflow_checks.job_name_problems(extra)
+    assert len(problems) == 1 and "job extra has no expected name" in problems[0], f"got {problems}"
+
+
+def test_the_required_check_names_are_the_names_of_the_required_jobs():
+    assert workflow_checks.REQUIRED_CHECK_NAMES == tuple(workflow_checks.JOB_NAMES[job] for job in workflow_checks.REQUIRED_JOBS), f"got {workflow_checks.REQUIRED_CHECK_NAMES}"
+    assert len(set(workflow_checks.JOB_NAMES.values())) == len(workflow_checks.JOB_NAMES), "two jobs share a name, so a status check could not tell them apart"
+
+
+def test_a_step_name_is_not_taken_for_the_job_name():
+    unnamed = GOOD_WORKFLOW.replace(f"    name: {workflow_checks.JOB_NAMES['zanity']}\n", "").replace("      - run: echo zanity\n", "      - name: Zanity rules (Linux)\n        run: echo zanity\n")
+    problems = workflow_checks.job_name_problems(unnamed)
+    assert len(problems) == 1 and "job zanity is named None" in problems[0], f"a step name must not count as the job name, got {problems}"

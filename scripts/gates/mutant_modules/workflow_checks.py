@@ -26,4 +26,9 @@ MUTANTS = (
     ('pin-minor-only-compared', SOURCE, 'satisfied = tuple(map(int, pinned.groups())) >=', 'satisfied = int(pinned.group(2)) >='),
     ('missing-pin-file-passes', SOURCE, '    if not pinned:\n        return [', '    if False:\n        return ['),
     ('workflow-checks-not-registered', 'scripts/gates/repo_checks.py', '    **workflow_checks.CHECKS,\n', ''),
+    ('name-mismatch-accepted', SOURCE, 'elif shown != JOB_NAMES[job]:', 'elif False:'),
+    ('unknown-job-accepted', SOURCE, 'if job not in JOB_NAMES:', 'if False:'),
+    ('name-line-matches-step-names', SOURCE, '^    name:\\s*(.+?)\\s*$', '^\\s*-?\\s*name:\\s*(.+?)\\s*$'),
+    ('required-check-names-first-only', SOURCE, 'tuple(JOB_NAMES[job] for job in REQUIRED_JOBS)', 'tuple(JOB_NAMES[job] for job in REQUIRED_JOBS[:1])'),
+    ('job-name-check-not-registered', SOURCE, '    "workflow-job-names": job_name_errors,\n', ''),
 )
