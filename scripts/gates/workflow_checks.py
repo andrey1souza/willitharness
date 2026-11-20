@@ -36,6 +36,8 @@ JOB_NAMES = {
     "macos-full": "Full tests, mutation, traceability and repository checks on macOS (sandbox tests)",
     "latest-python-linux": "Tests, mutation, traceability and repo checks, latest Python (Linux, advisory, not required)",
     "latest-python-macos": "Tests, mutation, traceability and repo checks, latest Python (macOS, advisory, not required)",
+    "build": "Build the site (Linux)",
+    "deploy": "Publish the site to GitHub Pages",
 }
 REQUIRED_JOBS = (
     "unit-tests", "behavior-tests", "property-tests", "golden-tests", "tooling-tests", "mutation-tests",
@@ -122,11 +124,18 @@ def job_blocks(text):
     return blocks
 
 
+def missing_jobs_across(texts):
+    assert isinstance(texts, list) and all(isinstance(text, str) for text in texts), f"workflow texts must be a list of str, got {texts!r}. Fix: pass the text of every workflow file."
+    assert REQUIRED_JOBS, "no jobs are required. Rule: a gate with no expectations proves nothing."
+    present = set().union(*(job_blocks(text) for text in texts))
+    return [f"job {name} is missing in every workflow; the ruleset requires a status check with that name" for name in REQUIRED_JOBS if name not in present]
+
+
 def missing_jobs(text):
     assert isinstance(text, str), f"workflow text must be str, got {type(text).__name__}. Fix: pass read_text output."
-    assert REQUIRED_JOBS, "no jobs are required. Rule: a gate with no expectations proves nothing."
-    present = job_blocks(text)
-    return [f"job {name} is missing; the ruleset requires a status check with that name" for name in REQUIRED_JOBS if name not in present]
+    problems = missing_jobs_across([text])
+    assert all(isinstance(problem, str) for problem in problems), f"missing_jobs returned {problems!r}. Rule: each problem is one message. Fix: build messages as text."
+    return problems
 
 
 def job_name_problems(text):
@@ -197,7 +206,10 @@ def locked_sync_errors(root):
 def required_job_errors(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     assert REQUIRED_JOBS, "no jobs are required. Rule: a gate with no expectations proves nothing."
-    return workflow_errors(root, missing_jobs)
+    files = sorted((root / WORKFLOW_DIRECTORY).glob("*.yml"))
+    if not files:
+        return [f"{WORKFLOW_DIRECTORY} holds no workflows, so the check could not run"]
+    return missing_jobs_across([path.read_text() for path in files])
 
 
 def job_name_errors(root):
