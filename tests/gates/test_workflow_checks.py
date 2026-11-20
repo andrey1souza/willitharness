@@ -141,7 +141,7 @@ def test_a_tree_without_workflows_fails_instead_of_passing_vacuously(tmp_path):
 def test_the_workflow_checks_are_registered_in_the_repo_checks():
     missing = [name for name in workflow_checks.CHECKS if name not in repo_checks.CHECKS]
     assert missing == [], f"repo_checks must run every workflow check, missing {missing}"
-    assert len(workflow_checks.CHECKS) == 13, f"expected thirteen workflow checks, got {sorted(workflow_checks.CHECKS)}"
+    assert len(workflow_checks.CHECKS) == 14, f"expected fourteen workflow checks, got {sorted(workflow_checks.CHECKS)}"
 
 
 def test_a_missing_required_job_is_reported(tmp_path):
@@ -277,3 +277,31 @@ def test_a_directory_that_pytest_is_told_to_ignore_is_not_covered():
     text = "      - run: uv run pytest --ignore tests/unit tests/bdd\n"
     assert workflow_checks.tested_directories(text) == {"bdd"}, f"an ignored directory is not run, got {workflow_checks.tested_directories(text)}"
     assert workflow_checks.tested_directories("      - run: uv run pytest --ignore=tests/unit tests/bdd\n") == {"bdd"}, "the joined form is not a plain path either"
+
+
+def test_a_required_job_whose_name_says_advisory_is_reported(tmp_path):
+    for word in ("advisory", "Advisory"):
+        text = GOOD_WORKFLOW.replace(f"name: {workflow_checks.JOB_NAMES[FIRST_JOB]}", f"name: {workflow_checks.JOB_NAMES[FIRST_JOB]} ({word})")
+        problems = workflow_checks.advisory_required_problems(text)
+        assert len(problems) == 1 and f"job {FIRST_JOB} is named" in problems[0] and "Rule:" in problems[0] and "Fix:" in problems[0], f"{word!r} must be reported once, got {problems}"
+    failures = failures_for(tmp_path, {".github/workflows/ci.yml": GOOD_WORKFLOW.replace(f"name: {workflow_checks.JOB_NAMES[FIRST_JOB]}", f"name: {workflow_checks.JOB_NAMES[FIRST_JOB]} (advisory)")})
+    assert failures["workflow-advisory-not-required"] != [], f"the registered check must report it, got {failures}"
+
+
+def test_a_job_that_is_advisory_and_not_required_is_not_reported():
+    advisory = workflow_checks.JOB_NAMES["latest-python-linux"]
+    text = GOOD_WORKFLOW + f"  latest-python-linux:\n    name: {advisory}\n    steps:\n      - run: echo latest\n"
+    assert "advisory" in advisory, f"the latest-Python job must say advisory, got {advisory!r}"
+    assert workflow_checks.advisory_required_problems(text) == [], "an advisory job that is not required is the intended state"
+
+
+def test_no_required_name_says_advisory_and_every_latest_python_name_does():
+    required_with_the_word = [job for job in workflow_checks.REQUIRED_JOBS if "advisory" in workflow_checks.JOB_NAMES[job].lower()]
+    assert required_with_the_word == [], f"required checks must not call themselves advisory, got {required_with_the_word}"
+    latest = [job for job in workflow_checks.JOB_NAMES if job.startswith("latest-python")]
+    assert latest and all("advisory, not required" in workflow_checks.JOB_NAMES[job] for job in latest), f"latest-Python jobs must say advisory, not required, got {latest}"
+    assert not set(latest) & set(workflow_checks.REQUIRED_JOBS), f"latest-Python jobs must not be required, got {latest}"
+
+
+def test_the_secret_scan_is_a_required_job():
+    assert "gitleaks" in workflow_checks.REQUIRED_JOBS, f"the user made the secret scan required, got {workflow_checks.REQUIRED_JOBS}"

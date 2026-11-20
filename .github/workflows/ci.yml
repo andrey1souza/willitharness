@@ -104,7 +104,7 @@ jobs:
       - run: uv run python scripts/gates/simulate.py --trials 400 --n 20 --seed 20261117
 
   macos-full:
-    name: Full test suite and mutation tests on macOS (sandbox tests)
+    name: Full tests, mutation, traceability and repository checks on macOS (sandbox tests)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -116,7 +116,7 @@ jobs:
       - run: uv run python scripts/gates/repo_checks.py
 
   latest-python-linux:
-    name: Full test suite and mutation tests on latest Python (Linux)
+    name: Full tests, mutation, traceability and repository checks on latest Python (Linux, advisory, not required)
     runs-on: ubuntu-latest
     env:
       UV_MANAGED_PYTHON: "1"
@@ -132,7 +132,7 @@ jobs:
       - run: uv run python scripts/gates/repo_checks.py
 
   latest-python-macos:
-    name: Full test suite and mutation tests on latest Python (macOS)
+    name: Full tests, mutation, traceability and repository checks on latest Python (macOS, advisory, not required)
     runs-on: macos-latest
     env:
       UV_MANAGED_PYTHON: "1"

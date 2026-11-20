@@ -33,16 +33,17 @@ JOB_NAMES = {
     "gitleaks": "Secret scan with gitleaks (Linux)",
     "site-build": "Site build and freshness check (Linux)",
     "simulation": "Statistical simulation, false-positive rate and power (Linux)",
-    "macos-full": "Full test suite and mutation tests on macOS (sandbox tests)",
-    "latest-python-linux": "Full test suite and mutation tests on latest Python (Linux)",
-    "latest-python-macos": "Full test suite and mutation tests on latest Python (macOS)",
+    "macos-full": "Full tests, mutation, traceability and repository checks on macOS (sandbox tests)",
+    "latest-python-linux": "Full tests, mutation, traceability and repository checks on latest Python (Linux, advisory, not required)",
+    "latest-python-macos": "Full tests, mutation, traceability and repository checks on latest Python (macOS, advisory, not required)",
 }
 REQUIRED_JOBS = (
     "unit-tests", "behavior-tests", "property-tests", "golden-tests", "tooling-tests", "mutation-tests",
-    "traceability", "repo-rules", "zanity", "site-build", "simulation", "macos-full",
+    "traceability", "repo-rules", "zanity", "gitleaks", "site-build", "simulation", "macos-full",
 )
 REQUIRED_CHECK_NAMES = tuple(JOB_NAMES[job] for job in REQUIRED_JOBS)
 TESTS_DIRECTORY = Path("tests")
+ADVISORY_WORD = "advisory"
 UNRUN_TEST_DIRECTORIES = ("support",)
 IGNORE_OPTION = "--ignore"
 PYTEST_COMMAND = re.compile(r"^\s*-\s*run:\s*uv run pytest(?P<arguments>[^\n]*)$", re.MULTILINE)
@@ -202,6 +203,24 @@ def job_name_errors(root):
     return workflow_errors(root, job_name_problems)
 
 
+def advisory_required_problems(text):
+    assert isinstance(text, str), f"workflow text must be str, got {type(text).__name__}. Fix: pass read_text output."
+    assert ADVISORY_WORD, "the advisory word is empty. Rule: an advisory job is recognised by its name. Fix: restore ADVISORY_WORD."
+    problems = []
+    for job, block in job_blocks(text).items():
+        found = JOB_NAME_LINE.search(block)
+        if job in REQUIRED_JOBS and found and ADVISORY_WORD in found.group(1).lower():
+            problems.append(f"job {job} is named {found.group(1)!r}, which says {ADVISORY_WORD}, but the ruleset requires it. Rule: a required check must not call itself {ADVISORY_WORD}. Fix: rename the job or remove it from REQUIRED_JOBS")
+    assert all(isinstance(problem, str) for problem in problems), f"problems must be text, got {problems!r}"
+    return problems
+
+
+def advisory_required_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert REQUIRED_JOBS, "no jobs are required. Rule: a gate with no expectations proves nothing."
+    return workflow_errors(root, advisory_required_problems)
+
+
 def tested_directories(workflow_text):
     assert isinstance(workflow_text, str), f"workflow text must be str, got {type(workflow_text).__name__}. Fix: pass read_text output."
     assert PYTEST_COMMAND.pattern, "the pytest command pattern is empty"
@@ -288,6 +307,7 @@ CHECKS = {
     "workflow-required-jobs": required_job_errors,
     "workflow-job-names": job_name_errors,
     "workflow-pytest-coverage": pytest_coverage_errors,
+    "workflow-advisory-not-required": advisory_required_errors,
     "workflow-python-source": python_source_errors,
     "python-version-file": python_version_errors,
     "security-files": security_file_errors,
