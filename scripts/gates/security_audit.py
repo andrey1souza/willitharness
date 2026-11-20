@@ -24,9 +24,7 @@ REQUIRED_RULES = {
     "deletion blocked": "deletion",
     "status checks required": "required_status_checks",
 }
-CODE_OWNER_PARAMETER = "require_code_owner_review"
 STRICT_PARAMETER = "strict_required_status_checks_policy"
-PULL_REQUEST_RULE = REQUIRED_RULES["pull request required"]
 STATUS_CHECKS_RULE = REQUIRED_RULES["status checks required"]
 REQUIRED_CHECKS = workflow_checks.REQUIRED_CHECK_NAMES
 ENABLED = "enabled"
@@ -67,8 +65,6 @@ def ruleset_errors(rulesets):
     rules = enforced_rules(rulesets)
     errors = [] if rules else [f"no active ruleset protects {PROTECTED_BRANCH}"]
     errors += [f"{name}: ruleset has no {rule_type} rule" for name, rule_type in REQUIRED_RULES.items() if rule_type not in rules]
-    if PULL_REQUEST_RULE in rules and rules[PULL_REQUEST_RULE].get(CODE_OWNER_PARAMETER) is not True:
-        errors.append("code owner review required: the pull_request rule does not set it")
     if STATUS_CHECKS_RULE in rules:
         contexts = [check.get("context") for check in rules[STATUS_CHECKS_RULE].get("required_status_checks", [])]
         errors += [f"required status check {name!r} is missing" for name in REQUIRED_CHECKS if name not in contexts]

@@ -16,7 +16,7 @@ def status_rule(checks, strict=True):
 
 
 GOOD_RULES = [
-    {"type": "pull_request", "parameters": {"require_code_owner_review": True}},
+    {"type": "pull_request", "parameters": {"required_approving_review_count": 0}},
     {"type": "required_signatures"},
     {"type": "required_linear_history"},
     {"type": "non_fast_forward"},
@@ -74,12 +74,10 @@ def test_each_missing_rule_is_named():
         assert errors == [message], f"dropping {rule_type} must give exactly {message!r}, got {errors}"
 
 
-def test_code_owner_review_must_be_true():
-    weak = [{"type": "pull_request", "parameters": {"require_code_owner_review": False}}, *GOOD_RULES[1:]]
-    errors = security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": weak}]))
-    assert errors == ["code owner review required: the pull_request rule does not set it"], f"got {errors}"
-    bare = [{"type": "pull_request"}, *GOOD_RULES[1:]]
-    assert len(security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": bare}]))) == 1, "absent parameters must also fail"
+def test_a_single_maintainer_ruleset_without_human_approval_passes():
+    single_maintainer = [{"type": "pull_request", "parameters": {"required_approving_review_count": 0, "require_code_owner_review": False}}, *GOOD_RULES[1:]]
+    errors = security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": single_maintainer}]))
+    assert errors == [], f"zero approvals and no code owner review is the intended state, got {errors}"
 
 
 def test_each_required_status_check_is_needed():

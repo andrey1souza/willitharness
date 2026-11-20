@@ -9,7 +9,6 @@ MUTANTS = (
     ('excluded-main-counts', SOURCE, 'return included and not excluded', 'return included'),
     ('unprotected-rulesets-counted', SOURCE, 'for ruleset in rulesets if protects_main(ruleset) for rule', 'for ruleset in rulesets for rule'),
     ('deletion-rule-not-required', SOURCE, '    "deletion blocked": "deletion",\n', ''),
-    ('code-owner-false-accepted', SOURCE, 'get(CODE_OWNER_PARAMETER) is not True', 'get(CODE_OWNER_PARAMETER) is None'),
     ('only-first-check-required', SOURCE, 'for name in REQUIRED_CHECKS if name not in contexts', 'for name in REQUIRED_CHECKS[:1] if name not in contexts'),
     ('last-check-not-required', SOURCE, 'for name in REQUIRED_CHECKS if name not in contexts', 'for name in REQUIRED_CHECKS[:-1] if name not in contexts'),
     ('disabled-analysis-accepted', SOURCE, '.get("status") != ENABLED]', '.get("status") is None]'),
