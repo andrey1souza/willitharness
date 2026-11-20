@@ -3,7 +3,14 @@ import workflow_checks
 from files import write_tree
 
 PINNED = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-GOOD_WORKFLOW = f"name: ci\non:\n  push:\npermissions:\n  contents: read\njobs:\n  test:\n    steps:\n      - uses: {PINNED} # v7\n      - run: uv sync --locked\n  zanity:\n    steps:\n      - run: echo zanity\n  macos:\n    steps:\n      - run: uv run pytest\n"
+FIRST_JOB = workflow_checks.REQUIRED_JOBS[0]
+SECOND_JOB = workflow_checks.REQUIRED_JOBS[1]
+GOOD_WORKFLOW = "name: ci\non:\n  push:\npermissions:\n  contents: read\njobs:\n" + "".join(
+    f"  {job}:\n    name: {workflow_checks.JOB_NAMES[job]}\n    steps:\n"
+    + (f"      - uses: {PINNED} # v7\n      - run: uv sync --locked\n" if job == FIRST_JOB else "")
+    + (f"      - run: uv run pytest tests/{job}\n" if job == SECOND_JOB else f"      - run: echo {job}\n")
+    for job in workflow_checks.REQUIRED_JOBS
+)
 GOOD_FILES = {
     ".github/workflows/ci.yml": GOOD_WORKFLOW,
     ".python-version": "3.13\n",
@@ -134,19 +141,19 @@ def test_a_tree_without_workflows_fails_instead_of_passing_vacuously(tmp_path):
 def test_the_workflow_checks_are_registered_in_the_repo_checks():
     missing = [name for name in workflow_checks.CHECKS if name not in repo_checks.CHECKS]
     assert missing == [], f"repo_checks must run every workflow check, missing {missing}"
-    assert len(workflow_checks.CHECKS) == 11, f"expected eleven workflow checks, got {sorted(workflow_checks.CHECKS)}"
+    assert len(workflow_checks.CHECKS) == 14, f"expected fourteen workflow checks, got {sorted(workflow_checks.CHECKS)}"
 
 
 def test_a_missing_required_job_is_reported(tmp_path):
-    failures = failures_for(tmp_path, {".github/workflows/ci.yml": GOOD_WORKFLOW.replace("  macos:", "  macos-renamed:")})
-    assert failures["workflow-required-jobs"] == ["ci.yml: job macos is missing; the ruleset requires a status check with that name"], f"got {failures}"
-    assert workflow_checks.job_blocks(GOOD_WORKFLOW).keys() == {"test", "zanity", "macos"}, "job_blocks must find each top-level job"
+    failures = failures_for(tmp_path, {".github/workflows/ci.yml": GOOD_WORKFLOW.replace(f"  {SECOND_JOB}:", f"  {SECOND_JOB}-renamed:")})
+    assert failures["workflow-required-jobs"] == [f"ci.yml: job {SECOND_JOB} is missing; the ruleset requires a status check with that name"], f"got {failures}"
+    assert workflow_checks.job_blocks(GOOD_WORKFLOW).keys() == set(workflow_checks.REQUIRED_JOBS), "job_blocks must find each top-level job"
     assert workflow_checks.job_blocks("name: ci\n") == {}, "a file without jobs has no blocks"
 
 
 def test_a_workflow_without_a_jobs_section_misses_every_required_job():
     errors = workflow_checks.missing_jobs("name: ci\n")
-    assert len(errors) == 3, f"every required job must be reported, got {errors}"
+    assert len(errors) == len(workflow_checks.REQUIRED_JOBS), f"every required job must be reported, got {errors}"
     assert workflow_checks.missing_jobs(GOOD_WORKFLOW) == [], "the good workflow has every required job"
 
 
@@ -154,15 +161,15 @@ def test_a_missing_python_version_file_fails_both_python_checks(tmp_path):
     write_tree(tmp_path, {**GOOD_FILES})
     (tmp_path / ".python-version").unlink()
     sourced = workflow_checks.python_source_errors(tmp_path)
-    assert sourced == ["ci.yml: job test runs uv without an explicit python-version and .python-version is missing", "ci.yml: job macos runs uv without an explicit python-version and .python-version is missing"], f"got {sourced}"
+    assert sourced == [f"ci.yml: job {job} runs uv without an explicit python-version and .python-version is missing" for job in (FIRST_JOB, SECOND_JOB)], f"got {sourced}"
     assert len(workflow_checks.python_version_errors(tmp_path)) == 1, "the pin file itself must be required"
 
 
 def test_an_explicit_python_version_replaces_the_pin_file(tmp_path):
-    explicit = GOOD_WORKFLOW.replace("      - run: uv sync --locked\n", "      - run: uv sync --locked\n        env:\n          UV_PYTHON: \"3.14\"\n").replace("      - run: uv run pytest\n", "      - run: uv run --python 3.14 pytest\n")
+    explicit = GOOD_WORKFLOW.replace("      - run: uv sync --locked\n", "      - run: uv sync --locked\n        env:\n          UV_PYTHON: \"3.14\"\n").replace(f"      - run: uv run pytest tests/{SECOND_JOB}\n", f"      - run: uv run --python 3.14 pytest tests/{SECOND_JOB}\n")
     write_tree(tmp_path, {".github/workflows/ci.yml": explicit})
     assert workflow_checks.python_source_errors(tmp_path) == [], "no pin file needed when every uv job names its Python"
-    assert workflow_checks.unsourced_python_jobs(GOOD_WORKFLOW) == [f"job {name} runs uv without an explicit python-version and .python-version is missing" for name in ("test", "macos")], "without either source both uv jobs are reported"
+    assert workflow_checks.unsourced_python_jobs(GOOD_WORKFLOW) == [f"job {name} runs uv without an explicit python-version and .python-version is missing" for name in (FIRST_JOB, SECOND_JOB)], "without either source both uv jobs are reported"
 
 
 def test_a_pin_below_requires_python_is_reported(tmp_path):
@@ -184,3 +191,144 @@ def test_an_unparsable_pin_or_specifier_is_reported(tmp_path):
     assert len(bad_pin["python-version-file"]) == 1, f"a pin without major.minor must be reported, got {bad_pin}"
     bad_specifier = failures_for(tmp_path, {"pyproject.toml": "[project]\nrequires-python = \"~=3.11\"\n"})
     assert bad_specifier["python-version-file"] == ["requires-python '~=3.11' is not of the form '>=X.Y', so .python-version cannot be checked against it"], f"got {bad_specifier}"
+
+
+def test_a_job_with_a_generic_name_is_reported(tmp_path):
+    renamed = GOOD_WORKFLOW.replace(f"name: {workflow_checks.JOB_NAMES[SECOND_JOB]}", f"name: {SECOND_JOB}")
+    problems = workflow_checks.job_name_problems(renamed)
+    assert len(problems) == 1 and f"job {SECOND_JOB} is named '{SECOND_JOB}'" in problems[0], f"got {problems}"
+    failures = failures_for(tmp_path, {".github/workflows/ci.yml": renamed})
+    assert [name for name, errors in failures.items() if errors] == ["workflow-job-names"], f"only the name check may fail, got {failures}"
+
+
+def test_a_job_without_a_name_is_reported():
+    unnamed = GOOD_WORKFLOW.replace(f"    name: {workflow_checks.JOB_NAMES['zanity']}\n", "")
+    problems = workflow_checks.job_name_problems(unnamed)
+    assert len(problems) == 1 and "job zanity is named None" in problems[0], f"got {problems}"
+
+
+def test_a_job_that_has_no_expected_name_is_reported():
+    extra = GOOD_WORKFLOW + "  extra:\n    name: Something\n    steps:\n      - run: echo extra\n"
+    problems = workflow_checks.job_name_problems(extra)
+    assert len(problems) == 1 and "job extra has no expected name" in problems[0], f"got {problems}"
+
+
+def test_the_required_check_names_are_the_names_of_the_required_jobs():
+    assert workflow_checks.REQUIRED_CHECK_NAMES == tuple(workflow_checks.JOB_NAMES[job] for job in workflow_checks.REQUIRED_JOBS), f"got {workflow_checks.REQUIRED_CHECK_NAMES}"
+    assert len(set(workflow_checks.JOB_NAMES.values())) == len(workflow_checks.JOB_NAMES), "two jobs share a name, so a status check could not tell them apart"
+
+
+def test_a_step_name_is_not_taken_for_the_job_name():
+    unnamed = GOOD_WORKFLOW.replace(f"    name: {workflow_checks.JOB_NAMES['zanity']}\n", "").replace("      - run: echo zanity\n", "      - name: Zanity rules (Linux)\n        run: echo zanity\n")
+    problems = workflow_checks.job_name_problems(unnamed)
+    assert len(problems) == 1 and "job zanity is named None" in problems[0], f"a step name must not count as the job name, got {problems}"
+
+
+def coverage_tree(tmp_path, commands, directories, extra_workflows=None):
+    workflow = "name: ci\njobs:\n  tests:\n    name: x\n    steps:\n" + "".join(f"      - run: {command}\n" for command in commands)
+    files = {".github/workflows/ci.yml": workflow, **{f"tests/{name}/test_x.py": "def test_x():\n    assert True\n" for name in directories}}
+    files.update(extra_workflows or {})
+    write_tree(tmp_path, files)
+    return workflow_checks.pytest_coverage_errors(tmp_path)
+
+
+def test_a_test_directory_named_by_no_job_is_reported_with_the_value_the_rule_and_the_fix(tmp_path):
+    errors = coverage_tree(tmp_path, ["uv run pytest tests/unit"], ["unit", "orphan"])
+    assert len(errors) == 1, f"only the orphan directory must be reported, got {errors}"
+    assert "tests/orphan is run by no CI job" in errors[0] and "Rule:" in errors[0] and "Fix: add `uv run pytest tests/orphan`" in errors[0], f"got {errors}"
+
+
+def test_every_directory_named_by_some_job_passes_even_across_commands_and_files(tmp_path):
+    second = "name: more\njobs:\n  other:\n    name: y\n    steps:\n      - run: uv run pytest tests/golden/\n"
+    errors = coverage_tree(tmp_path, ["uv run pytest tests/unit tests/bdd"], ["unit", "bdd", "golden"], {".github/workflows/more.yml": second})
+    assert errors == [], f"directories named in one command, with a trailing slash, or in another workflow count, got {errors}"
+
+
+def test_a_bare_pytest_run_names_no_directory(tmp_path):
+    errors = coverage_tree(tmp_path, ["uv run pytest"], ["unit"])
+    assert len(errors) == 1 and "tests/unit" in errors[0], f"a bare run does not name a directory, got {errors}"
+
+
+def test_a_single_test_file_does_not_cover_its_directory(tmp_path):
+    errors = coverage_tree(tmp_path, ["uv run pytest tests/unit/test_x.py"], ["unit"])
+    assert len(errors) == 1 and "tests/unit" in errors[0], f"one file is not the directory, got {errors}"
+
+
+def test_the_support_folder_and_cache_folders_need_no_job(tmp_path):
+    errors = coverage_tree(tmp_path, ["uv run pytest tests/unit"], ["unit", "support", "__pycache__"])
+    assert errors == [], f"support code and caches are not test directories, got {errors}"
+
+
+def test_a_tree_without_tests_or_workflows_has_no_coverage_errors(tmp_path):
+    write_tree(tmp_path, {"README.md": "x\n"})
+    assert workflow_checks.pytest_coverage_errors(tmp_path) == [], "no tests directory means nothing to cover"
+    write_tree(tmp_path, {"tests/unit/test_x.py": "def test_x():\n    assert True\n"})
+    errors = workflow_checks.pytest_coverage_errors(tmp_path)
+    assert len(errors) == 1 and "tests/unit" in errors[0], f"tests with no workflow at all must be reported, got {errors}"
+
+
+def test_options_between_the_command_and_the_directory_are_ignored():
+    text = "      - run: uv run pytest -q -x tests/unit -k fast tests/bdd\n"
+    assert workflow_checks.tested_directories(text) == {"unit", "bdd"}, f"got {workflow_checks.tested_directories(text)}"
+    assert workflow_checks.tested_directories("      - run: uv run python scripts/x.py tests/unit\n") == set(), "only pytest commands count"
+
+
+def test_a_directory_that_pytest_is_told_to_ignore_is_not_covered():
+    text = "      - run: uv run pytest --ignore tests/unit tests/bdd\n"
+    assert workflow_checks.tested_directories(text) == {"bdd"}, f"an ignored directory is not run, got {workflow_checks.tested_directories(text)}"
+    assert workflow_checks.tested_directories("      - run: uv run pytest --ignore=tests/unit tests/bdd\n") == {"bdd"}, "the joined form is not a plain path either"
+
+
+def test_a_required_job_whose_name_says_advisory_is_reported(tmp_path):
+    for word in ("advisory", "Advisory"):
+        text = GOOD_WORKFLOW.replace(f"name: {workflow_checks.JOB_NAMES[FIRST_JOB]}", f"name: {workflow_checks.JOB_NAMES[FIRST_JOB]} ({word})")
+        problems = workflow_checks.advisory_required_problems(text)
+        assert len(problems) == 1 and f"job {FIRST_JOB} is named" in problems[0] and "Rule:" in problems[0] and "Fix:" in problems[0], f"{word!r} must be reported once, got {problems}"
+    failures = failures_for(tmp_path, {".github/workflows/ci.yml": GOOD_WORKFLOW.replace(f"name: {workflow_checks.JOB_NAMES[FIRST_JOB]}", f"name: {workflow_checks.JOB_NAMES[FIRST_JOB]} (advisory)")})
+    assert failures["workflow-advisory-not-required"] != [], f"the registered check must report it, got {failures}"
+
+
+def test_a_job_that_is_advisory_and_not_required_is_not_reported():
+    advisory = workflow_checks.JOB_NAMES["latest-python-linux"]
+    text = GOOD_WORKFLOW + f"  latest-python-linux:\n    name: {advisory}\n    steps:\n      - run: echo latest\n"
+    assert "advisory" in advisory, f"the latest-Python job must say advisory, got {advisory!r}"
+    assert workflow_checks.advisory_required_problems(text) == [], "an advisory job that is not required is the intended state"
+
+
+def test_no_required_name_says_advisory_and_every_latest_python_name_does():
+    required_with_the_word = [job for job in workflow_checks.REQUIRED_JOBS if "advisory" in workflow_checks.JOB_NAMES[job].lower()]
+    assert required_with_the_word == [], f"required checks must not call themselves advisory, got {required_with_the_word}"
+    latest = [job for job in workflow_checks.JOB_NAMES if job.startswith("latest-python")]
+    assert latest and all("advisory, not required" in workflow_checks.JOB_NAMES[job] for job in latest), f"latest-Python jobs must say advisory, not required, got {latest}"
+    assert not set(latest) & set(workflow_checks.REQUIRED_JOBS), f"latest-Python jobs must not be required, got {latest}"
+
+
+def test_the_secret_scan_is_a_required_job():
+    assert "gitleaks" in workflow_checks.REQUIRED_JOBS, f"the user made the secret scan required, got {workflow_checks.REQUIRED_JOBS}"
+
+
+def length_problems(problems):
+    return [problem for problem in problems if "characters, above" in problem]
+
+
+def test_a_job_name_over_the_github_limit_is_reported_with_its_length():
+    long_name = "x" * (workflow_checks.MAX_JOB_NAME_LENGTH + 1)
+    text = GOOD_WORKFLOW.replace(f"name: {workflow_checks.JOB_NAMES['zanity']}", f"name: {long_name}")
+    found = length_problems(workflow_checks.job_name_problems(text))
+    assert len(found) == 1 and f"{len(long_name)} characters" in found[0], f"a {len(long_name)}-character name must be reported once, got {found}"
+
+
+def test_a_job_name_of_exactly_the_github_limit_is_not_reported_for_its_length():
+    exact_name = "x" * workflow_checks.MAX_JOB_NAME_LENGTH
+    text = GOOD_WORKFLOW.replace(f"name: {workflow_checks.JOB_NAMES['zanity']}", f"name: {exact_name}")
+    found = length_problems(workflow_checks.job_name_problems(text))
+    assert found == [], f"a name of exactly {workflow_checks.MAX_JOB_NAME_LENGTH} characters is not cut, got {found}"
+
+
+def test_every_expected_job_name_fits_in_the_github_limit():
+    too_long = {job: len(name) for job, name in workflow_checks.JOB_NAMES.items() if len(name) > workflow_checks.MAX_JOB_NAME_LENGTH}
+    assert too_long == {}, f"GitHub cuts names above {workflow_checks.MAX_JOB_NAME_LENGTH} characters, so these lose their end: {too_long}"
+
+
+def test_the_github_limit_is_one_hundred_characters():
+    assert workflow_checks.MAX_JOB_NAME_LENGTH == 100, f"GitHub showed a 105-character name cut to 100, got limit {workflow_checks.MAX_JOB_NAME_LENGTH}"

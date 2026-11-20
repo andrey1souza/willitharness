@@ -3,6 +3,8 @@ import json
 import subprocess
 import sys
 
+import workflow_checks
+
 EXIT_PASSED = 0
 EXIT_FAILED = 1
 GH_COMMAND = "gh"
@@ -22,10 +24,9 @@ REQUIRED_RULES = {
     "deletion blocked": "deletion",
     "status checks required": "required_status_checks",
 }
-CODE_OWNER_PARAMETER = "require_code_owner_review"
-PULL_REQUEST_RULE = REQUIRED_RULES["pull request required"]
+STRICT_PARAMETER = "strict_required_status_checks_policy"
 STATUS_CHECKS_RULE = REQUIRED_RULES["status checks required"]
-REQUIRED_CHECKS = ("test", "zanity", "macos")
+REQUIRED_CHECKS = workflow_checks.REQUIRED_CHECK_NAMES
 ENABLED = "enabled"
 REQUIRED_ANALYSIS = {
     "secret scanning enabled": "secret_scanning",
@@ -64,11 +65,12 @@ def ruleset_errors(rulesets):
     rules = enforced_rules(rulesets)
     errors = [] if rules else [f"no active ruleset protects {PROTECTED_BRANCH}"]
     errors += [f"{name}: ruleset has no {rule_type} rule" for name, rule_type in REQUIRED_RULES.items() if rule_type not in rules]
-    if PULL_REQUEST_RULE in rules and rules[PULL_REQUEST_RULE].get(CODE_OWNER_PARAMETER) is not True:
-        errors.append("code owner review required: the pull_request rule does not set it")
     if STATUS_CHECKS_RULE in rules:
         contexts = [check.get("context") for check in rules[STATUS_CHECKS_RULE].get("required_status_checks", [])]
         errors += [f"required status check {name!r} is missing" for name in REQUIRED_CHECKS if name not in contexts]
+        strict = rules[STATUS_CHECKS_RULE].get(STRICT_PARAMETER)
+        if strict is not True:
+            errors.append(f"{STRICT_PARAMETER} is {strict!r}, not True. Rule: a pull request must be up to date with {PROTECTED_BRANCH} before it merges, because breaking {PROTECTED_BRANCH} is never acceptable. Fix: set it to true in the ruleset")
     assert all(isinstance(error, str) for error in errors), f"errors must be text, got {errors!r}"
     return errors
 

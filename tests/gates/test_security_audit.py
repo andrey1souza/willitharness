@@ -2,16 +2,23 @@ import json
 import stat
 
 import security_audit
+import workflow_checks
 from files import write_tree
 
-ALL_CHECKS = [{"context": "test"}, {"context": "zanity"}, {"context": "macos"}]
+ALL_CHECKS = [{"context": name} for name in workflow_checks.REQUIRED_CHECK_NAMES]
+
+
+def status_rule(checks, strict=True):
+    return {"type": "required_status_checks", "parameters": {"required_status_checks": checks, "strict_required_status_checks_policy": strict}}
+
+
 GOOD_RULES = [
-    {"type": "pull_request", "parameters": {"require_code_owner_review": True}},
+    {"type": "pull_request", "parameters": {"required_approving_review_count": 0}},
     {"type": "required_signatures"},
     {"type": "required_linear_history"},
     {"type": "non_fast_forward"},
     {"type": "deletion"},
-    {"type": "required_status_checks", "parameters": {"required_status_checks": ALL_CHECKS}},
+    status_rule(ALL_CHECKS),
 ]
 GOOD_RULESET = {
     "id": 7,
@@ -64,24 +71,30 @@ def test_each_missing_rule_is_named():
         assert errors == [message], f"dropping {rule_type} must give exactly {message!r}, got {errors}"
 
 
-def test_code_owner_review_must_be_true():
-    weak = [{"type": "pull_request", "parameters": {"require_code_owner_review": False}}, *GOOD_RULES[1:]]
-    errors = security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": weak}]))
-    assert errors == ["code owner review required: the pull_request rule does not set it"], f"got {errors}"
-    bare = [{"type": "pull_request"}, *GOOD_RULES[1:]]
-    assert len(security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": bare}]))) == 1, "absent parameters must also fail"
+def test_a_single_maintainer_ruleset_without_human_approval_passes():
+    single_maintainer = [{"type": "pull_request", "parameters": {"required_approving_review_count": 0, "require_code_owner_review": False}}, *GOOD_RULES[1:]]
+    errors = security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": single_maintainer}]))
+    assert errors == [], f"zero approvals and no code owner review is the intended state, got {errors}"
 
 
 def test_each_required_status_check_is_needed():
-    only_test = [*GOOD_RULES[:-1], {"type": "required_status_checks", "parameters": {"required_status_checks": [{"context": "test"}]}}]
-    errors = security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": only_test}]))
-    assert errors == ["required status check 'zanity' is missing", "required status check 'macos' is missing"], f"got {errors}"
-    only_zanity = [*GOOD_RULES[:-1], {"type": "required_status_checks", "parameters": {"required_status_checks": [{"context": "zanity"}]}}]
-    errors = security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": only_zanity}]))
-    assert errors == ["required status check 'test' is missing", "required status check 'macos' is missing"], f"got {errors}"
-    without_macos = [*GOOD_RULES[:-1], {"type": "required_status_checks", "parameters": {"required_status_checks": ALL_CHECKS[:2]}}]
-    errors = security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": without_macos}]))
-    assert errors == ["required status check 'macos' is missing"], f"got {errors}"
+    assert len(ALL_CHECKS) == len(workflow_checks.REQUIRED_JOBS), f"one context per required job, got {ALL_CHECKS}"
+    for index, check in enumerate(ALL_CHECKS):
+        others = [other for position, other in enumerate(ALL_CHECKS) if position != index]
+        errors = security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": [*GOOD_RULES[:-1], status_rule(others)]}]))
+        assert errors == [f"required status check {check['context']!r} is missing"], f"dropping {check['context']!r} must give exactly one error, got {errors}"
+
+
+def test_status_checks_must_require_an_up_to_date_branch():
+    for strict in (False, None, "true", 1):
+        weak = [*GOOD_RULES[:-1], status_rule(ALL_CHECKS, strict)]
+        errors = security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": weak}]))
+        assert len(errors) == 1 and errors[0].startswith(f"strict_required_status_checks_policy is {strict!r}, not True"), f"strict={strict!r} must fail with its value, got {errors}"
+        assert "Rule:" in errors[0] and "Fix:" in errors[0], f"the message needs the rule and the fix, got {errors[0]!r}"
+    absent = [*GOOD_RULES[:-1], {"type": "required_status_checks", "parameters": {"required_status_checks": ALL_CHECKS}}]
+    errors = security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": absent}]))
+    assert len(errors) == 1 and "is None, not True" in errors[0], f"an absent strict setting must fail, got {errors}"
+    assert security_audit.settings_errors(replaced("rulesets", [{**GOOD_RULESET, "rules": GOOD_RULES}])) == [], "strict true must pass"
 
 
 def test_an_inactive_or_wrong_target_ruleset_does_not_count():

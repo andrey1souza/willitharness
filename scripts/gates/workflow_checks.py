@@ -20,7 +20,35 @@ CATCH_ALL_OWNER = re.compile(r"^\*\s+@\S+", re.MULTILINE)
 ECOSYSTEM_LINE = re.compile(r"package-ecosystem:\s*['\"]?([\w-]+)")
 PYTHON_VERSION_FILE = Path(".python-version")
 PYPROJECT_FILE = Path("pyproject.toml")
-REQUIRED_JOBS = ("test", "zanity", "macos")
+JOB_NAMES = {
+    "unit-tests": "Unit tests (Linux)",
+    "behavior-tests": "Behavior tests, BDD scenarios (Linux)",
+    "property-tests": "Property-based tests (Linux)",
+    "golden-tests": "Golden-table conformance tests (Linux)",
+    "tooling-tests": "Tests of the repo's own guards, gates and site builder (Linux)",
+    "mutation-tests": "Mutation tests, do the tests catch injected bugs (Linux)",
+    "traceability": "Traceability check, every contract rule has a test (Linux)",
+    "repo-rules": "Repository rule checks, static (Linux)",
+    "zanity": "Static analysis with zanity (Linux)",
+    "gitleaks": "Secret scan with gitleaks (Linux)",
+    "site-build": "Site build and freshness check (Linux)",
+    "simulation": "Statistical simulation, false-positive rate and power (Linux)",
+    "macos-full": "Full tests, mutation, traceability and repository checks on macOS (sandbox tests)",
+    "latest-python-linux": "Tests, mutation, traceability and repo checks, latest Python (Linux, advisory, not required)",
+    "latest-python-macos": "Tests, mutation, traceability and repo checks, latest Python (macOS, advisory, not required)",
+}
+REQUIRED_JOBS = (
+    "unit-tests", "behavior-tests", "property-tests", "golden-tests", "tooling-tests", "mutation-tests",
+    "traceability", "repo-rules", "zanity", "gitleaks", "site-build", "simulation", "macos-full",
+)
+REQUIRED_CHECK_NAMES = tuple(JOB_NAMES[job] for job in REQUIRED_JOBS)
+MAX_JOB_NAME_LENGTH = 100
+TESTS_DIRECTORY = Path("tests")
+ADVISORY_WORD = "advisory"
+UNRUN_TEST_DIRECTORIES = ("support",)
+IGNORE_OPTION = "--ignore"
+PYTEST_COMMAND = re.compile(r"^\s*-\s*run:\s*uv run pytest(?P<arguments>[^\n]*)$", re.MULTILINE)
+JOB_NAME_LINE = re.compile(r"^    name:\s*(.+?)\s*$", re.MULTILINE)
 JOBS_HEADER = re.compile(r"^jobs:\s*$", re.MULTILINE)
 JOB_KEY = re.compile(r"^  ([\w-]+):\s*$", re.MULTILINE)
 UV_USE = re.compile(r"setup-uv|\buv (?:sync|run)\b")
@@ -101,6 +129,22 @@ def missing_jobs(text):
     return [f"job {name} is missing; the ruleset requires a status check with that name" for name in REQUIRED_JOBS if name not in present]
 
 
+def job_name_problems(text):
+    assert isinstance(text, str), f"workflow text must be str, got {type(text).__name__}. Fix: pass read_text output."
+    assert JOB_NAMES, "no job names are expected. Rule: a gate with no expectations proves nothing."
+    problems = []
+    for job, block in job_blocks(text).items():
+        found = JOB_NAME_LINE.search(block)
+        shown = found.group(1) if found else None
+        if job not in JOB_NAMES:
+            problems.append(f"job {job} has no expected name in JOB_NAMES. Rule: every job is named for what it runs. Fix: add it to JOB_NAMES")
+        elif shown != JOB_NAMES[job]:
+            problems.append(f"job {job} is named {shown!r}, expected {JOB_NAMES[job]!r}. Rule: the status check shows the job name, so it must say what runs")
+        if shown is not None and len(shown) > MAX_JOB_NAME_LENGTH:
+            problems.append(f"job {job} has a name of {len(shown)} characters, above {MAX_JOB_NAME_LENGTH}. Rule: GitHub cuts longer check names, so the end of the name is lost. Fix: shorten the name")
+    return problems
+
+
 def unsourced_python_jobs(text):
     assert isinstance(text, str), f"workflow text must be str, got {type(text).__name__}. Fix: pass read_text output."
     assert EXPLICIT_PYTHON.pattern, "the explicit-python pattern is empty"
@@ -154,6 +198,60 @@ def required_job_errors(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     assert REQUIRED_JOBS, "no jobs are required. Rule: a gate with no expectations proves nothing."
     return workflow_errors(root, missing_jobs)
+
+
+def job_name_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert JOB_NAME_LINE.pattern, "the job name pattern is empty"
+    return workflow_errors(root, job_name_problems)
+
+
+def advisory_required_problems(text):
+    assert isinstance(text, str), f"workflow text must be str, got {type(text).__name__}. Fix: pass read_text output."
+    assert ADVISORY_WORD, "the advisory word is empty. Rule: an advisory job is recognised by its name. Fix: restore ADVISORY_WORD."
+    problems = []
+    for job, block in job_blocks(text).items():
+        found = JOB_NAME_LINE.search(block)
+        if job in REQUIRED_JOBS and found and ADVISORY_WORD in found.group(1).lower():
+            problems.append(f"job {job} is named {found.group(1)!r}, which says {ADVISORY_WORD}, but the ruleset requires it. Rule: a required check must not call itself {ADVISORY_WORD}. Fix: rename the job or remove it from REQUIRED_JOBS")
+    assert all(isinstance(problem, str) for problem in problems), f"problems must be text, got {problems!r}"
+    return problems
+
+
+def advisory_required_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert REQUIRED_JOBS, "no jobs are required. Rule: a gate with no expectations proves nothing."
+    return workflow_errors(root, advisory_required_problems)
+
+
+def tested_directories(workflow_text):
+    assert isinstance(workflow_text, str), f"workflow text must be str, got {type(workflow_text).__name__}. Fix: pass read_text output."
+    assert PYTEST_COMMAND.pattern, "the pytest command pattern is empty"
+    named = set()
+    for command in PYTEST_COMMAND.finditer(workflow_text):
+        arguments = command.group("arguments").split()
+        for previous, argument in zip([""] + arguments, arguments):
+            parts = Path(argument).parts
+            if previous != IGNORE_OPTION and len(parts) == 2 and parts[0] == TESTS_DIRECTORY.name:
+                named.add(parts[1])
+    assert all(name for name in named), f"a named test directory is empty in {named!r}"
+    return named
+
+
+def pytest_coverage_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    directory = root / TESTS_DIRECTORY
+    if not directory.is_dir():
+        return []
+    present = {path.name for path in directory.iterdir() if path.is_dir() and not path.name.startswith("__") and path.name not in UNRUN_TEST_DIRECTORIES}
+    workflows = sorted((root / WORKFLOW_DIRECTORY).glob("*.yml"))
+    named = set().union(*(tested_directories(path.read_text()) for path in workflows)) if workflows else set()
+    errors = [
+        f"{TESTS_DIRECTORY / name} is run by no CI job. Rule: every test directory runs in a job that names it, so a new directory cannot be skipped. Fix: add `uv run pytest {TESTS_DIRECTORY / name}` to a job in {WORKFLOW_DIRECTORY}"
+        for name in sorted(present - named)
+    ]
+    assert all(isinstance(error, str) for error in errors), f"coverage errors must be text, got {errors!r}"
+    return errors
 
 
 def python_source_errors(root):
@@ -210,6 +308,9 @@ CHECKS = {
     "workflow-injection": injection_errors,
     "workflow-locked-sync": locked_sync_errors,
     "workflow-required-jobs": required_job_errors,
+    "workflow-job-names": job_name_errors,
+    "workflow-pytest-coverage": pytest_coverage_errors,
+    "workflow-advisory-not-required": advisory_required_errors,
     "workflow-python-source": python_source_errors,
     "python-version-file": python_version_errors,
     "security-files": security_file_errors,

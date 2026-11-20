@@ -13,19 +13,98 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  unit-tests:
+    name: Unit tests (Linux)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - run: uv sync --locked
-      - run: uv run pytest
+      - run: uv run pytest tests/unit
+
+  behavior-tests:
+    name: Behavior tests, BDD scenarios (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --locked
+      - run: uv run pytest tests/bdd
+
+  property-tests:
+    name: Property-based tests (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --locked
+      - run: uv run pytest tests/property
+
+  golden-tests:
+    name: Golden-table conformance tests (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --locked
+      - run: uv run pytest tests/golden
+
+  tooling-tests:
+    name: Tests of the repo's own guards, gates and site builder (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --locked
+      - run: uv run pytest tests/guards tests/gates tests/site
+
+  mutation-tests:
+    name: Mutation tests, do the tests catch injected bugs (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --locked
       - run: uv run python scripts/gates/mutants.py all
+
+  traceability:
+    name: Traceability check, every contract rule has a test (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --locked
       - run: uv run python scripts/gates/trace_check.py
+
+  repo-rules:
+    name: Repository rule checks, static (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --locked
       - run: uv run python scripts/gates/repo_checks.py
+
+  site-build:
+    name: Site build and freshness check (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --locked
       - run: uv run python scripts/site/build.py --check
 
-  macos:
+  simulation:
+    name: Statistical simulation, false-positive rate and power (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --locked
+      - run: uv run python scripts/gates/simulate.py --trials 400 --n 20 --seed 20261117
+
+  macos-full:
+    name: Full tests, mutation, traceability and repository checks on macOS (sandbox tests)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -36,7 +115,8 @@ jobs:
       - run: uv run python scripts/gates/trace_check.py
       - run: uv run python scripts/gates/repo_checks.py
 
-  test-latest:
+  latest-python-linux:
+    name: Tests, mutation, traceability and repo checks, latest Python (Linux, advisory, not required)
     runs-on: ubuntu-latest
     env:
       UV_MANAGED_PYTHON: "1"
@@ -51,7 +131,8 @@ jobs:
       - run: uv run python scripts/gates/trace_check.py
       - run: uv run python scripts/gates/repo_checks.py
 
-  macos-latest-python:
+  latest-python-macos:
+    name: Tests, mutation, traceability and repo checks, latest Python (macOS, advisory, not required)
     runs-on: macos-latest
     env:
       UV_MANAGED_PYTHON: "1"
@@ -67,6 +148,7 @@ jobs:
       - run: uv run python scripts/gates/repo_checks.py
 
   zanity:
+    name: Static analysis with zanity (Linux)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -76,6 +158,7 @@ jobs:
           args: check . --fail-on warning
 
   gitleaks:
+    name: Secret scan with gitleaks (Linux)
     runs-on: ubuntu-latest
     env:
       GITLEAKS_VERSION: 8.30.1
