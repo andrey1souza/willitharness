@@ -34,6 +34,7 @@ test that does not exist.
 | A run could carry the user's own memory file, hooks or plugins without the plan saying so, so an arm would not be the arm the plan describes. Found while checking the isolation flags. | A setting that leaks into a run unseen | `scripts/gates/isolation_live.py` plants a marker in the user-level memory file, expects it absent with the flags and present without them, and restores the file | `tests/gates/test_isolation_live.py::test_a_marker_that_reaches_the_isolated_run_is_not_proven` |
 | A committed gate status file went stale with every added test, so the site check failed until someone regenerated it. | Committed derived data | `scripts/site/build.py` computes the counts in each run; `repo_checks.py` refuses a tracked gate status file | `tests/site/test_build.py::test_adding_a_test_needs_no_regeneration` |
 | The user-level guard hook could point into a worktree that is later deleted. | A hook path that does not outlive its checkout | `scripts/guards/install_user_hook.py` refuses a script inside a linked worktree | `tests/guards/test_install_user_hook.py::test_a_script_in_a_linked_worktree_is_refused` |
+| The README named directories and scripts without a file suffix, and no check read them, so a renamed directory would leave a stale table row. | A stale path claim in the README | `scripts/gates/docs_freshness.py`, function `readme_path_errors` | `tests/gates/test_docs_freshness.py::test_a_missing_directory_in_the_readme_table_is_reported_with_value_rule_and_fix` |
 
 ## Mistakes with no rule yet
 

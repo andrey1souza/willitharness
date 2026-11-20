@@ -191,3 +191,65 @@ def test_historical_documents_are_not_checked(tmp_path, path):
     errors = errors_for(tmp_path, {path: "Contract: v0.1 (43 IDs). W1 to W3.\n"})
     assert errors == [], f"{path} is exempt, got {errors}"
     assert docs_freshness.HISTORICAL_REASON, "the exemption must say why"
+
+
+README_TABLE = "# tool\n`make check` runs the tests and zanity.\n\n| Path | What |\n|---|---|\n| `docs/plan/` | Plans. |\n| `.githooks/pre-push` | The push hook. |\n| `src/willitharness/` | The package. |\n\nRun `pytest` and read `Makefile`.\n"
+README_TREE = {"README.md": README_TABLE, ".githooks/pre-push": "#!/bin/sh\n"}
+
+
+def readme_errors(tmp_path, readme, extra=None):
+    return errors_for(tmp_path, {**README_TREE, **(extra or {}), "README.md": readme})
+
+
+def test_a_readme_whose_table_paths_exist_has_no_errors(tmp_path):
+    errors = readme_errors(tmp_path, README_TABLE)
+    assert errors == [], f"directories and scripts that exist must pass, got {errors}"
+
+
+def test_a_missing_directory_in_the_readme_table_is_reported_with_value_rule_and_fix(tmp_path):
+    errors = readme_errors(tmp_path, README_TABLE + "| `formal/tla/` | The model. |\n")
+    assert len(errors) == 1, f"one missing directory must give one error, got {errors}"
+    row_line = README_TABLE.count("\n") + 1
+    assert errors[0].startswith(f"README.md:{row_line} points at formal/tla/, which does not exist."), f"the line and value are missing in {errors[0]!r}"
+    assert "Rule:" in errors[0] and "Fix:" in errors[0], f"the error needs a Rule and a Fix, got {errors[0]!r}"
+
+
+def test_a_missing_script_without_a_suffix_is_reported(tmp_path):
+    errors = readme_errors(tmp_path, README_TABLE.replace(".githooks/pre-push", ".githooks/pre-pus"))
+    assert len(errors) == 1 and ".githooks/pre-pus" in errors[0], f"a typo in an extensionless script must be reported, got {errors}"
+
+
+def test_a_missing_make_target_in_the_readme_is_reported(tmp_path):
+    errors = readme_errors(tmp_path, README_TABLE + "Run `make deploy` to publish.\n")
+    assert len(errors) == 1 and "make deploy" in errors[0], f"a make target the Makefile lacks must be reported, got {errors}"
+
+
+def test_a_slashed_word_that_is_not_a_repo_path_is_left_alone(tmp_path):
+    errors = readme_errors(tmp_path, README_TABLE + "Branches are named `type/slug`.\n")
+    assert errors == [], f"a token whose first segment is not in the tree and has no trailing slash is not a path claim, got {errors}"
+
+
+def test_an_unknown_directory_with_a_trailing_slash_is_a_path_claim(tmp_path):
+    errors = readme_errors(tmp_path, README_TABLE + "Notes live in `notes/`.\n")
+    assert len(errors) == 1 and "notes/" in errors[0], f"a trailing slash makes the token a directory claim, got {errors}"
+
+
+@pytest.mark.parametrize("token", ["`src/missing::case`", "`scripts/*`", "`/tmp/elsewhere`", "`docs/<name>`", "`src/--flag`", "`docs/KEY=value`", "`docs/${HOME}`", "`docs/a|b`"])
+def test_tokens_that_are_not_plain_paths_are_not_checked(tmp_path, token):
+    errors = readme_errors(tmp_path, README_TABLE + f"See {token}.\n")
+    assert errors == [], f"{token} is not a plain path and must not be checked, got {errors}"
+
+
+def test_a_not_built_marker_exempts_a_readme_row(tmp_path):
+    errors = readme_errors(tmp_path, README_TABLE + "| `formal/tla/` | The model, not built (T01). |\n")
+    assert errors == [], f"a row marked not built is exempt, got {errors}"
+
+
+def test_other_documents_are_not_held_to_the_readme_path_rule(tmp_path):
+    errors = errors_for(tmp_path, {**README_TREE, "docs/plan/README.md": "Models live in `formal/tla/`.\n"})
+    assert errors == [], f"only the README is checked for directories, got {errors}"
+
+
+def test_a_missing_script_with_a_suffix_is_reported_once(tmp_path):
+    errors = readme_errors(tmp_path, README_TABLE + "Run `scripts/missing/tool.py` first.\n")
+    assert len(errors) == 1 and "scripts/missing/tool.py" in errors[0], f"the reference check and the path check must not both report it, got {errors}"
