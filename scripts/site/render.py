@@ -161,7 +161,6 @@ def page_values(data):
         "decision_rows": table_rows(contract_file, contract["decisions"], decision_cells),
         "gate_rows": table_rows(gates["file"], gates["rows"], gate_cells),
         "gate_command": escape(gates["command"]),
-        "gate_date": escape(gates["date"]),
         "gate_file": escape(gates["file"]),
         "live_gate": escape(live["gate"]),
         "live_command": escape(live["command"]),

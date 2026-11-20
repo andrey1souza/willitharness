@@ -32,8 +32,8 @@ def test_contract_data_takes_the_questions_and_the_decisions(tmp_path):
 def test_gate_data_cites_the_label_line(tmp_path):
     write_tree(tmp_path, site_files())
     data = extract.gate_data(tmp_path)
-    assert data["file"] == "site/data/gate_status.json" and data["date"] == "2026-01-02", f"got {data}"
-    assert [(row["label"], row["line"]) for row in data["rows"]] == [("Tests", 6), ("Mutants", 11), ("Contract IDs covered", 16), ("Repository checks", 21)], f"got {data['rows']}"
+    assert data["file"] == "build/gate_status.json" and "date" not in data, f"got {data}"
+    assert [(row["label"], row["line"]) for row in data["rows"]] == [("Tests", 5), ("Mutants", 10), ("Contract IDs covered", 15), ("Repository checks", 20)], f"got {data['rows']}"
 
 
 def test_live_data_cites_task_and_limit_lines(tmp_path):

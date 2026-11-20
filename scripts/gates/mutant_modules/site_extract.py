@@ -13,4 +13,6 @@ MUTANTS = (
     ('duplicate-json-line-allowed', SOURCE, 'assert len(found) == 1,', 'assert len(found) >= 1,'),
     ('description-is-the-blank-line', SOURCE, 'description = next(line for line in lines[1:] if line.strip())', 'description = lines[1]'),
     ('limits-heading-renamed', SOURCE, 'LIMITS_HEADING = "## Honest limits"', 'LIMITS_HEADING = "## Working on it"'),
+    ('record-moved-to-the-committed-folder', SOURCE, 'GATE_STATUS_FILE = "build/gate_status.json"', 'GATE_STATUS_FILE = "site/data/gate_status.json"'),
+    ('record-date-kept', SOURCE, '"command": document["command"], "rows": rows', '"command": document["command"], "date": document["date"], "rows": rows'),
 )

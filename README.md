@@ -43,6 +43,11 @@ Report vulnerabilities privately; see `SECURITY.md`. `make security` audits the 
 | `docs/mistakes-to-rules.md` | Each mistake and the check that now rules out its category. |
 | `src/willitharness/` | The Python package. |
 
+## Limits of isolation
+Isolation uses macOS `sandbox-exec`. The network is not blocked. There is no sandbox on Linux.
+Run only plans you have read. Isolation is not a security boundary against a hostile plan.
+The `claude` process itself is not confined.
+
 ## Honest limits
 - The spike used toy tasks, mostly one small model, stubbed commands and two rules.
 - The formal part covers the verdict logic, the decision table and the run lifecycle

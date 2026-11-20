@@ -17,11 +17,10 @@ CONTRACT = (
     "- D3 reach = Loaded gives Keep.\nDerived properties:\n- D9 Totality and determinism: the table is total.\n\n## 7. Run\n"
 )
 GATE_STATUS = {
-    "command": "make check",
-    "date": "2026-01-02",
+    "command": "scripts/site/build.py",
     "gates": [
-        {"label": "Tests", "status": "passed", "result": "3 passed"},
-        {"label": "Mutants", "status": "passed", "result": "2 of 2 mutants killed"},
+        {"label": "Tests", "status": "counted", "result": "3 collected"},
+        {"label": "Mutants", "status": "counted", "result": "2 listed"},
         {"label": "Contract IDs covered", "status": "passed", "result": "49 covered"},
         {"label": "Repository checks", "status": "passed", "result": "22 checks passed"},
     ],
@@ -53,7 +52,7 @@ def site_files():
     return {
         "README.md": README,
         "docs/contract.md": CONTRACT,
-        "site/data/gate_status.json": json.dumps(GATE_STATUS, indent=2) + "\n",
+        "build/gate_status.json": json.dumps(GATE_STATUS, indent=2) + "\n",
         "fixtures/results/g4_4.json": json.dumps(LIVE, indent=2) + "\n",
         "site/src/index.html": TEMPLATE,
         "site/src/style.css": STYLE,
