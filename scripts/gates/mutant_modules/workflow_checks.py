@@ -46,4 +46,7 @@ MUTANTS = (
     ('advisory-word-renamed', SOURCE, 'ADVISORY_WORD = "advisory"', 'ADVISORY_WORD = "advised"'),
     ('every-advisory-job-flagged', SOURCE, 'if job in REQUIRED_JOBS and found and', 'if found and'),
     ('advisory-check-not-registered', SOURCE, '    "workflow-advisory-not-required": advisory_required_errors,\n', ''),
+    ('name-length-limit-off-by-one', SOURCE, 'len(shown) > MAX_JOB_NAME_LENGTH', 'len(shown) >= MAX_JOB_NAME_LENGTH'),
+    ('name-length-never-checked', SOURCE, 'if shown is not None and len(shown) > MAX_JOB_NAME_LENGTH:', 'if False:'),
+    ('name-length-limit-raised', SOURCE, 'MAX_JOB_NAME_LENGTH = 100', 'MAX_JOB_NAME_LENGTH = 200'),
 )

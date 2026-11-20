@@ -34,14 +34,15 @@ JOB_NAMES = {
     "site-build": "Site build and freshness check (Linux)",
     "simulation": "Statistical simulation, false-positive rate and power (Linux)",
     "macos-full": "Full tests, mutation, traceability and repository checks on macOS (sandbox tests)",
-    "latest-python-linux": "Full tests, mutation, traceability and repository checks on latest Python (Linux, advisory, not required)",
-    "latest-python-macos": "Full tests, mutation, traceability and repository checks on latest Python (macOS, advisory, not required)",
+    "latest-python-linux": "Tests, mutation, traceability and repo checks, latest Python (Linux, advisory, not required)",
+    "latest-python-macos": "Tests, mutation, traceability and repo checks, latest Python (macOS, advisory, not required)",
 }
 REQUIRED_JOBS = (
     "unit-tests", "behavior-tests", "property-tests", "golden-tests", "tooling-tests", "mutation-tests",
     "traceability", "repo-rules", "zanity", "gitleaks", "site-build", "simulation", "macos-full",
 )
 REQUIRED_CHECK_NAMES = tuple(JOB_NAMES[job] for job in REQUIRED_JOBS)
+MAX_JOB_NAME_LENGTH = 100
 TESTS_DIRECTORY = Path("tests")
 ADVISORY_WORD = "advisory"
 UNRUN_TEST_DIRECTORIES = ("support",)
@@ -139,6 +140,8 @@ def job_name_problems(text):
             problems.append(f"job {job} has no expected name in JOB_NAMES. Rule: every job is named for what it runs. Fix: add it to JOB_NAMES")
         elif shown != JOB_NAMES[job]:
             problems.append(f"job {job} is named {shown!r}, expected {JOB_NAMES[job]!r}. Rule: the status check shows the job name, so it must say what runs")
+        if shown is not None and len(shown) > MAX_JOB_NAME_LENGTH:
+            problems.append(f"job {job} has a name of {len(shown)} characters, above {MAX_JOB_NAME_LENGTH}. Rule: GitHub cuts longer check names, so the end of the name is lost. Fix: shorten the name")
     return problems
 
 

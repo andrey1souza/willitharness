@@ -116,7 +116,7 @@ jobs:
       - run: uv run python scripts/gates/repo_checks.py
 
   latest-python-linux:
-    name: Full tests, mutation, traceability and repository checks on latest Python (Linux, advisory, not required)
+    name: Tests, mutation, traceability and repo checks, latest Python (Linux, advisory, not required)
     runs-on: ubuntu-latest
     env:
       UV_MANAGED_PYTHON: "1"
@@ -132,7 +132,7 @@ jobs:
       - run: uv run python scripts/gates/repo_checks.py
 
   latest-python-macos:
-    name: Full tests, mutation, traceability and repository checks on latest Python (macOS, advisory, not required)
+    name: Tests, mutation, traceability and repo checks, latest Python (macOS, advisory, not required)
     runs-on: macos-latest
     env:
       UV_MANAGED_PYTHON: "1"

@@ -305,3 +305,30 @@ def test_no_required_name_says_advisory_and_every_latest_python_name_does():
 
 def test_the_secret_scan_is_a_required_job():
     assert "gitleaks" in workflow_checks.REQUIRED_JOBS, f"the user made the secret scan required, got {workflow_checks.REQUIRED_JOBS}"
+
+
+def length_problems(problems):
+    return [problem for problem in problems if "characters, above" in problem]
+
+
+def test_a_job_name_over_the_github_limit_is_reported_with_its_length():
+    long_name = "x" * (workflow_checks.MAX_JOB_NAME_LENGTH + 1)
+    text = GOOD_WORKFLOW.replace(f"name: {workflow_checks.JOB_NAMES['zanity']}", f"name: {long_name}")
+    found = length_problems(workflow_checks.job_name_problems(text))
+    assert len(found) == 1 and f"{len(long_name)} characters" in found[0], f"a {len(long_name)}-character name must be reported once, got {found}"
+
+
+def test_a_job_name_of_exactly_the_github_limit_is_not_reported_for_its_length():
+    exact_name = "x" * workflow_checks.MAX_JOB_NAME_LENGTH
+    text = GOOD_WORKFLOW.replace(f"name: {workflow_checks.JOB_NAMES['zanity']}", f"name: {exact_name}")
+    found = length_problems(workflow_checks.job_name_problems(text))
+    assert found == [], f"a name of exactly {workflow_checks.MAX_JOB_NAME_LENGTH} characters is not cut, got {found}"
+
+
+def test_every_expected_job_name_fits_in_the_github_limit():
+    too_long = {job: len(name) for job, name in workflow_checks.JOB_NAMES.items() if len(name) > workflow_checks.MAX_JOB_NAME_LENGTH}
+    assert too_long == {}, f"GitHub cuts names above {workflow_checks.MAX_JOB_NAME_LENGTH} characters, so these lose their end: {too_long}"
+
+
+def test_the_github_limit_is_one_hundred_characters():
+    assert workflow_checks.MAX_JOB_NAME_LENGTH == 100, f"GitHub showed a 105-character name cut to 100, got limit {workflow_checks.MAX_JOB_NAME_LENGTH}"
