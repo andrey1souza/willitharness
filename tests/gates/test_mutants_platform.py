@@ -12,7 +12,7 @@ def test_off_darwin_the_darwin_only_modules_are_skipped_and_the_rest_are_not():
 
 
 def test_a_skipped_module_prints_the_reason_and_exits_zero(capsys):
-    code = mutants.main(["claude"], "linux")
+    code = mutants.main(["claude"], "linux", mutants.run_module)
     output = capsys.readouterr().out
     assert code == mutants.EXIT_ALL_KILLED, f"a skipped module must exit {mutants.EXIT_ALL_KILLED}, got {code}"
     assert output == "skipped claude: needs darwin\n", f"unexpected output {output!r}"
