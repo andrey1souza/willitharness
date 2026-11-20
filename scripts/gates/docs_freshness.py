@@ -83,6 +83,9 @@ MAKE_STATEMENT = re.compile(r"(?:`|^)make ([a-z][\w-]*)", re.MULTILINE)
 COMMAND_PATH = re.compile(r"\b(?:pytest|python3?|bash|sh) (?:-[\w]+ )*((?:tests|scripts|src|fixtures|formal|features)/[\w/.*-]+)")
 MODULE_COMMAND = re.compile(r"python3? -m (willitharness(?:\.\w+)*)")
 FILE_REFERENCE = re.compile(r"`([\w.][\w.-]*(?:/[\w.*-]+)+\.(?:md|py|sh|json|feature|toml|yml|lean|tla))(?=[ `])")
+PATH_SPAN = re.compile(r"`([^`\s]+)`")
+NOT_A_PATH = re.compile(r"[<*$={}|:]|--|^/")
+KNOWN_FILE_SUFFIX = re.compile(r"\.(?:md|py|sh|json|feature|toml|yml|lean|tla)$")
 USAGE_SEPARATOR = " | "
 USAGE_PREFIX = "usage: "
 PROGRAM = "willitharness "
@@ -294,6 +297,30 @@ def reference_errors(path, text, root):
     return errors
 
 
+def unsuffixed_path_claims(text):
+    assert isinstance(text, str), f"unsuffixed_path_claims needs text, got {type(text).__name__}. Fix: pass the file contents."
+    spans = [(line, found.group(1)) for line, found in matches_with_lines(text, PATH_SPAN)]
+    claims = [
+        (line, token)
+        for line, token in spans
+        if "/" in token and not NOT_A_PATH.search(token) and not KNOWN_FILE_SUFFIX.search(token)
+    ]
+    assert all("/" in token for _, token in claims), f"every claim holds a slash, got {claims}"
+    return claims
+
+
+def readme_path_errors(path, text, root):
+    assert isinstance(text, str), f"readme_path_errors needs text, got {type(text).__name__}. Fix: pass the file contents."
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    errors = []
+    for line, token in unsuffixed_path_claims(text):
+        names_a_repo_path = token.endswith("/") or (root / token.split("/")[0]).exists()
+        if names_a_repo_path and not (root / token.rstrip("/")).exists():
+            errors.append(f"{path}:{line} points at {token}, which does not exist. Rule: a directory or script the README names exists. Fix: correct the path or delete the claim.")
+    assert all(isinstance(error, str) for error in errors), f"errors must be text, got {errors!r}"
+    return errors
+
+
 def planned_lines(text):
     assert isinstance(text, str), f"planned_lines needs text, got {type(text).__name__}. Fix: pass the file contents."
     planned = {}
@@ -353,6 +380,8 @@ def docs_freshness_errors(root):
         errors += command_errors(path, shown, facts)
         errors += make_errors(path, shown, facts)
         errors += reference_errors(path, shown, root)
+        if path == README_FILE:
+            errors += readme_path_errors(path, shown, root)
         errors += planned_errors(path, text, facts)
     assert all(isinstance(error, str) for error in errors), f"errors must be text, got {errors!r}"
     return errors
