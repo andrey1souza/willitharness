@@ -3,6 +3,8 @@ set -euo pipefail
 
 readonly DELETED_REF='^0+$'
 
+python3 scripts/guards/bare_checkout.py
+
 repo_root="$(git rev-parse --show-toplevel)"
 cd "${repo_root}"
 
