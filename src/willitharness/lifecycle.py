@@ -5,7 +5,7 @@ from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
 
-from willitharness.budget import Ledger, abort_records, capped_record, timed_out_record, to_money
+from willitharness.budget import Ledger, abort_records, budget_allows_start, capped_record, timed_out_record, to_money
 from willitharness.claude_agent import transcript_cost
 from willitharness.detectors import Evidence, judge
 from willitharness.outcomes import COMPLETED_OUTCOME, TARGET_OUTCOME
@@ -281,6 +281,8 @@ def begin_run(folder, job):
         raise LifecycleRefused(f"plan is {state}; a run starts only while the plan is Running. Rule: L1. Fix: run willitharness run first.")
     assert isinstance(folder, Path), f"begin_run needs the plan folder as a Path, got {folder!r}. Fix: use lifecycle_dir."
     record = started_record(job)
+    already = latest_by_run(load_records(folder)).get(record.run_id)
+    assert already is None, f"run id {record.run_id} is already stored as {already!r}. Rule: L3 and L9, a (cell, rep, attempt) id is recorded once as Started. Fix: claim the next attempt with claim_next_job."
     append_record(folder, record)
     stored = latest_by_run(load_records(folder)).get(record.run_id)
     assert stored == record, f"{record.run_id} is stored as {stored!r}, expected {record!r}. Rule: a Started run is stored as written."
@@ -382,9 +384,13 @@ def conclude(context):
     facts = facts_from_plan(site.plan, context.setup.tasks)
     with STORE_LOCK:
         state = read_state(folder)
-        if state is not PlanState.RUNNING or world_changed(site.root, site.world_dir):
+        if state is not PlanState.RUNNING:
             return state
         pending = any(count > 0 for count in runs_to_start(facts, load_records(folder)).values())
+        ledger = context.ledger
+        budget_blocks = not budget_allows_start(ledger.spent, ledger.reserved, ledger.run_cap, ledger.budget)
+        if pending and not budget_blocks:
+            return state
         target = PlanState.BUDGET_STOPPED if pending else PlanState.COMPLETE
         assert target in (PlanState.COMPLETE, PlanState.BUDGET_STOPPED), f"conclude chose {target}. Rule: a finished Running plan is Complete or BudgetStopped."
         concluded = move_to(folder, target)

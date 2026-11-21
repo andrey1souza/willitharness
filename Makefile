@@ -1,6 +1,6 @@
-.PHONY: check test zanity mutants trace repo simulate formal integrate live pilot security
+.PHONY: check test zanity mutants trace repo simulate formal replay replay-fixtures integrate live pilot security
 
-check: test zanity mutants trace repo simulate
+check: test zanity mutants trace repo simulate replay
 
 test:
 	uv run pytest
@@ -23,6 +23,12 @@ simulate:
 formal:
 	python3 formal/lean/check_lean.py
 	uv run python formal/tla/check_models.py
+
+replay:
+	uv run python formal/tla/replay_traces.py
+
+replay-fixtures:
+	uv run python formal/tla/replay_traces.py --record
 
 integrate:
 	python3 scripts/guards/integrate.py

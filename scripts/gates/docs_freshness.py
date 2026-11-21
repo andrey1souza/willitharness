@@ -47,6 +47,7 @@ CHECK_PHRASES = {
     "trace": "trace gate",
     "repo": "repo checks",
     "simulate": "simulation",
+    "replay": "trace replay",
 }
 CHECK_CLAIM = re.compile(r"`make check` runs the ([^.]*)\.")
 ID_LIST = re.compile(r"Contract IDs covered \| (\d+) \(([^)]+)\)")

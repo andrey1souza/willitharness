@@ -1,5 +1,6 @@
 TESTS = (
     'tests/unit/test_lifecycle_unit.py',
+    'tests/unit/test_lifecycle_ids_unit.py',
     'tests/unit/test_resume_unit.py',
     'tests/gates/test_lifecycle_gate.py',
     'tests/property/test_lifecycle_chaos.py',
@@ -39,5 +40,7 @@ MUTANTS = (
     ('resume-equal-budget-allowed', SOURCE, '        if to_money(site.plan.budget_usd) <= to_money(stored.budget_usd):', '        if to_money(site.plan.budget_usd) < to_money(stored.budget_usd):'),
     ('resume-keeps-ended-marker', SOURCE, 'write_resume(folder, ResumeRecord(site.plan.budget_usd, stored.fingerprint, NOT_ENDED))', 'write_resume(folder, ResumeRecord(site.plan.budget_usd, stored.fingerprint, stored.ended_by))'),
     ('resume-without-world-check', SOURCE, '        if not world_is_validated(site):\n            raise LifecycleRefused(RESUME_WORLD_REFUSED)', '        if False:\n            raise LifecycleRefused(RESUME_WORLD_REFUSED)'),
+    ('claim-reuses-attempt-number', SOURCE, 'job = Job(cell, seen.usable + seen.in_flight + 1, seen.attempts + 1)', 'job = Job(cell, 1, 1)'),
+    ('duplicate-start-id-accepted', SOURCE, '    assert already is None, f"run id', '    assert True, f"run id'),
     ('resume-without-fingerprint-check', SOURCE, '        if plan_fingerprint(site.plan) != stored.fingerprint:', '        if False:'),
 )

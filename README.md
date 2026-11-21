@@ -41,7 +41,7 @@ Git ignores the folder.
 Delete everything with `rm -r .willitharness`. Delete one plan with `rm -r .willitharness/<plan>`.
 
 ## Checks
-`make check` runs the tests, zanity, every mutation module, the trace gate, the repo checks and the simulation. `make formal` runs the Lean and TLA+ gates. `make live` runs the real agent on the reachability fixtures (about a cent) and fails above $0.10.
+`make check` runs the tests, zanity, every mutation module, the trace gate, the repo checks, the simulation and the trace replay of the TLA+ model against the code. `make formal` runs the Lean and TLA+ gates. `make live` runs the real agent on the reachability fixtures (about a cent) and fails above $0.10.
 
 ## What is here
 | Path | What |
