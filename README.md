@@ -56,11 +56,12 @@ Delete everything with `rm -r .willitharness`. Delete one plan with `rm -r .will
 | `src/willitharness/` | The Python package. |
 
 ## Limits of isolation
-Isolation uses macOS `sandbox-exec`. The network is not blocked. There is no sandbox on Linux.
+Effect runs use Claude's own sandbox and have no network. Guard runs use macOS `sandbox-exec` and their network is open. The Linux sandbox path is untested.
 Run only plans you have read. Isolation is not a security boundary against a hostile plan.
 The `claude` process itself is not confined.
 
 ## Honest limits
+- Effect runs (Bash only) use Claude's own sandbox: Bash can write only in the run's workspace, scratch folder and calls log, cannot read `~/.ssh` and the other secret folders, and has no network. Guard runs (Bash, Write, Edit) use macOS `sandbox-exec`: writes and secret reads are denied and the network is open. The `claude` process itself is not confined in either kind. On Linux the Claude sandbox needs bubblewrap and socat; that path is untested.
 - The spike used toy tasks, mostly one small model, stubbed commands and two rules.
 - The formal part covers the verdict logic, the decision table and the run lifecycle
   (bounded). It does not cover agent behavior, shell parsing, the numeric interval

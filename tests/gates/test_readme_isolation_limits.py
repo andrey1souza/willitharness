@@ -4,10 +4,11 @@ from files import write_tree
 
 HEADING = "## Limits of isolation"
 SENTENCES = (
-    "Isolation uses macOS `sandbox-exec`. The network is not blocked. There is no sandbox on Linux.\n"
+    "Effect runs use Claude's own sandbox and have no network. Guard runs use macOS `sandbox-exec` and their network is open. The Linux sandbox path is untested.\n"
     "Run only plans you have read. Isolation is not a security boundary against a hostile plan.\n"
     "The `claude` process itself is not confined.\n"
 )
+NETWORK_SENTENCE = "Effect runs use Claude's own sandbox and have no network. "
 GOOD = f"# t\n\nIntro.\n\n{HEADING}\n{SENTENCES}\n## Honest limits\n- x\n"
 
 
@@ -28,9 +29,9 @@ def test_the_check_reads_the_readme_of_the_root(tmp_path):
 @pytest.mark.parametrize(
     "removed, phrase",
     [
-        ("Isolation uses macOS `sandbox-exec`. ", "isolation uses macos sandbox-exec"),
-        ("The network is not blocked. ", "the network is not blocked"),
-        ("There is no sandbox on Linux.", "there is no sandbox on linux"),
+        (NETWORK_SENTENCE, "effect runs use claude's own sandbox and have no network"),
+        ("Guard runs use macOS `sandbox-exec` and their network is open. ", "guard runs use macos sandbox-exec and their network is open"),
+        ("The Linux sandbox path is untested.", "the linux sandbox path is untested"),
         ("Run only plans you have read. ", "run only plans you have read"),
         ("Isolation is not a security boundary against a hostile plan.", "not a security boundary against a hostile plan"),
         ("The `claude` process itself is not confined.", "the claude process itself is not confined"),
@@ -43,16 +44,16 @@ def test_each_missing_sentence_is_reported_by_name(removed, phrase):
 
 
 def test_a_phrase_outside_the_section_does_not_count():
-    moved = f"# t\n\nThe network is not blocked.\n\n{HEADING}\n{SENTENCES.replace('The network is not blocked. ', '')}\n## Honest limits\n"
+    moved = f"# t\n\nEffect runs use Claude's own sandbox and have no network.\n\n{HEADING}\n{SENTENCES.replace(NETWORK_SENTENCE, '')}\n## Honest limits\n"
     errors = repo_checks.isolation_limit_errors(moved)
-    assert len(errors) == 1 and "'the network is not blocked'" in errors[0], f"got {errors}"
-    assert "The network is not blocked." in moved, "the phrase sits above the heading"
+    assert len(errors) == 1 and repr("effect runs use claude's own sandbox and have no network") in errors[0], f"got {errors}"
+    assert "have no network." in moved, "the phrase sits above the heading"
 
 
 def test_a_wrapped_sentence_still_counts():
-    wrapped = GOOD.replace("The network is not blocked.", "The network is\nnot blocked.")
+    wrapped = GOOD.replace("have no network.", "have no\nnetwork.")
     assert repo_checks.isolation_limit_errors(wrapped) == [], "a line break inside a sentence is not a missing phrase"
-    assert "not blocked." in wrapped, "the fixture wraps the sentence"
+    assert "network." in wrapped, "the fixture wraps the sentence"
 
 
 def test_a_missing_or_repeated_heading_is_reported():

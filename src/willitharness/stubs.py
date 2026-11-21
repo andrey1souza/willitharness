@@ -8,6 +8,7 @@ from willitharness.world import CONTROL_NAMES, stub_outputs
 
 BIN_NAME = "bin"
 CALLS_LOG = "calls.log"
+SCRATCH_NAME = "tmp"
 RESERVED_NAMES = CONTROL_NAMES | {BIN_NAME, CALLS_LOG}
 WRAPPER_MODE = 0o755
 WRAPPER_TEMPLATE = (
@@ -47,6 +48,13 @@ def stub_folder(run_root):
     folder = run_root / BIN_NAME
     assert folder.parent == run_root, f"the stub folder {folder} is not directly under {run_root}"
     return folder
+
+
+def scratch_path(run_root):
+    assert run_root.is_absolute(), f"{run_root} is not absolute. Rule: the sandbox names an absolute scratch folder. Fix: pass the resolved run folder."
+    path = run_root / SCRATCH_NAME
+    assert path.parent == run_root, f"the scratch folder {path} is not directly under {run_root}"
+    return path
 
 
 def calls_path(run_root):

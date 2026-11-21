@@ -12,7 +12,7 @@ TEST_FILE = "def test_x():\n    assert True\n"
 FILE_CHECKS = {name: check for name, check in repo_checks.CHECKS.items() if name not in ("mutant-tables", "mutant-platforms", "trace-pending", "paid-gate-target", "no-tracked-generated", "docs_freshness", "readme-data-statement", "integrate-source-never-forces", "pr-text-self-contained", "result-detector", *workflow_checks.CHECKS, *hook_checks.CHECKS)}
 GOOD_README = (
     "# t\n\n## Limits of isolation\n"
-    "Isolation uses macOS `sandbox-exec`. The network is not blocked. There is no sandbox on Linux.\n"
+    "Effect runs use Claude's own sandbox and have no network. Guard runs use macOS `sandbox-exec` and their network is open. The Linux sandbox path is untested.\n"
     "Run only plans you have read. Isolation is not a security boundary against a hostile plan.\n"
     "The `claude` process itself is not confined.\n\n## Next\n"
 )

@@ -1,4 +1,5 @@
 import os
+from dataclasses import replace
 
 from fake_claude import ESCAPE_TARGET_FILE, SECRET_VARIABLE, install_fake_claude
 from files import write_tree
@@ -47,3 +48,10 @@ def add_overlay_file(site, name, text):
     write_tree(site.root, {f"{OVERLAY_NAME}/{name}": text})
     assert (site.root / OVERLAY_NAME / name).read_text() == text, f"the overlay file {name} was not written"
     return site
+
+
+def guard_site(site):
+    guard = replace(site.plan.arms[0], role="guard_only")
+    guarded = replace(site, plan=replace(site.plan, arms=(guard,)))
+    assert guarded.plan.arms[0].role == "guard_only", f"the arm is {guarded.plan.arms[0].role}, not guard_only"
+    return guarded
