@@ -1,4 +1,5 @@
 import argparse
+import ast
 import json
 import re
 import subprocess
@@ -48,6 +49,18 @@ ISOLATION_PHRASES = (
 )
 DARWIN = "darwin"
 DARWIN_SKIP = re.compile(r"^pytestmark\s*=.*sys\.platform\s*!=\s*\"" + DARWIN + r"\"", re.MULTILINE)
+PUBLISH_DOCUMENTS = (Path("README.md"), Path("SECURITY.md"), MAKEFILE)
+LAND_LOCAL_WORD = re.compile(r"--land-local")
+NEGATION_WORD = re.compile(r"\b(?:not|never|no)\b", re.IGNORECASE)
+PUBLISH_WORD = re.compile(r"\b(?:publish\w*|push\w*|pull requests?|PRs?)\b")
+PARAGRAPH_BREAK = re.compile(r"\n\s*\n")
+SENTENCE_BREAK = re.compile(r"(?<=[.!?])\s+")
+INTEGRATE_FILE = Path("scripts") / "guards" / "integrate.py"
+GIT_HELPERS = ("run_checked", "git_lines")
+FORCE_FLAG = re.compile(r"^-[A-Za-z]*[fD][A-Za-z]*$")
+PR_TEXT_FILE = Path("scripts") / "guards" / "pr_text.py"
+REMOVABLE_SITE_MODULES = ("status",)
+FORBIDDEN_ARGUMENTS = ("--force", "--force-with-lease", "--hard", "push", "update-ref")
 
 
 def mistakes_table_errors(root):
@@ -250,6 +263,75 @@ def registered_platform_errors(root):
     return platform_errors(root, mutant_tables.MODULES, mutant_tables.PLATFORMS)
 
 
+def publishing_sentences(text):
+    assert isinstance(text, str), f"publishing_sentences needs text, got {type(text).__name__}. Fix: pass the file contents."
+    assert PUBLISH_WORD.pattern and LAND_LOCAL_WORD.pattern, "a pattern is empty. Rule: the check needs both words. Fix: restore the patterns."
+    sentences = [" ".join(sentence.split()) for paragraph in PARAGRAPH_BREAK.split(text) for sentence in SENTENCE_BREAK.split(paragraph)]
+    return [sentence for sentence in sentences if LAND_LOCAL_WORD.search(sentence) and PUBLISH_WORD.search(sentence) and not NEGATION_WORD.search(sentence)]
+
+
+def publish_documents(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert docs_freshness.HISTORICAL_FILES, "no historical files are named. Rule: the frozen contract is exempt by name. Fix: restore HISTORICAL_FILES."
+    top_level = sorted(path.relative_to(root) for path in (root / docs_freshness.DOCS_DIRECTORY).glob("*.md"))
+    named = [path for path in (*PUBLISH_DOCUMENTS, *top_level) if path not in docs_freshness.HISTORICAL_FILES]
+    return [path for path in named if (root / path).is_file()]
+
+
+def integrate_publishing_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert PUBLISH_DOCUMENTS, "PUBLISH_DOCUMENTS is empty. Rule: the check names the documents it reads. Fix: restore it."
+    return [
+        f"{path} tells the reader to publish with --land-local: {sentence[:80]!r}. Rule: --land-local moves local main only; the publish path is integrate.py (verify), git push origin <branch> and a pull request. Fix: reword as in scripts/guards/pr_text.py."
+        for path in publish_documents(root)
+        for sentence in publishing_sentences((root / path).read_text())
+    ]
+
+
+def is_git_helper_call(node):
+    assert isinstance(node, ast.AST), f"is_git_helper_call needs an ast node, got {type(node).__name__}. Fix: pass a node from ast.walk."
+    assert GIT_HELPERS, "GIT_HELPERS is empty. Rule: the check names the helpers it scans. Fix: restore it."
+    return isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in GIT_HELPERS
+
+
+def forbidden_git_arguments(source):
+    assert isinstance(source, str), f"forbidden_git_arguments needs source text, got {type(source).__name__}. Fix: pass the file contents."
+    assert GIT_HELPERS and FORBIDDEN_ARGUMENTS, "the helper or argument list is empty. Rule: the check names what it scans. Fix: restore the constants."
+    calls = [node for node in ast.walk(ast.parse(source)) if is_git_helper_call(node)]
+    lists = [argument for call in calls for argument in call.args if isinstance(argument, (ast.List, ast.Tuple))]
+    elements = [element for argument in lists for element in argument.elts if isinstance(element, ast.Constant) and isinstance(element.value, str)]
+    return [(element.lineno, element.value) for element in elements if FORCE_FLAG.match(element.value) or element.value in FORBIDDEN_ARGUMENTS]
+
+
+def imported_modules(source):
+    assert isinstance(source, str), f"imported_modules needs source text, got {type(source).__name__}. Fix: pass the file contents."
+    nodes = list(ast.walk(ast.parse(source)))
+    assert all(isinstance(node, ast.AST) for node in nodes), f"ast.walk gave a non-node in {nodes!r}"
+    plain = [alias.name for node in nodes if isinstance(node, ast.Import) for alias in node.names]
+    sourced = [node.module for node in nodes if isinstance(node, ast.ImportFrom) and node.module]
+    return {name.split(".")[0] for name in (*plain, *sourced)}
+
+
+def pr_text_import_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert REMOVABLE_SITE_MODULES, "REMOVABLE_SITE_MODULES is empty. Rule: the check names the modules that may go. Fix: restore it."
+    found = imported_modules((root / PR_TEXT_FILE).read_text()) & set(REMOVABLE_SITE_MODULES)
+    return [
+        f"{PR_TEXT_FILE} imports {name}, a site module another branch deletes. Rule: pr_text.py stays self-contained. Fix: move the code it needs into pr_text.py."
+        for name in sorted(found)
+    ]
+
+
+def integrate_source_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert INTEGRATE_FILE.name == "integrate.py", f"INTEGRATE_FILE is {INTEGRATE_FILE}. Fix: point it at integrate.py."
+    found = forbidden_git_arguments((root / INTEGRATE_FILE).read_text())
+    return [
+        f"{INTEGRATE_FILE}:{line} passes {argument!r} to git. Rule: integrate never forces, resets, cleans or pushes. Fix: use a safe argument such as -d or --ff-only."
+        for line, argument in found
+    ]
+
+
 CHECKS = {
     "mistakes-table": mistakes_table_errors,
     "readme-isolation-limits": readme_isolation_errors,
@@ -264,6 +346,9 @@ CHECKS = {
     "no-tracked-generated": tracked_generated_errors,
     "docs_freshness": docs_freshness.docs_freshness_errors,
     "readme-data-statement": data_statement_errors,
+    "integrate-not-for-publishing": integrate_publishing_errors,
+    "integrate-source-never-forces": integrate_source_errors,
+    "pr-text-self-contained": pr_text_import_errors,
     **workflow_checks.CHECKS,
     **hook_checks.CHECKS,
 }

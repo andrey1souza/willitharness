@@ -21,9 +21,15 @@ being built milestone by milestone (see `docs/plan/03-milestones-and-checkpoints
 ## How work lands (trunk-based development)
 `main` is the trunk. Nobody commits on it. Work happens on a short-lived branch named
 `type/slug` (`feat`, `fix`, `chore`, `docs`, `test`), at most 10 commits and 24 hours
-old. `python3 scripts/guards/integrate.py` rebases the branch on `main`, runs
-`make check`, fast-forwards `main` and deletes the branch, so the history stays
-linear and `main` stays green. The hooks enforce this: `scripts/guards/trunk.py`.
+old. `python3 scripts/guards/integrate.py` rebases the branch on `origin/main` and runs
+`make check`. It keeps the branch and never moves local `main`. The hooks enforce this:
+`scripts/guards/trunk.py`.
+
+## Contributing flow
+Remote `main` is protected. After `integrate.py` passes, run `git push origin <branch>`
+and open a pull request. Write its body with `scripts/guards/pr_text.py --base origin/main
+--facts <json>` and check it with `--check <body-file>`. The owner squash-merges on GitHub.
+Then run `integrate.py --sync`. `--land-local` is not for publishing.
 
 ## Security
 Report vulnerabilities privately; see `SECURITY.md`. `make security` audits the GitHub settings (needs network and an admin `gh` token; not part of `make check`).
