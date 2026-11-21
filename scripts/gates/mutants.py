@@ -4,6 +4,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from pathlib import Path
 
 from mutant_tables import ANY_PLATFORM, MODULES, PLATFORMS
@@ -20,6 +22,8 @@ COPIED_DIRECTORIES = ("src", "scripts", "fixtures")
 IMPORT_PATHS = ("src", "scripts", "scripts/gates", "scripts/site")
 GOLDEN_RELATIVE = Path("formal") / "lean"
 SUPPORT_DIRECTORY = Path("tests") / "support"
+MAX_DEFAULT_JOBS = 8
+SINGLE_JOB = 1
 
 
 def mutated_text(text, old, new):
@@ -68,8 +72,46 @@ def is_killed(source_root, tests, mutant):
     return code == PYTEST_TESTS_FAILED
 
 
-def run_module(module, tests_override):
+def positive_int(text):
+    assert isinstance(text, str), f"positive_int needs the command line text, got {text!r}. Rule: argparse passes text. Fix: pass a string."
+    value = int(text)
+    if value < SINGLE_JOB:
+        raise argparse.ArgumentTypeError(f"{value} is below {SINGLE_JOB}. Rule: at least one worker runs the mutants. Fix: pass {SINGLE_JOB} or more.")
+    assert isinstance(value, int) and value >= SINGLE_JOB, f"positive_int returned {value!r}. Rule: a worker count is a whole number from {SINGLE_JOB}. Fix: refuse smaller values."
+    return value
+
+
+def default_jobs(cpu_count):
+    assert MAX_DEFAULT_JOBS >= SINGLE_JOB, f"the cap is {MAX_DEFAULT_JOBS}, below {SINGLE_JOB}. Rule: at least one worker runs. Fix: raise MAX_DEFAULT_JOBS."
+    jobs = min(MAX_DEFAULT_JOBS, cpu_count or SINGLE_JOB)
+    assert jobs >= SINGLE_JOB, f"default_jobs computed {jobs}. Rule: at least one worker runs the mutants. Fix: restore the minimum of {SINGLE_JOB}."
+    return jobs
+
+
+def mutant_survives(tests, mutant):
+    assert tests, "mutant_survives got no test paths. Rule: a run needs tests. Fix: name at least one path."
+    assert len(mutant) == len(("name", "path", "old", "new")), f"mutant {mutant!r} must hold name, path, old and new. Fix: correct the table row."
+    with tempfile.TemporaryDirectory(prefix="mutants-") as directory:
+        workspace = Path(directory)
+        copy_sources(workspace)
+        return not is_killed(workspace, tests, mutant)
+
+
+def run_mutants(mutants, jobs, survives, make_pool):
+    assert mutants, f"run_mutants got mutants {mutants!r}. Rule: a run needs rows. Fix: pass the module's rows."
+    assert jobs >= SINGLE_JOB and callable(survives) and callable(make_pool), f"run_mutants got jobs {jobs!r}, survives {survives!r}, make_pool {make_pool!r}. Fix: pass a count and two functions."
+    killed = 0
+    with make_pool(max_workers=jobs) as pool:
+        for mutant, survived in zip(mutants, pool.map(survives, mutants)):
+            print(("SURVIVED " if survived else "killed   ") + mutant[0], flush=True)
+            killed += 0 if survived else 1
+    assert 0 <= killed <= len(mutants), f"run_mutants counted {killed} killed among {len(mutants)}. Rule: a count stays within the rows. Fix: count each row once."
+    return killed
+
+
+def run_module(module, tests_override, jobs=SINGLE_JOB):
     assert module in MODULES, f"unknown module {module!r}. Fix: use one of {sorted(MODULES)}."
+    assert jobs >= SINGLE_JOB, f"run_module got {jobs} jobs. Rule: at least one worker runs the mutants. Fix: pass {SINGLE_JOB} or more."
     default_tests, mutants = MODULES[module]
     tests = tests_override or list(default_tests)
     missing = [path for path in tests if not (REPO_ROOT / path).exists()]
@@ -82,14 +124,7 @@ def run_module(module, tests_override):
     if baseline_code == PYTEST_TESTS_FAILED:
         print("baseline: the tests fail on unmutated code. Rule: a mutant is killed only by a test that passes without it. Fix: make the tests pass first.")
         return EXIT_BASELINE_BROKEN
-    killed = 0
-    for mutant in mutants:
-        with tempfile.TemporaryDirectory(prefix="mutants-") as directory:
-            workspace = Path(directory)
-            copy_sources(workspace)
-            survived = not is_killed(workspace, tests, mutant)
-        print(("SURVIVED " if survived else "killed   ") + mutant[0])
-        killed += 0 if survived else 1
+    killed = run_mutants(mutants, jobs, partial(mutant_survives, tests), ThreadPoolExecutor)
     print("mutants killed: %d/%d" % (killed, len(mutants)))
     return EXIT_ALL_KILLED if killed == len(mutants) else EXIT_SURVIVED
 
@@ -106,12 +141,13 @@ def skipped_line(skipped):
     return "skipped modules: " + ", ".join(skipped)
 
 
-def main(argv, platform=sys.platform):
+def main(argv, platform, runner):
     assert isinstance(argv, list), f"main needs a list of arguments, got {argv!r}. Fix: pass sys.argv[1:]."
     assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
     parser = argparse.ArgumentParser(prog="mutants")
     parser.add_argument("module", choices=[*sorted(MODULES), ALL_MODULES])
     parser.add_argument("--tests", nargs="+")
+    parser.add_argument("--jobs", type=positive_int, default=default_jobs(os.cpu_count()))
     arguments = parser.parse_args(argv)
     names = sorted(MODULES) if arguments.module == ALL_MODULES else [arguments.module]
     skipped = skipped_modules(names, platform)
@@ -122,11 +158,11 @@ def main(argv, platform=sys.platform):
         if name in skipped:
             print(f"skipped {name}: needs {PLATFORMS[name]}")
         else:
-            codes.append(run_module(name, arguments.tests))
+            codes.append(runner(name, arguments.tests, arguments.jobs))
     if arguments.module == ALL_MODULES and skipped:
         print(skipped_line(skipped))
     return max(codes, default=EXIT_ALL_KILLED)
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(main(sys.argv[1:], sys.platform, run_module))
