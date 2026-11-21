@@ -8,7 +8,6 @@ python3 scripts/guards/bare_checkout.py
 repo_root="$(git rev-parse --show-toplevel)"
 cd "${repo_root}"
 
-python3 scripts/guards/push_window.py
 python3 scripts/guards/trunk.py push
 
 remote="$1"

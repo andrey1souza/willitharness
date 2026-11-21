@@ -1,13 +1,10 @@
 import json
-import os
 import re
 import shlex
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from guards.push_window import blocked_message, current_moment, push_allowed
 
 SEGMENT_SPLIT = re.compile(r"&&|\|\||;|\||\n")
 HOOK_SKIP_FLAG = "--no-verify"
@@ -17,9 +14,8 @@ BLOCK_EXIT_CODE = 2
 ALLOW_EXIT_CODE = 0
 BASH_TOOL = "Bash"
 KIND_SKIPS_HOOKS = "skips_hooks"
-KIND_PUSH = "push"
 KIND_OTHER = "other"
-SEGMENT_KINDS = (KIND_SKIPS_HOOKS, KIND_PUSH, KIND_OTHER)
+SEGMENT_KINDS = (KIND_SKIPS_HOOKS, KIND_OTHER)
 HOOK_SKIP_MESSAGE = (
     "guard: skipping git hooks is not allowed (--no-verify or a core.hooksPath override). "
     "Rule: the hooks run the checks that keep this repo clean. "
@@ -65,7 +61,7 @@ def segment_kind(words):
     skips_hooks = bool(HOOKED_SUBCOMMANDS.intersection(words[1:])) and (
         HOOK_SKIP_FLAG in words or any(HOOK_PATH_OVERRIDE in word.lower() for word in words)
     )
-    kind = KIND_SKIPS_HOOKS if skips_hooks else KIND_PUSH if "push" in words[1:] else KIND_OTHER
+    kind = KIND_SKIPS_HOOKS if skips_hooks else KIND_OTHER
     assert kind in SEGMENT_KINDS, (
         "segment %r got kind %r. Rule: a kind is one of %r. Fix: return a listed kind."
         % (words, kind, SEGMENT_KINDS)
@@ -73,24 +69,21 @@ def segment_kind(words):
     return kind
 
 
-def verdict_for(command, moment):
+def verdict_for(command):
     assert isinstance(command, str), (
         "verdict_for needs text but got %r. Rule: the hook judges a command string. "
         "Fix: pass tool_input.command." % (command,)
     )
-    assert moment is not None, (
-        "verdict_for got moment %r. Rule: the window needs a clock time. "
-        "Fix: pass current_moment(environment)." % (moment,)
-    )
     kinds = [segment_kind(words) for words in git_segments(command)]
-    if KIND_SKIPS_HOOKS in kinds:
-        return BLOCK_EXIT_CODE, HOOK_SKIP_MESSAGE
-    if KIND_PUSH in kinds and not push_allowed(moment):
-        return BLOCK_EXIT_CODE, blocked_message(moment)
-    return ALLOW_EXIT_CODE, ""
+    verdict = (BLOCK_EXIT_CODE, HOOK_SKIP_MESSAGE) if KIND_SKIPS_HOOKS in kinds else (ALLOW_EXIT_CODE, "")
+    assert verdict[0] in (ALLOW_EXIT_CODE, BLOCK_EXIT_CODE), (
+        "verdict_for built code %r for %r. Rule: the hook exits 0 or 2. "
+        "Fix: return a listed code." % (verdict[0], command)
+    )
+    return verdict
 
 
-def main(stdin, environment):
+def main(stdin):
     event = json.load(stdin)
     assert isinstance(event, dict), (
         "hook input was %r. Rule: Claude Code sends a JSON object. "
@@ -99,7 +92,7 @@ def main(stdin, environment):
     if event.get("tool_name") != BASH_TOOL:
         return ALLOW_EXIT_CODE
     command = event.get("tool_input", {}).get("command", "")
-    code, message = verdict_for(command, current_moment(environment))
+    code, message = verdict_for(command)
     assert code in (ALLOW_EXIT_CODE, BLOCK_EXIT_CODE), (
         "verdict_for returned code %r for %r. Rule: the hook exits 0 or 2. "
         "Fix: return a listed code." % (code, command)
@@ -110,4 +103,4 @@ def main(stdin, environment):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.stdin, os.environ))
+    sys.exit(main(sys.stdin))
