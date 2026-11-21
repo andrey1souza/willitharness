@@ -45,7 +45,7 @@ Contract: v0.5.
 | A2 | Stream-json output keeps the fields the pilot parsed (`result`, `total_cost_usd`, `num_turns`, `permission_denials`). | Task T21 and gate G3.2 on a fresh transcript | Update the parser. Version-pin the CLI in the report. |
 | A3 | A fake agent can model the real agent well enough to test the statistics. | Gate G4.3 against the pilot rates | Keep the fake agent for logic tests only. Do not use it for power claims. |
 | A4 | A rule maps to one section of one file. | Task T32 on the pilot repo | Add a rule locator that takes a line range. |
-| A5 | Python 3.11 with the standard library is enough for the core. | Check at M1 | Add a dependency only with a written reason. |
+| A5 | Python with the standard library is enough for the core. | Check at M1 | Add a dependency only with a written reason. |
 | A-CAP | The runner can enforce RUN_CAP so one run never costs more (contract assumption). | Task T27 and gate G3.10, with a fake clock; the live gates check spend | If the agent's own budget flag does not stop a run, rely on the wall-clock limit alone and lower RUN_CAP. |
 
 ## Honest limits of this scope
