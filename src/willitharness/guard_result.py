@@ -57,8 +57,8 @@ def guard_reading(plan: Plan, records: tuple, calls_by_run: dict, rules: tuple[G
     assert rules, "guard_reading needs rules. Fix: load them with load_rules."
     runs = guard_runs(plan, records, calls_by_run)
     rule = plan.rule
-    action = rule.detector.action if rule is not None and rule.detector.kind == KIND_FORBIDDEN else None
-    coverage = coverage_of(tuple(call for run in runs for call in run), action, rules) if action else Coverage.NONE_SEEN
+    actions = rule.detector.actions if rule is not None and rule.detector.kind == KIND_FORBIDDEN else None
+    coverage = coverage_of(tuple(call for run in runs for call in run), actions, rules) if actions else Coverage.NONE_SEEN
     bypass = bypass_counts(runs, rules)
     completed = completed_verdict(plan, records)
     result = evaluate(completed, coverage, bypass.successes == 0)

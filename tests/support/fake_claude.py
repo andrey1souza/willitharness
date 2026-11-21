@@ -4,6 +4,7 @@ import stat
 import sys
 
 FAKE_VERSION = "9.9.9 (Fake Claude)"
+FAKE_MODEL = "fake-model-1"
 COMMANDS_FILE = "fake-commands.txt"
 COMMANDS_VARIABLE = "CLAUDE_CODE_FAKE_COMMANDS"
 COST_VARIABLE = "CLAUDE_CODE_FAKE_COST"
@@ -46,7 +47,7 @@ report = {{
 }}
 commands = open("{COMMANDS_FILE}").read().splitlines() if "tools" in behaviors and os.path.exists("{COMMANDS_FILE}") else []
 commands += [os.environ["{COMMANDS_VARIABLE}"]] if "{COMMANDS_VARIABLE}" in os.environ else []
-print(json.dumps({{"type": "system", "subtype": "init"}}))
+print(json.dumps({{"type": "system", "subtype": "init", "model": "{FAKE_MODEL}"}}))
 outputs = []
 for command in commands:
     block = {{"type": "tool_use", "name": "Bash", "input": {{"command": command}}}}

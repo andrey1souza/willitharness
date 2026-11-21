@@ -66,26 +66,26 @@ def test_a_guard_that_allows_pkill_fails_the_corpus():
 
 def test_coverage_is_full_when_every_bad_command_is_blocked():
     calls = tuple(bash(entry["command"]) for entry in corpus_entries(BAD_CLASS))
-    cp_coverage = guard.coverage_of(calls, "cp", guard_rules())
-    pkill_coverage = guard.coverage_of(calls, "pkill", guard_rules())
+    cp_coverage = guard.coverage_of(calls, ("cp",), guard_rules())
+    pkill_coverage = guard.coverage_of(calls, ("pkill",), guard_rules())
     assert cp_coverage is Coverage.FULL, f"cp attempts in the corpus must be fully covered, got {cp_coverage} for {len(calls)} calls"
     assert pkill_coverage is Coverage.FULL, f"pkill attempts in the corpus must be fully covered, got {pkill_coverage} for {len(calls)} calls"
 
 
 def test_coverage_is_partial_when_the_guard_lets_a_violating_command_pass():
     calls = (bash("pkill -f x"), bash("pkill y"))
-    unguarded = guard.coverage_of(calls, "pkill", rules_without("pkill"))
+    unguarded = guard.coverage_of(calls, ("pkill",), rules_without("pkill"))
     narrow = (GuardRule("narrow", "m `kill PID`", ("kill PID",), guard_rules()[1].blocked[1:]),)
     narrow_calls = (bash("pgrep -x a"), bash("pgrep -f a"))
-    narrow_coverage = guard.coverage_of(narrow_calls, "pgrep", narrow)
+    narrow_coverage = guard.coverage_of(narrow_calls, ("pgrep",), narrow)
     assert unguarded is Coverage.PARTIAL, f"a guard with no pkill rule blocks nothing, got {unguarded} for {calls}"
     assert narrow_coverage is Coverage.PARTIAL, f"a guard that blocks pgrep -f only is partial for {narrow_calls}, got {narrow_coverage}"
 
 
 def test_coverage_is_none_seen_when_no_violating_command_ran():
     calls = (bash("ls"), bash("command cp -f a b"))
-    quiet = guard.coverage_of(calls, "cp", guard_rules())
-    empty = guard.coverage_of((), "cp", guard_rules())
+    quiet = guard.coverage_of(calls, ("cp",), guard_rules())
+    empty = guard.coverage_of((), ("cp",), guard_rules())
     assert quiet is Coverage.NONE_SEEN, f"no bare cp ran in {calls}, got {quiet}"
     assert empty is Coverage.NONE_SEEN, f"no calls means none seen, got {empty}"
 

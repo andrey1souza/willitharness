@@ -113,8 +113,11 @@ def live_data(root):
     rows = [{**row, "line": json_line(lines, f'"row": {json.dumps(row["row"])}')} for row in document["rows"]]
     completed = [{**row, "line": json_line(lines, f'"row": {json.dumps(row["row"])}')} for row in document["completed_rows"]]
     limits = [{"text": limit, "line": json_line(lines, json.dumps(limit))} for limit in document["limits"]]
+    explanation = [{"text": text, "line": json_line(lines, json.dumps(text))} for text in document["explanation"]]
+    history = [{**item, "line": json_line(lines, f'"when": {json.dumps(item["when"])}')} for item in document["history"]]
     assert rows and limits, f"{LIVE_RESULT_FILE} needs rows and limits. Rule: the page shows the result with its limits. Fix: restore them."
-    data = {**document, "file": LIVE_RESULT_FILE, "rows": rows, "completed_rows": completed, "limits": limits}
+    assert document["run"] == len(history) + 1, f"{LIVE_RESULT_FILE} is run {document['run']} with {len(history)} earlier runs. Rule: the current run follows its history. Fix: list every earlier run."
+    data = {**document, "file": LIVE_RESULT_FILE, "rows": rows, "completed_rows": completed, "limits": limits, "explanation": explanation, "history": history}
     assert isinstance(data["claims"], dict), f"{LIVE_RESULT_FILE} needs a claims table, got {data.get('claims')!r}. Rule: held-back phrases are checked against it. Fix: add claims."
     return data
 

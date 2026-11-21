@@ -4,7 +4,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from willitharness.detectors import shell_segments, starts_with_action
+from willitharness.detectors import shell_segments, starts_with_any_action
+from willitharness.flags import OPTION_PREFIX, has_flag
 from willitharness.paths import inside
 from willitharness.stream import BASH_TOOL
 from willitharness.vocabulary import Coverage, GuardResult, Verdict
@@ -13,7 +14,6 @@ ENV_PROGRAM = "env"
 ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 PLACEHOLDER = re.compile(r"^[A-Z][A-Z_]*(\.\.\.)?$")
 BACKTICKED = re.compile(r"`([^`]+)`")
-OPTION_PREFIX = "-"
 MIN_TARGET_OPERANDS = 2
 REJECTION = "rejected: no runnable alternative"
 CHECK_MESSAGES = "check-messages"
@@ -102,12 +102,6 @@ def program_words(segment: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(words)
 
 
-def has_flag(words: tuple[str, ...], flag_pattern: str) -> bool:
-    assert flag_pattern, "has_flag needs a pattern. Fix: pass a regular expression for the option."
-    assert isinstance(words, tuple), f"has_flag needs words, got {words!r}. Fix: pass a tuple."
-    return any(re.fullmatch(flag_pattern, word) for word in words[1:])
-
-
 def entry_matches(entry: BlockedProgram, words: tuple[str, ...]) -> bool:
     assert entry.program, f"a blocked entry names a program, got {entry!r}. Rule: a rule names what it blocks. Fix: add program."
     assert all(words), f"entry_matches needs non-empty words, got {words!r}. Fix: build them with shell_segments."
@@ -181,10 +175,10 @@ def check_messages(entries: list) -> tuple[int, list[str]]:
     return accepted, rejections
 
 
-def coverage_of(calls: tuple, action: str, rules: tuple[GuardRule, ...]) -> Coverage:
-    assert action.strip(), f"coverage_of needs the violating action, got {action!r}. Rule: coverage counts violating commands. Fix: pass the detector action."
+def coverage_of(calls: tuple, actions: tuple[str, ...], rules: tuple[GuardRule, ...]) -> Coverage:
+    assert actions and not isinstance(actions, str), f"coverage_of needs the violating actions as a tuple, got {actions!r}. Rule: coverage counts violating commands. Fix: pass the detector actions."
     assert rules, "coverage_of needs rules. Fix: load them with load_rules."
-    violating = [call.command for call in calls if call.tool == BASH_TOOL and starts_with_action(call.command, action)]
+    violating = [call.command for call in calls if call.tool == BASH_TOOL and starts_with_any_action(call.command, actions)]
     if not violating:
         result = Coverage.NONE_SEEN
     elif all(decide_command(command, rules).blocked for command in violating):

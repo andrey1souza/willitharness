@@ -164,7 +164,7 @@ def evaluate_the_guard(world):
     if "guard_counts" in world:
         world["completed"] = verdict_of(world["guard_counts"], world["rule_counts"])
     if "calls" in world:
-        world["coverage"] = coverage_of(world["calls"], "cp", guard_rules())
+        world["coverage"] = coverage_of(world["calls"], ("cp",), guard_rules())
         world["bypass_free"] = True
         world["completed"] = Verdict.INCONCLUSIVE
     world["result"] = evaluate(world["completed"], world["coverage"], world["bypass_free"])
@@ -181,7 +181,7 @@ def guard_checks_each_command(world):
     rules = guard_rules()
     world["decisions"] = [(entry, decide_command(entry["command"], rules)) for entry in world["corpus"]]
     bad_calls = tuple(bash(entry["command"]) for entry in world["corpus"] if entry["class"] == BAD_CLASS)
-    coverages = {coverage_of(bad_calls, action, rules) for action in VIOLATING_ACTIONS}
+    coverages = {coverage_of(bad_calls, (action,), rules) for action in VIOLATING_ACTIONS}
     world["coverage"] = Coverage.FULL if coverages == {Coverage.FULL} else Coverage.PARTIAL
 
 

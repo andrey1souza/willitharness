@@ -3,6 +3,7 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from willitharness.flags import parse_action
 from willitharness.paths import PathOutsideRoot, inside
 
 DEFAULT_REPS = 20
@@ -45,7 +46,7 @@ class Arm:
 @dataclass(frozen=True)
 class Detector:
     kind: str
-    action: str
+    actions: tuple[str, ...]
     before: str = ""
 
 
@@ -160,23 +161,40 @@ def text_field(entry, key, owner):
     return value
 
 
+def read_actions(entry):
+    assert isinstance(entry, dict), f"read_actions needs an object, got {entry!r}. Fix: pass the parsed detector."
+    if "action" in entry and "actions" in entry:
+        raise PlanError("detector has both action and actions. Rule: a detector names its actions once. Fix: keep one of them.")
+    named = entry.get("actions", entry.get("action"))
+    items = named if isinstance(named, list) else [named]
+    if not named or not all(isinstance(item, str) and item.strip() for item in items):
+        raise PlanError(f"detector has actions {named!r}. Rule: actions are non-empty text or a non-empty list of text. Fix: set action or actions in the detector.")
+    for item in items:
+        try:
+            parse_action(item)
+        except ValueError as error:
+            raise PlanError(str(error)) from error
+    assert items and all(isinstance(item, str) for item in items), f"read_actions built {items!r} from {entry!r}"
+    return tuple(items)
+
+
 def read_detector(entry):
     assert entry is not None, "read_detector got None. Rule: a rule has a detector. Fix: add detector to the rule."
-    if isinstance(entry, str):
-        entry = {"kind": KIND_FORBIDDEN, "action": entry}
+    if isinstance(entry, (str, list)):
+        entry = {"kind": KIND_FORBIDDEN, "actions": entry}
     if not isinstance(entry, dict):
-        raise PlanError(f"detector is {entry!r}. Rule: a detector is a command name or an object with kind and action. Fix: write the detector as text or an object.")
+        raise PlanError(f"detector is {entry!r}. Rule: a detector is a command name, a list of command names or an object with kind and actions. Fix: write the detector as text, a list or an object.")
     kind = entry.get("kind")
     if kind not in DETECTOR_KINDS:
         raise PlanError(f"detector kind is {kind!r}. Rule: a kind is {', '.join(DETECTOR_KINDS)}. Fix: set kind to one of them.")
-    action = text_field(entry, "action", "detector")
+    actions = read_actions(entry)
     before = entry.get("before", "")
     if kind == KIND_REQUIRED and before not in POINTS:
         raise PlanError(f"required detector has before {before!r}. Rule: a required action names its point, one of {', '.join(POINTS)}. Fix: set before.")
     if kind == KIND_FORBIDDEN and before:
         raise PlanError(f"forbidden detector has before {before!r}. Rule: only a required detector names a point. Fix: remove before.")
-    detector = Detector(kind, action, before)
-    assert detector.kind in DETECTOR_KINDS and detector.action, f"read_detector built {detector!r} from {entry!r}"
+    detector = Detector(kind, actions, before)
+    assert detector.kind in DETECTOR_KINDS and detector.actions, f"read_detector built {detector!r} from {entry!r}"
     return detector
 
 
@@ -191,7 +209,7 @@ def read_rule(entry):
     if not isinstance(alternatives, list) or not all(isinstance(item, str) and item for item in alternatives):
         raise PlanError(f"rule {id_} has offered_alternatives {alternatives!r}. Rule: alternatives are a list of text. Fix: write a list of commands.")
     rule = Rule(id_, file, section, TARGET_OUTCOME, read_detector(entry.get("detector")), tuple(alternatives))
-    assert rule.detector.action, f"rule {id_} has no detector action"
+    assert rule.detector.actions, f"rule {id_} has no detector actions"
     return rule
 
 

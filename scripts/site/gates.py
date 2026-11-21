@@ -128,7 +128,7 @@ def expected_texts(data):
     contract, gates, live = data["contract"], data["gates"], data["live"]
     texts = [item["id"] for item in contract["questions"]] + [item["when"] for item in contract["decisions"]]
     texts += [item["label"] for item in gates["rows"]] + [item["result"] for item in gates["rows"]]
-    texts += [item["task"] for item in live["rows"]] + [item["text"] for item in live["limits"]] + [item["text"] for item in data["readme"]["limits"]]
+    texts += [item["task"] for item in live["rows"]] + [item["text"] for item in live["limits"] + live["explanation"] + data["readme"]["limits"]] + [item["results"] for item in live["history"]]
     assert texts and all(isinstance(text, str) for text in texts), f"expected texts must be non-empty strings, got {texts!r}"
     return texts
 

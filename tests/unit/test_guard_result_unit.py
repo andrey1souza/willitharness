@@ -79,7 +79,7 @@ def test_G1_a_plan_with_no_rule_arm_has_no_completed_verdict():
 
 
 def test_G1_a_plan_with_a_required_detector_has_no_violating_commands():
-    plan = dataclasses.replace(plan_of(ROLES), rule=dataclasses.replace(plan_of(ROLES).rule, detector=Detector(KIND_REQUIRED, "cp", "first_edit")))
+    plan = dataclasses.replace(plan_of(ROLES), rule=dataclasses.replace(plan_of(ROLES).rule, detector=Detector(KIND_REQUIRED, ("cp",), "first_edit")))
     found = reading((20, 19), BLOCKED_ONLY, plan=plan)
     assert found.coverage is Coverage.NONE_SEEN, f"a required action is not blocked, got {found.coverage}"
     assert found.result is GuardResult.GUARD_UNTESTED, f"unexpected result {found.result}"

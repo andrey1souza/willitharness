@@ -63,7 +63,18 @@ $live_rows
 $completed_rows
 </tbody>
 </table>
-<p>$earlier_run</p>
+<p>Run $live_run counted these commands as a violation: <code>$live_detector</code>. $spike_text</p>
+<h3 id="live-explanation">Why the first two runs read lower</h3>
+<ul>
+$explanation
+</ul>
+<table>
+<caption>Earlier runs of this gate. They are history, not the current result.</caption>
+<thead><tr><th scope="col">When</th><th scope="col">Run</th><th scope="col">Detector</th><th scope="col">Cost</th><th scope="col">Results</th></tr></thead>
+<tbody>
+$history_rows
+</tbody>
+</table>
 <h3 id="live-limits">Limits of this result</h3>
 <ul>
 $live_limits

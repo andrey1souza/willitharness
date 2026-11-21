@@ -34,7 +34,7 @@ live:
 	uv run python scripts/gates/shell_live.py
 
 pilot:
-	uv run python scripts/gates/pilot_live.py
+	uv run python scripts/gates/pilot_live.py --artifacts "$$(date -u +%Y%m%dT%H%M%SZ)"
 
 security:
 	uv run python scripts/gates/security_audit.py

@@ -73,7 +73,7 @@ def test_every_data_row_must_appear_on_the_page(tmp_path, site):
     data, files = site
     page = files["index.html"].replace("Reachability", "Reach").replace("The commands are stubs.", "x")
     problems = gates.coverage_problems("index.html", page.replace("stop-server", "stop"), data)
-    assert [problem.split("'")[1] for problem in problems] == ["stop-server", "The commands are stubs."], f"two rows are missing, got {problems}"
+    assert [problem.split("'")[1] for problem in problems] == ["stop-server", "The commands are stubs.", "stop-server C 5 of 20"], f"three texts are missing, got {problems}"
     assert gates.coverage_problems("index.html", files["index.html"], data) == [], "the full page covers its data"
 
 

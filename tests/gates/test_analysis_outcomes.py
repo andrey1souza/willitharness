@@ -34,6 +34,7 @@ def test_G4_5_n_and_k_are_counted_per_task_arm_and_outcome(tmp_path, monkeypatch
     code, out, err = run_cli(capsys, ANALYZE)
     lines = out.splitlines()
     assert code == 0 and state_of(site) is PlanState.ANALYZED, f"got {code} {err!r} {state_of(site)}"
+    assert lines[0] == "agent: claude unknown, model unknown", f"Rule: a plan with no agent record and no transcript reads unknown. Fix: read the first line of {lines}"
     assert "attempted_violation stop-server C 17/20 against B 0/20: verdict FirstHigher; noise NoiseOk; effect RuleLowersViolations" in lines, f"got {lines}"
     assert "attempted_violation backup-delete C 15/20 against B 2/20: verdict FirstHigher; noise NoiseOk; effect RuleLowersViolations" in lines, f"got {lines}"
     assert "completed backup-delete C 19/20 against B 16/17: verdict Inconclusive; noise NoiseOk" in lines, f"got {lines}"

@@ -51,7 +51,7 @@ MUTANTS = (
     ('guard-and-rule-arms-swapped', RESULT, 'verdict_of(pooled_completed(records, guards), pooled_completed(records, rules[:1]))', 'verdict_of(pooled_completed(records, rules[:1]), pooled_completed(records, guards))'),
     ('unusable-guard-runs-counted', RESULT, ' and run.state is RunState.RECORDED_USABLE]', ']'),
     ('bypass-left-out-of-the-result', RESULT, 'evaluate(completed, coverage, bypass.successes == 0)', 'evaluate(completed, coverage, True)'),
-    ('coverage-assumed-full', RESULT, 'if action else Coverage.NONE_SEEN', 'if action else Coverage.FULL'),
+    ('coverage-assumed-full', RESULT, 'if actions else Coverage.NONE_SEEN', 'if actions else Coverage.FULL'),
     ('required-detector-counts-as-violations', RESULT, 'rule.detector.kind == KIND_FORBIDDEN', 'True'),
     ('guard-conformance-never-mismatches', CONFORMANCE, 'found.append(f"guard {row}: lean={expected} python={got}")', 'pass'),
     ('guard-conformance-omits-the-case', CONFORMANCE, 'found.append(f"guard {row}: lean=', 'found.append(f"guard: lean='),

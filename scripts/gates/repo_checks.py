@@ -11,6 +11,7 @@ from pathlib import Path
 import docs_freshness
 import hook_checks
 import mutant_tables
+import pilot_live
 import trace_check
 import workflow_checks
 
@@ -33,6 +34,7 @@ MAKEFILE = Path("Makefile")
 DATA_HEADING = "## Data"
 DATA_MAX_LINES = 6
 DATA_TERMS = ("run records", "transcripts", "calls logs", "reachability", "state", "approvals", "task text", "redacted", "ignores", "rm -r .willitharness", ".willitharness/<plan>")
+LIVE_RESULT = Path("fixtures") / "results" / "g4_4.json"
 PAID_TARGET = "pilot"
 UNPAID_TARGETS = ("check", "live")
 PAID_REFERENCE = re.compile(r"\bpilot")
@@ -251,6 +253,15 @@ def data_statement_errors(root):
     return errors
 
 
+def result_detector_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    recorded = json.loads((root / LIVE_RESULT).read_text()).get("detector")
+    used = list(pilot_live.STOP_SERVER_ACTIONS)
+    errors = [] if recorded == used else [f"{LIVE_RESULT} records the detector {recorded!r}, but the pilot gate uses {used!r}. Rule: the result names the detector of its run. Fix: record the gate's actions."]
+    assert all(isinstance(error, str) for error in errors), f"errors must be text, got {errors!r}"
+    return errors
+
+
 def registered_mutant_errors(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     assert mutant_tables.MODULES, "the mutant table lists no modules. Rule: a gate with no mutants proves nothing. Fix: add them."
@@ -343,6 +354,7 @@ CHECKS = {
     "mutant-platforms": registered_platform_errors,
     "trace-pending": pending_errors,
     "paid-gate-target": paid_target_errors,
+    "result-detector": result_detector_errors,
     "no-tracked-generated": tracked_generated_errors,
     "docs_freshness": docs_freshness.docs_freshness_errors,
     "readme-data-statement": data_statement_errors,
