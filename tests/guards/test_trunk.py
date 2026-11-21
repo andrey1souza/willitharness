@@ -120,16 +120,35 @@ def test_a_stale_branch_blocks_the_push_check(repo, capsys):
 
 @pytest.mark.parametrize("remote_ref", ["refs/heads/main", "refs/heads/feat/x", "refs/heads/fix/parser-crash"])
 def test_main_and_typed_branches_may_be_pushed(repo, remote_ref):
-    code = check(repo, ["push-ref", remote_ref])
+    code = check(repo, ["push-ref", remote_ref, remote_ref])
     assert code == trunk.EXIT_CLEAN, f"{remote_ref} must be pushable, got {code}"
 
 
 @pytest.mark.parametrize("remote_ref", ["refs/heads/wip", "refs/heads/feature/x", "refs/heads/Feat/x"])
 def test_other_branch_names_may_not_be_pushed(repo, remote_ref, capsys):
-    code = check(repo, ["push-ref", remote_ref])
+    code = check(repo, ["push-ref", remote_ref, remote_ref])
     message = capsys.readouterr().err
     assert code == trunk.EXIT_BREAKS_TRUNK_RULES, f"{remote_ref} must be blocked, got {code}"
     assert "Fix:" in message, f"the message must end with a fix, got {message!r}"
+
+
+@pytest.mark.parametrize("local_ref", ["refs/heads/feat/x", "refs/heads/fix/parser-crash", "HEAD"])
+def test_a_branch_other_than_main_may_not_be_pushed_to_main(repo, local_ref, capsys):
+    code = check(repo, ["push-ref", "refs/heads/main", local_ref])
+    message = capsys.readouterr().err
+    assert code == trunk.EXIT_BREAKS_TRUNK_RULES, f"{local_ref} aimed at main must be blocked, got {code}"
+    assert local_ref in message and "Fix:" in message, f"the message must name the ref and end with a fix, got {message!r}"
+
+
+def test_a_feature_branch_may_be_pushed_to_its_own_name(repo):
+    code = check(repo, ["push-ref", "refs/heads/feat/x", "refs/heads/feat/x"])
+    assert code == trunk.EXIT_CLEAN, f"a branch pushed to its own name must pass, got {code}"
+
+
+def test_a_push_ref_without_a_local_ref_is_refused(repo):
+    with pytest.raises(AssertionError) as refusal:
+        check(repo, ["push-ref", "refs/heads/main"])
+    assert "empty local ref" in str(refusal.value), f"the refusal must name the missing local ref, got {refusal.value}"
 
 
 def test_an_unknown_mode_exits_two_with_the_usage(repo, capsys):

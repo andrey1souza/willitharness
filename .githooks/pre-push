@@ -11,9 +11,9 @@ cd "${repo_root}"
 python3 scripts/guards/trunk.py push
 
 remote="$1"
-while read -r _local_ref local_sha remote_ref _remote_sha; do
+while read -r local_ref local_sha remote_ref _remote_sha; do
   [[ "${local_sha}" =~ ${DELETED_REF} ]] && continue
-  python3 scripts/guards/trunk.py push-ref "${remote_ref}"
+  python3 scripts/guards/trunk.py push-ref "${remote_ref}" "${local_ref}"
   commit_range=("${local_sha}" --not "--remotes=${remote}")
   gitleaks git --redact --no-banner --log-opts="${local_sha} --not --remotes=${remote}" .
   python3 scripts/guards/fix_needs_rule.py "${commit_range[@]}"
