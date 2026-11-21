@@ -464,20 +464,22 @@ As an analyst, I want the world hash of a run to be the hash of the files at the
 - Given a plan that ended while its world differed from the validated one, then `analyze` says so.
 - IDs: W3. Gate: G3.4. Deps: T62.
 
-### T66. Load report: what a harness adds to every session (M) not built (T66)
-As an owner of a harness, I want a list of everything the agent loads at the start of a session and how big it is, so that I see what each rule, skill, hook and plugin costs before I run any test.
-- Given a project with instruction files, then the report lists each file with its character count and an estimated token count. The report names the rule it used for the estimate and says the estimate is not exact.
-- Given a skill, then the report counts its name and description as always loaded. It counts the body as loaded only after the `Skill` tool call (`docs/research/spike-c-skills-hooks.md`).
-- Given a hook, then the report lists its event and matcher. For a hook that returns context, it gives the size of the returned text for a fixed sample event, or `not measured` when the hook needs a live session.
-- Given a plugin, then the report splits it into its skills, hooks and agents, and totals them.
-- Given the same project twice, then the two reports are identical. The command calls no model and uses no network.
+### T66. Load report: the text a harness adds to every session (S) not built (T66)
+As an owner of a harness, I want a list of the text the agent loads at the start of a session and its size, so that I see what each rule, skill and hook costs before I run any test.
+- Given a project with instruction files, then the report lists each file with its character count.
+- Given a skill, then the report gives the character count of its name and description, which are always loaded. It gives the count of its body separately, which is loaded only after the `Skill` tool call (`docs/research/spike-c-skills-hooks.md`).
+- Given a hook that returns context, then the report says `not measured`. A hook is arbitrary code, so the command never runs one by default.
+- Given the option `--run-hooks`, then the report runs each hook with a fixed sample event and gives the size of the text it returns. A hook that needs a live session still says `not measured`.
+- Given the same project twice, then the two reports are identical. The command calls no model, uses no network and calls no other tool.
 - Given a file that the agent loads and the command cannot read, then it exits 1 and names the file.
+- Given a size, then the report counts characters. A token estimate is out of scope.
 - IDs: none yet. The contract gets new IDs in the same change that builds this task. Gate: new, defined with the task. Deps: T19.
 
 ### T67. Three-arm test: a component against its own text as a plain prompt (L) not built (T67)
 As an owner of a harness, I want to compare a skill or hook with its own text given as a plain prompt, so that I know whether the component beats a prompt.
 - Given a skill, then the plan has three arms and a noise pair. Arm N has nothing. Arm P has the body text of the skill as a rule through the `system_prompt` channel. Arm C has the real skill. The noise pair repeats arm C.
 - Given a hook that injects context, then arm P has the text the hook returns for a fixed sample event, and the other arms are the same.
+- Given the option `--placebo`, then the plan adds an arm with filler text of the same character count as the component text. The extra arm separates the effect of added text from the effect of its content.
 - Given any arm, then a detector declared in the plan before the first run judges every run. The plan fingerprint covers the detector.
 - Given a skill, then the report shows the trigger rate of arm C and the effect when the skill fires, as two separate numbers.
 - Given the three results, then the report gives one verdict: keep the component when C beats P, replace with a prompt when C equals P and beats N, and delete candidate when C equals N. It gives inconclusive when the intervals do not decide.
