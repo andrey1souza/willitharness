@@ -12,7 +12,7 @@ GOOD_WORKFLOW = "name: ci\non:\n  push:\npermissions:\n  contents: read\njobs:\n
     + (f"      - uses: {PINNED} # v7\n      - run: uv sync --locked\n" if job == FIRST_JOB else "")
     + (f"      - run: uv run pytest tests/{job}\n" if job == SECOND_JOB else f"      - run: echo {job}\n")
     for job in workflow_checks.REQUIRED_JOBS
-)
+) + f"  oldest-python-linux:\n    name: {workflow_checks.JOB_NAMES['oldest-python-linux']}\n    steps:\n      - run: uv sync --locked\n        with:\n          python-version: \"3.11\"\n      - run: uv run pytest\n"
 GOOD_SECURITY = "report privately\n\n## If something goes wrong\nThe owner acts.\n- secret: revoke\n- dependency: pin\n- workflow: disable\n- result: rebuild\n\n## Other\nx\n"
 GOOD_FILES = {
     ".github/workflows/ci.yml": GOOD_WORKFLOW,
@@ -145,13 +145,13 @@ def test_a_tree_without_workflows_fails_instead_of_passing_vacuously(tmp_path):
 def test_the_workflow_checks_are_registered_in_the_repo_checks():
     missing = [name for name in workflow_checks.CHECKS if name not in repo_checks.CHECKS]
     assert missing == [], f"repo_checks must run every workflow check, missing {missing}"
-    assert len(workflow_checks.CHECKS) == 15, f"expected fifteen workflow checks, got {sorted(workflow_checks.CHECKS)}"
+    assert len(workflow_checks.CHECKS) == 17, f"expected seventeen workflow checks, got {sorted(workflow_checks.CHECKS)}"
 
 
 def test_a_missing_required_job_is_reported(tmp_path):
     failures = failures_for(tmp_path, {".github/workflows/ci.yml": GOOD_WORKFLOW.replace(f"  {SECOND_JOB}:", f"  {SECOND_JOB}-renamed:")})
     assert failures["workflow-required-jobs"] == [f"job {SECOND_JOB} is missing in every workflow; the ruleset requires a status check with that name"], f"got {failures}"
-    assert workflow_checks.job_blocks(GOOD_WORKFLOW).keys() == set(workflow_checks.REQUIRED_JOBS), "job_blocks must find each top-level job"
+    assert workflow_checks.job_blocks(GOOD_WORKFLOW).keys() == set(workflow_checks.REQUIRED_JOBS) | {"oldest-python-linux"}, "job_blocks must find each top-level job"
     assert workflow_checks.job_blocks("name: ci\n") == {}, "a file without jobs has no blocks"
 
 
@@ -388,3 +388,47 @@ def test_an_incident_section_above_twelve_lines_is_reported_and_twelve_pass(tmp_
     assert workflow_checks.security_policy_errors(write_and_root(tmp_path, twelve.replace("\n\n## Other\nx\n", "\n"))) == [], "twelve lines must pass"
     errors = workflow_checks.security_policy_errors(write_and_root(tmp_path, twelve.replace("The owner acts.\n", "The owner acts.\nx\n")))
     assert errors == ["SECURITY.md section '## If something goes wrong' has 13 lines, above 12. Rule: a plan read in a crisis stays short. Fix: shorten it"], f"got {errors}"
+
+
+def test_a_minimum_python_that_no_ci_job_runs_is_reported(tmp_path):
+    failures = failures_for(tmp_path, {"pyproject.toml": "[project]\nrequires-python = \">=3.12\"\n"})
+    assert len(failures["oldest-python-tested"]) == 1 and "Python 3.12" in failures["oldest-python-tested"][0], f"a job at 3.11 does not test a 3.12 minimum, got {failures}"
+    assert failures_for(tmp_path, {})["oldest-python-tested"] == [], "a job at the minimum passes"
+
+
+def test_a_minor_version_is_not_matched_by_a_longer_one(tmp_path):
+    failures = failures_for(tmp_path, {"pyproject.toml": "[project]\nrequires-python = \">=3.1\"\n"})
+    assert len(failures["oldest-python-tested"]) == 1, f"3.11 must not count as 3.1, got {failures}"
+
+
+def test_a_job_at_the_minimum_without_tests_does_not_count(tmp_path):
+    without_tests = GOOD_WORKFLOW.replace("      - run: uv run pytest\n", "      - run: echo skipped\n")
+    failures = failures_for(tmp_path, {".github/workflows/ci.yml": without_tests})
+    assert len(failures["oldest-python-tested"]) == 1, f"a job that never runs pytest tests nothing, got {failures}"
+
+
+def test_the_oldest_python_job_is_advisory_and_not_required():
+    name = workflow_checks.JOB_NAMES["oldest-python-linux"]
+    assert "advisory, not required" in name, f"the oldest-Python job must say advisory, not required, got {name!r}"
+    assert "oldest-python-linux" not in workflow_checks.REQUIRED_JOBS, "the oldest-Python job must not be required until the ruleset lists it"
+
+
+def test_an_unparsable_minimum_skips_the_oldest_python_checks(tmp_path):
+    failures = failures_for(tmp_path, {"pyproject.toml": "[project]\nrequires-python = \"~=3.11\"\n"})
+    assert failures["oldest-python-tested"] == [] and failures["python-claims-in-docs"] == [], f"python-version-file reports the bad specifier, got {failures}"
+
+
+def test_a_docs_claim_of_another_minimum_is_reported(tmp_path):
+    claim = "Language: Python 3.10 or later.\n"
+    failures = failures_for(tmp_path, {"docs/plan/02-architecture.md": claim, "README.md": "Needs Python 3.11 or later.\n"})
+    assert failures["python-claims-in-docs"] == ["docs/plan/02-architecture.md says 'Python 3.10 or later', but requires-python is >=3.11. Rule: one source names the minimum Python. Fix: change the text to match pyproject.toml"], f"got {failures}"
+
+
+def test_a_docs_claim_in_the_readme_is_checked(tmp_path):
+    failures = failures_for(tmp_path, {"README.md": "Needs Python 3.9 or later.\n"})
+    assert len(failures["python-claims-in-docs"]) == 1 and failures["python-claims-in-docs"][0].startswith("README.md says"), f"got {failures}"
+
+
+def test_a_docs_claim_with_another_major_version_is_reported(tmp_path):
+    failures = failures_for(tmp_path, {"README.md": "Needs Python 2.11 or later.\n"})
+    assert len(failures["python-claims-in-docs"]) == 1, f"2.11 is not 3.11, got {failures}"
