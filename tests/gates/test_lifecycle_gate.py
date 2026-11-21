@@ -8,7 +8,7 @@ from cli_runner import run_cli
 from lifecycle_site import SiteSpec, TASK_NAME, edit_world, make_site, ready_site, reach_every_arm, run_setup, success_transcript, validate_site
 
 from willitharness.lifecycle import Job, PlanState, begin_run, execute_plan, lifecycle_dir, record_reachability, start_running, write_state
-from willitharness.store import Cell, latest_by_run, load_records, spent
+from willitharness.store import UNKNOWN_WORLD, Cell, latest_by_run, load_records, spent
 from willitharness.vocabulary import Reach
 
 TIGHT = SiteSpec(arm_count=1, budget_usd=0.05, run_cap_usd=0.02, reps=100, max_retries=0)
@@ -96,7 +96,7 @@ def test_G3_11_the_abort_command_charges_run_cap_for_each_run_in_flight(tmp_path
     site = ready_site(tmp_path, ROOMY)
     start_running(site)
     for rep in (1, 2, 3):
-        begin_run(lifecycle_dir(site.root, site.plan), Job(Cell("A", TASK_NAME), rep, rep))
+        begin_run(lifecycle_dir(site.root, site.plan), Job(Cell("A", TASK_NAME), rep, rep), UNKNOWN_WORLD)
     monkeypatch.chdir(tmp_path)
     code, out, err = run_cli(capsys, ["abort", "plan.json"])
     assert code == 0, f"got {code} {err!r}"

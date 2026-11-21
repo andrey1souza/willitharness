@@ -11,6 +11,7 @@ from willitharness.plan import Plan
 APPEND_MODE = "a"
 RUNS_FILE_NAME = "runs.jsonl"
 EMPTY_LINE = ""
+UNKNOWN_WORLD = ""
 
 
 class StoreError(Exception):
@@ -40,6 +41,7 @@ class Record:
     cost_usd: float
     outcome: dict = field(default_factory=dict)
     denials: int = 0
+    world_hash: str = UNKNOWN_WORLD
 
 
 @dataclass(frozen=True)

@@ -10,7 +10,7 @@ from willitharness import cli
 from willitharness.lifecycle import Job, LifecycleRefused, PlanState, abort_plan, begin_run, lifecycle_dir, move_to, read_reach, read_resume, read_state, record_reachability, refresh_state, execute_plan, resume_if_stopped, start_running
 from willitharness.plan import plan_fingerprint
 from willitharness.world import world_changed
-from willitharness.store import Cell, Record, RunState, append_record, latest_by_run, load_records, spent
+from willitharness.store import UNKNOWN_WORLD, Cell, Record, RunState, append_record, latest_by_run, load_records, spent
 from willitharness.vocabulary import Reach
 
 BUDGET_FEATURE = "../../features/budget-and-resume.feature"
@@ -247,7 +247,7 @@ def world_never_checked(world, tmp_path):
 @when("I try to start a run")
 def try_to_start_a_run(world):
     try:
-        begin_run(folder_in(world), Job(Cell("A", TASK_NAME), 1, 1))
+        begin_run(folder_in(world), Job(Cell("A", TASK_NAME), 1, 1), UNKNOWN_WORLD)
         world["refused"] = False
     except LifecycleRefused:
         world["refused"] = True

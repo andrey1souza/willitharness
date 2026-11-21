@@ -1,6 +1,6 @@
 # 07. Task backlog
 
-64 tasks in dependency order (contract v0.5). Each is a BDD story with Given, When,
+65 tasks in dependency order (contract v0.5). Each is a BDD story with Given, When,
 Then acceptance, the contract IDs it covers, a gate from file 03, a size and its
 dependencies. Sizes: S under half a day, M about a day, L two or three days. A task
 is done when its gate passes with its bad input rejected.
@@ -16,7 +16,7 @@ Summary:
 | M5 guard and decision | T38 to T44 | 7 |
 | M6 side effects and report | T45 to T49 | 5 |
 | M7 formal gates | T50 | 1 |
-| Added after M7 | T51 to T64 | 14 |
+| Added after M7 | T51 to T65 | 15 |
 
 Golden tables referenced by name (Lean fork, not final): `decision_table.json`,
 `effect_table.json`, `probe_table.json`, `guard_table.json` in `../../formal/lean/`.
@@ -435,7 +435,7 @@ As an analyst, I want to continue a plan that the budget stopped by giving it mo
 As an analyst, I want each run record to carry the world hash it ran under, so that a resumed plan can show which runs came from which world.
 - Given a run, when it is recorded, then the record holds the world hash at the start of the run.
 - Given a resumed plan whose records show two world hashes, then the report warns and lists the cells that mix worlds.
-- Today records carry no world hash, so resume checks only the stored validation hash (contract section 7, known gap).
+- Done: records carry the validated world hash at claim time; records written before T62 carry none (contract section 7).
 - IDs: W3. Gate: G3.4. Deps: T61.
 
 ## Added with contract v0.5
@@ -456,3 +456,10 @@ As an analyst, I want an arm to deliver its rule through `--append-system-prompt
 - Given an arm with channel `system_prompt`, then the runner passes its rule text through `--append-system-prompt-file` and `plan check` accepts the plan.
 - Given the reachability probe for that arm, then it uses the same channel as the run.
 - IDs: none. Gate: G3.10. Deps: T63.
+
+### T65. Close the world-hash gaps (S)
+As an analyst, I want the world hash of a run to be the hash of the files at the claim and old runs to be counted, so that an edit that was not validated again, and records from before T62, cannot hide a mixed world.
+- Given a world edited after validation, when a run is claimed, then the record holds the hash of the files now, and `analyze` warns that the run left the validated world.
+- Given records written before T62, then `analyze` states how many runs carry no world hash.
+- Given a plan that ended while its world differed from the validated one, then `analyze` says so.
+- IDs: W3. Gate: G3.4. Deps: T62.

@@ -62,4 +62,4 @@ stated in prose, not as a numbered item.
 | R2 | Resolved. L11: the budget never decreases. | Property `L11`. Mutant RB (any budget from 0) must violate it. |
 | R3 | Resolved. L12: a Running plan is never marked as ended. | Invariant `L12`. Mutant RC (`endedBy` kept) must violate it. |
 | R4 | Open by design. A-FP (the plan is identical except `budget_usd`) has no plan content in the model. | Not modelled. The implementation fingerprint covers it (backlog T61). |
-| R5 | Open. Run records carry no world hash. | Not modelled. Backlog T62. |
+| R5 | Resolved in code. Run records carry the world hash and `analyze` warns on mixed worlds. | Not modelled. Backlog T62. |

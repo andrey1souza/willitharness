@@ -10,7 +10,7 @@ from willitharness.probe import loo_arm_valid
 from willitharness.store import Cell
 from willitharness.verdict import MIN_RUNS, verdict_of
 from willitharness.vocabulary import EffectResult, NoiseStatus, Reach, Verdict
-from willitharness.warning_rules import cell_warnings, row_warnings
+from willitharness.warning_rules import cell_warnings, row_warnings, world_warnings
 
 LOO_INVALID_MESSAGE = "LOO arm does not load its other rules; the effect cannot be reported"
 RULE_UNKNOWN_MESSAGE = "the rule arm's reachability is Unknown; run the probe again before measuring an effect"
@@ -210,7 +210,7 @@ def analyze_plan(inputs, with_warnings):
         target_counts = counts if outcome == TARGET_OUTCOME else target_counts
         shown = {**counts, **pooled_cells(counts, plan, tasks)} if inputs.pooled else counts
         rows.extend(outcome_rows(source, shown, outcome))
-    lines = (*cell_warnings(target_counts, source.denied), *row_warnings(rows)) if with_warnings else ()
+    lines = (*cell_warnings(target_counts, source.denied), *world_warnings(inputs.records), *row_warnings(rows)) if with_warnings else ()
     analysis = Analysis(tuple(rows), lines)
     assert with_warnings or not analysis.warnings, f"warnings were off but {analysis.warnings} came out"
     assert analysis.rows, f"plan {plan.name} gave no rows. Rule: each task and outcome has a row."
