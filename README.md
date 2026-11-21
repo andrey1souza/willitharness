@@ -78,10 +78,13 @@ git config core.hooksPath .githooks
 
 ### Push window rule
 Pushes are allowed only from 18:00 to 08:59 local time. `.githooks/pre-push` refuses
-a push outside that window, and a Claude Code hook in `.claude/settings.json` refuses
-`git push` and `--no-verify` from an agent. Both call `scripts/guards/push_window.py`.
-A git hook can be bypassed by someone who removes it, so treat the rule as a guard
-for accidents, not as access control.
+a push outside that window. A Claude Code hook in `.claude/settings.json` refuses a
+command line that runs `git push` as its own command, and one that skips hooks with
+`--no-verify`. That hook does not read a push wrapped in `env`, a leading `VAR=value`,
+`sh -c` or a script file. Both hooks call `scripts/guards/push_window.py`. The pre-push
+hook reads the `WILLITHARNESS_NOW` variable, so setting it moves the clock. A git hook
+can be bypassed by someone who removes it, so treat the rule as a guard for accidents,
+not as access control.
 
 ### Tools wired in
 - **zanity** checks the code (`zanity.toml`). It runs in the pre-commit hook and in CI.
