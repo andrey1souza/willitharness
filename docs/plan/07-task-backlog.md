@@ -1,6 +1,6 @@
 # 07. Task backlog
 
-65 tasks in dependency order (contract v0.5). Each is a BDD story with Given, When,
+67 tasks in dependency order (contract v0.5). Each is a BDD story with Given, When,
 Then acceptance, the contract IDs it covers, a gate from file 03, a size and its
 dependencies. Sizes: S under half a day, M about a day, L two or three days. A task
 is done when its gate passes with its bad input rejected.
@@ -16,7 +16,7 @@ Summary:
 | M5 guard and decision | T38 to T44 | 7 |
 | M6 side effects and report | T45 to T49 | 5 |
 | M7 formal gates | T50 | 1 |
-| Added after M7 | T51 to T65 | 15 |
+| Added after M7 | T51 to T67 | 17 |
 
 Golden tables referenced by name (Lean fork, not final): `decision_table.json`,
 `effect_table.json`, `probe_table.json`, `guard_table.json` in `../../formal/lean/`.
@@ -463,3 +463,25 @@ As an analyst, I want the world hash of a run to be the hash of the files at the
 - Given records written before T62, then `analyze` states how many runs carry no world hash.
 - Given a plan that ended while its world differed from the validated one, then `analyze` says so.
 - IDs: W3. Gate: G3.4. Deps: T62.
+
+### T66. Load report: what a harness adds to every session (M) not built (T66)
+As an owner of a harness, I want a list of everything the agent loads at the start of a session and how big it is, so that I see what each rule, skill, hook and plugin costs before I run any test.
+- Given a project with instruction files, then the report lists each file with its character count and an estimated token count. The report names the rule it used for the estimate and says the estimate is not exact.
+- Given a skill, then the report counts its name and description as always loaded. It counts the body as loaded only after the `Skill` tool call (`docs/research/spike-c-skills-hooks.md`).
+- Given a hook, then the report lists its event and matcher. For a hook that returns context, it gives the size of the returned text for a fixed sample event, or `not measured` when the hook needs a live session.
+- Given a plugin, then the report splits it into its skills, hooks and agents, and totals them.
+- Given the same project twice, then the two reports are identical. The command calls no model and uses no network.
+- Given a file that the agent loads and the command cannot read, then it exits 1 and names the file.
+- IDs: none yet. The contract gets new IDs in the same change that builds this task. Gate: new, defined with the task. Deps: T19.
+
+### T67. Three-arm test: a component against its own text as a plain prompt (L) not built (T67)
+As an owner of a harness, I want to compare a skill or hook with its own text given as a plain prompt, so that I know whether the component beats a prompt.
+- Given a skill, then the plan has three arms and a noise pair. Arm N has nothing. Arm P has the body text of the skill as a rule through the `system_prompt` channel. Arm C has the real skill. The noise pair repeats arm C.
+- Given a hook that injects context, then arm P has the text the hook returns for a fixed sample event, and the other arms are the same.
+- Given any arm, then a detector declared in the plan before the first run judges every run. The plan fingerprint covers the detector.
+- Given a skill, then the report shows the trigger rate of arm C and the effect when the skill fires, as two separate numbers.
+- Given the three results, then the report gives one verdict: keep the component when C beats P, replace with a prompt when C equals P and beats N, and delete candidate when C equals N. It gives inconclusive when the intervals do not decide.
+- Given that arm N already shows almost no violations, then the verdict is `insurance, keep`. The report says this is a policy choice and not a measurement.
+- Given the owner rule "no benefit shown after N runs means remove", then `decide` prints remove candidate only when each arm has at least N runs. The report states the smallest change those runs could detect.
+- Given each arm, then the report shows turns and cost per arm.
+- IDs: none yet. New decision rows go into the contract, the golden table and the Lean proof in the same change that builds this task. Gate: new, defined with the task. Deps: T43, T64, T66.
