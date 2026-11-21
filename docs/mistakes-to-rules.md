@@ -9,8 +9,7 @@ test that does not exist.
 
 | Mistake | Category | Rule | Test |
 |---|---|---|---|
-| A push could reach the remote outside the agreed hours (18:00 to 08:59). | A push outside the agreed window | `scripts/guards/push_window.py`, called by `.githooks/pre-push`, and for agents by `scripts/guards/claude_push_guard.py` | `tests/guards/test_push_window.py::test_window_boundaries`; `tests/guards/test_claude_push_guard.py::test_push_outside_the_window_is_blocked` |
-| The hooks could be skipped with `--no-verify` or a `core.hooksPath` override. | Skipping the checks | `scripts/guards/claude_push_guard.py` | `tests/guards/test_claude_push_guard.py::test_skipping_hooks_is_blocked_inside_the_window` |
+| The hooks could be skipped with `--no-verify` or a `core.hooksPath` override. | Skipping the checks | `scripts/guards/claude_push_guard.py` | `tests/guards/test_claude_push_guard.py::test_skipping_hooks_is_blocked` |
 | The global git identity is a work-linked account, so a commit here could carry it. Found while creating the repo. | Wrong commit identity | `scripts/guards/identity.py`, called by `.githooks/pre-commit` | `tests/guards/test_identity.py::test_other_account_address_is_rejected_with_a_fix` |
 | `gh` tried to create the repo as the work account, because the global git config sets a credential username and a new repo inherits it. Found while publishing. | A default account taken from global config | `scripts/guards/identity.py` reads only the repo-local `credential.https://github.com.username`, called by `.githooks/pre-commit` | `tests/guards/test_identity.py::test_global_account_setting_does_not_count` |
 | Private terms could reach a public repository. | A private name in public text | `scripts/guards/private_names.py`, called by both hooks | `tests/guards/test_private_names.py::test_staged_term_is_reported_without_echoing_the_term` |
