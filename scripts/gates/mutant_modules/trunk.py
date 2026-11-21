@@ -16,4 +16,8 @@ MUTANTS = (
     ('main-commit-fix-loses-the-warning', 'scripts/guards/trunk.py', ' and is not for publishing."', '."'),
     ('age-fix-omits-verify', 'scripts/guards/trunk.py', 'Fix: run {VERIFY_STEP} to verify the branch, then {PUBLISH_STEP}, or delete the branch."', 'Fix: {PUBLISH_STEP}, or delete the branch."'),
     ('merge-fix-omits-land-local', 'scripts/guards/trunk.py', 'fast-forward, as {LAND_LOCAL_STEP} does."', 'fast-forward, as integrate does."'),
+    ('any-branch-may-go-to-main', 'scripts/guards/trunk.py', 'if name == TRUNK and local_ref != remote_ref:', 'if False:'),
+    ('local-ref-compared-by-name-only', 'scripts/guards/trunk.py', 'if name == TRUNK and local_ref != remote_ref:', 'if name == TRUNK and not local_ref:'),
+    ('local-ref-argument-dropped', 'scripts/guards/trunk.py', 'arguments[2] if len(arguments) > 2 else ""', '"refs/heads/main"'),
+    ('missing-local-ref-accepted', 'scripts/guards/trunk.py', '    assert local_ref, "push_ref_errors got an empty local ref.', '    assert True, "push_ref_errors got an empty local ref.'),
 )

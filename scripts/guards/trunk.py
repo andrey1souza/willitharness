@@ -109,10 +109,16 @@ def stale_errors(repo, now_seconds):
     return errors
 
 
-def push_ref_errors(remote_ref):
+def push_ref_errors(remote_ref, local_ref):
     assert remote_ref, "push_ref_errors got an empty ref. Rule: the hook passes each remote ref. Fix: pass the remote ref name."
+    assert local_ref, "push_ref_errors got an empty local ref. Rule: the hook passes the local ref with each remote ref. Fix: pass the local ref name."
     name = remote_ref.removeprefix(HEAD_REFERENCE_PREFIX)
     assert name, f"the ref {remote_ref!r} has no branch name. Rule: a push targets a named branch. Fix: pass refs/heads/<name>."
+    if name == TRUNK and local_ref != remote_ref:
+        return [
+            f"trunk: pushing {local_ref!r} to {remote_ref!r} is blocked. Rule: only {TRUNK} itself goes to {TRUNK}. "
+            "Fix: push the branch to its own name with git push origin <branch>:refs/heads/<branch>, then open a pull request."
+        ]
     if name == TRUNK or BRANCH_PATTERN.match(name):
         return []
     return [
@@ -125,7 +131,7 @@ def main(arguments, repo, environment):
     assert isinstance(arguments, list), f"main needs a list of arguments, got {arguments!r}. Fix: pass sys.argv[1:]."
     assert isinstance(environment, dict) or hasattr(environment, "get"), f"environment must map names to values, got {environment!r}"
     if not arguments or arguments[0] not in MODES:
-        print(f"usage: trunk.py {'|'.join(MODES)} [remote-ref]. Fix: name one mode.", file=sys.stderr)
+        print(f"usage: trunk.py {'|'.join(MODES)} [remote-ref local-ref]. Fix: name one mode.", file=sys.stderr)
         return EXIT_USAGE
     mode = arguments[0]
     now = int(current_moment(environment).timestamp())
@@ -134,7 +140,7 @@ def main(arguments, repo, environment):
     elif mode == "push":
         errors = merge_errors(repo) + stale_errors(repo, now)
     else:
-        errors = push_ref_errors(arguments[1] if len(arguments) > 1 else "")
+        errors = push_ref_errors(arguments[1] if len(arguments) > 1 else "", arguments[2] if len(arguments) > 2 else "")
     for error in errors:
         print(error, file=sys.stderr)
     return EXIT_BREAKS_TRUNK_RULES if errors else EXIT_CLEAN
