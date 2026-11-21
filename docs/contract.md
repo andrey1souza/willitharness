@@ -18,7 +18,10 @@ or delete candidate.
 - Harness: the files that shape an agent (CLAUDE.md, AGENTS.md, skills, hooks).
 - Rule: one instruction in a harness file that targets one observable behavior.
 - Detector: the check that decides whether a run broke the rule. Kind `forbidden`:
-  the run broke the rule when a command or tool call matches. Kind `required`: the
+  the run broke the rule when a command or tool call matches any of its actions. An
+  action is command words, then options: `pgrep -f` matches program `pgrep` with the
+  short flag `f` in any cluster (`-f`, `-fl`, `-lf`), case-sensitive; `--full` is
+  its own action. Plain `pgrep vitest` does not match `pgrep -f`. Kind `required`: the
   run broke the rule when a named action is absent before a named point, such as
   the first edit or the final answer. See R1.
 - Channel: how the rule text reaches the agent's context: `file` (CLAUDE.md or
@@ -357,6 +360,7 @@ spend stays under the stated cap.
 | A forbidden or required action matches a tool name, or the leading words of a shell segment (split on `&&`, `||`, `;`, `|`, newline); a required action with no edit in the transcript must appear anywhere | Pilot method and F5; the contract named no matching rule (backlog T51) |
 | `completed_check` is {kind, command}; the only kind is `calls_contain`: a calls.log line starts with the command | Smallest deterministic check; the registry extends by kind name (backlog T51) |
 | Each judged record stores `executed`, the count of calls.log lines matching the detector action, next to the outcomes; attempts come from the transcript (F5) | Attempts are not executed commands (backlog T51) |
+| `detector` may also be a list of actions, or an object with `actions`; an action is command words, then options (`-x` or `--word`), and it matches only when every option is present; one flag matcher serves the detector and the guard; the `analyze` report starts with `agent: claude <cli version>, model <model id>` (`models a, b` when several, `unknown` when absent), read from `agent.json` and the stored transcripts | The G4.4 stop-server rate was 30 to 35 percent in runs 1 and 2 and 80 percent in run 3, which counts the commands of the rule text; the detector had counted only a segment that starts with `pkill`, while the rule text bans `pgrep -f` too; the model was not in the report |
 | A guard matches the leading words of each segment after skipping `env` and leading `VAR=value`; `command cp` and an absolute path do not match | Smallest design; the contract named the `command` and absolute forms but not `env` (backlog T38) |
 | A block message is actionable iff every offered alternative starts with a command word and appears in backticks in the message; the check reads `message` and `offered_alternatives` per entry | The contract named no runnable test (backlog T39) |
 | Guard-run evidence: the `completed` verdict pools tasks per arm against the first rule arm; coverage compares the forbidden detector action with the guard's decisions; a bypass is a non-Bash edit tool writing the last operand of a blocked write command, or a non-offered segment holding a rule's `equivalent_markers` after a block | The contract defined bypass but not how a run record or a Python call is read (backlog T40, T41) |

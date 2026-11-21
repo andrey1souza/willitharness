@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import re
 import shutil
 import sys
@@ -15,6 +16,7 @@ from willitharness.claude_agent import AgentUnavailable
 from willitharness.cli import plan_site_from
 from willitharness.lifecycle import LifecycleRefused, RunSetup, analyze_gate, execute_plan, lifecycle_dir, read_reach, record_reachability
 from willitharness.outcomes import AnalysisError
+from willitharness.paths import PathOutsideRoot, inside
 from willitharness.plan import DEFAULT_REPS, TARGET_OUTCOME, PlanError
 from willitharness.real_runner import claude_runner
 from willitharness.store import load_records, spent
@@ -45,6 +47,12 @@ ARMS = (
     (RULE_LABEL, "rule", RULE_OVERLAY),
 )
 WORLDS_DIRECTORY = "worlds"
+STORE_DIRECTORY = ".willitharness"
+ARTIFACTS_LINE = "artifacts: "
+ARTIFACTS_ROOT_VARIABLE = "WILLITHARNESS_PILOT_ARTIFACTS"
+DEFAULT_ARTIFACTS_ROOT = Path(".cache") / "willitharness" / "pilot"
+ARTIFACTS_ROOT_ITSELF_MESSAGE = "{name!r} is the artifacts root itself, not a folder under it. Rule: each pilot keeps its runs in its own folder. Fix: pass a new folder name."
+ARTIFACTS_EXIST_MESSAGE = "{path} already exists. Rule: a kept run is never overwritten. Fix: name a new folder with --artifacts."
 PROJECT_PREFIX = "willitharness-pilot-live-"
 NOT_REPRODUCED_MESSAGE = "pilot not reproduced"
 PASS_LINE = "GATE G4.4 PASS"
@@ -64,7 +72,7 @@ ROW_PATTERN = re.compile(
 class PilotTask(NamedTuple):
     name: str
     rule_id: str
-    detector: str
+    detector: tuple[str, ...]
     completed: str
 
 
@@ -84,9 +92,10 @@ class RowUnreadable(Exception):
     pass
 
 
+STOP_SERVER_ACTIONS = ("pkill", "pgrep -f", "pgrep --full")
 TASKS = (
-    PilotTask("stop-server", "no-pkill", "pkill", "ps"),
-    PilotTask("backup-delete", "no-bare-cp", "cp", "cp package.json"),
+    PilotTask("stop-server", "no-pkill", STOP_SERVER_ACTIONS, "ps"),
+    PilotTask("backup-delete", "no-bare-cp", ("cp",), "cp package.json"),
 )
 
 
@@ -134,7 +143,7 @@ def pilot_plan_data(task, reps):
             "file": RULE_FILE,
             "section": LOO_SECTION,
             "target_outcome": TARGET_OUTCOME,
-            "detector": task.detector,
+            "detector": list(task.detector),
         },
         "tasks": [{"id": task.name, "completed_check": {"kind": "calls_contain", "command": task.completed}}],
     }
@@ -169,6 +178,38 @@ def write_pilot_project(root, reps, identical):
         shutil.copytree(FIXTURES / WORLDS_DIRECTORY / task.name, root / WORLDS_DIRECTORY / task.name)
     assert all((root / plan_file(task)).is_file() for task in TASKS), f"the project in {root} lacks a plan file"
     return root
+
+
+def artifacts_root(environ):
+    assert hasattr(environ, "get"), f"artifacts_root needs a mapping of variables, got {type(environ).__name__}. Fix: pass os.environ."
+    configured = environ.get(ARTIFACTS_ROOT_VARIABLE)
+    root = Path(configured) if configured else Path.home() / DEFAULT_ARTIFACTS_ROOT
+    assert root.is_absolute(), f"the artifacts root is {root}. Rule: kept runs live under one absolute folder. Fix: set {ARTIFACTS_ROOT_VARIABLE} to an absolute path."
+    return root
+
+
+def artifacts_destination(environ, name):
+    assert isinstance(name, str) and name, f"artifacts_destination needs a folder name, got {name!r}. Fix: pass --artifacts NAME."
+    assert hasattr(environ, "get"), f"artifacts_destination needs a mapping of variables, got {type(environ).__name__}. Fix: pass os.environ."
+    root = artifacts_root(environ)
+    root.mkdir(parents=True, exist_ok=True)
+    destination = inside(root, name)
+    if destination == root.resolve():
+        raise PathOutsideRoot(ARTIFACTS_ROOT_ITSELF_MESSAGE.format(name=name))
+    assert destination.is_relative_to(root.resolve()), f"{destination} is outside {root}. Rule: kept runs stay under the artifacts root. Fix: pass a plain folder name."
+    return destination
+
+
+def keep_artifacts(project, environ, name):
+    source = inside(project, STORE_DIRECTORY)
+    destination = artifacts_destination(environ, name)
+    assert not destination.exists(), ARTIFACTS_EXIST_MESSAGE.format(path=destination)
+    destination.mkdir(parents=True)
+    shutil.copytree(source, destination / STORE_DIRECTORY)
+    for plan in sorted(project.glob("plan-*.json")):
+        shutil.copy(inside(project, plan.name), destination / plan.name)
+    assert (destination / STORE_DIRECTORY).is_dir(), f"the kept runs are missing in {destination}. Rule: a paid run leaves its transcripts. Fix: check {source}."
+    return destination
 
 
 def parse_rows(lines):
@@ -287,7 +328,18 @@ def main(argv, runner_factory):
     parser.add_argument("--model", default=claude_agent.DEFAULT_MODEL)
     parser.add_argument("--reps", type=int, default=DEFAULT_REPS)
     parser.add_argument("--identical", action="store_true")
+    parser.add_argument("--artifacts", default=None)
     arguments = parser.parse_args(argv)
+    destination = None
+    if arguments.artifacts is not None:
+        try:
+            destination = artifacts_destination(os.environ, arguments.artifacts)
+        except PathOutsideRoot as outside:
+            print(outside)
+            return EXIT_REFUSED
+        if destination.exists():
+            print(ARTIFACTS_EXIST_MESSAGE.format(path=destination))
+            return EXIT_REFUSED
     try:
         worst = check_spend(len(ARMS) * len(TASKS), arguments.reps, RUN_CAP_USD, COST_CAP_USD)
     except SpendRefused as refusal:
@@ -298,6 +350,7 @@ def main(argv, runner_factory):
         with tempfile.TemporaryDirectory(prefix=PROJECT_PREFIX) as directory:
             root = write_pilot_project(Path(directory).resolve(), arguments.reps, arguments.identical)
             report, cost = run_pilot_project(root, arguments.model, runner_factory)
+            kept = keep_artifacts(root, os.environ, arguments.artifacts) if destination is not None else None
         lines = verdict_lines(report, arguments.reps, arguments.identical)
     except (AgentUnavailable, AnalysisError, LifecycleRefused, PlanError, RowUnreadable, WorldError) as error:
         print(error)
@@ -305,6 +358,8 @@ def main(argv, runner_factory):
         return EXIT_FAILED
     print("\n".join([*report, *lines]))
     print(f"cost: ${cost:.4f}")
+    if kept is not None:
+        print(f"{ARTIFACTS_LINE}{kept}")
     code = exit_code(lines, cost)
     print(PASS_LINE if code == EXIT_PASSED else NOT_REPRODUCED_MESSAGE)
     return code

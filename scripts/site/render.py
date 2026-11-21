@@ -15,6 +15,9 @@ DECISION_COLUMNS = ("Case", "When", "Decision")
 GATE_COLUMNS = ("Gate", "Status", "Result")
 LIVE_COLUMNS = ("Task", "Arm C", "Arm B", "Verdict", "Noise", "Effect")
 COMPLETED_COLUMNS = ("Task", "Arm C", "Arm B", "Verdict", "Note")
+HISTORY_COLUMNS = ("When", "Run", "Detector", "Cost", "Results")
+STOP_SERVER_TASK = "stop-server"
+MATCH_TOLERANCE_POINTS = 5
 TONES = {
     "FixLoading": "warn",
     "Keep": "keep",
@@ -133,13 +136,29 @@ def completed_cells(item):
     return cells
 
 
-def earlier_run_text(earlier):
-    assert earlier["cost_usd"] > 0, f"the earlier run needs a cost, got {earlier}. Fix: restore the result file."
-    text = (
-        f"Run {earlier['run']} cost ${earlier['cost_usd']!r}. Arm C of stop-server had {earlier['stop_server_first_hits']} hits. "
-        f"The completed row of backup-delete read {earlier['completed_backup_delete']}. {earlier['explanation']}"
-    )
-    assert earlier["explanation"] in text, f"the explanation must stay in the text, got {text!r}"
+def history_cells(item):
+    assert "when" in item, f"a history item needs when, got {sorted(item)}. Fix: pass extract output."
+    cells = [plain(item["when"]), identifier(str(item["run"])), plain(item["detector"]), plain(f"${item['cost_usd']!r}"), plain(item["results"])]
+    assert len(cells) == len(HISTORY_COLUMNS), f"a history row has {len(HISTORY_COLUMNS)} cells, got {len(cells)}. Fix: match the table head."
+    return cells
+
+
+def stop_server_percent(live):
+    assert live["rows"] and "stop_server_percent" in live, f"the live data needs rows and stop_server_percent, got {sorted(live)}. Fix: restore the result file."
+    row = next(item for item in live["rows"] if item["task"] == STOP_SERVER_TASK)
+    computed = round(100 * row["first_hits"] / row["first_runs"])
+    assert live["stop_server_percent"] == computed, f"stop_server_percent is {live['stop_server_percent']}, but {row['first_hits']} of {row['first_runs']} runs is {computed} percent. Rule: the percent follows the row. Fix: correct stop_server_percent."
+    assert 0 <= live["stop_server_percent"] <= 100, f"stop_server_percent is {live['stop_server_percent']}. Rule: a percent is 0 to 100. Fix: correct the result file."
+    return live["stop_server_percent"]
+
+
+def spike_text(live):
+    spike, percent = live["spike"], stop_server_percent(live)
+    close = abs(percent - spike["stop_server_percent"]) <= MATCH_TOLERANCE_POINTS
+    assert live["matches_spike"] is close, f"matches_spike is {live['matches_spike']!r}, but {percent} and {spike['stop_server_percent']} percent are {'within' if close else 'not within'} {MATCH_TOLERANCE_POINTS} points. Rule: the match claim follows the numbers. Fix: correct matches_spike."
+    verdict = "matches" if close else "does not match"
+    text = f"Run {live['run']} stop-server rate: {percent} percent of arm C runs. The spike read {spike['stop_server_percent']} percent ({spike['source']}). The rate {verdict} the spike's."
+    assert str(percent) in text, f"the rate must stay in the text, got {text!r}"
     return escape(text, quote=False)
 
 
@@ -172,7 +191,11 @@ def page_values(data):
         "live_outcome": escape(live["outcome"]),
         "live_rows": table_rows(live_file, live["rows"], live_cells),
         "completed_rows": table_rows(live_file, live["completed_rows"], completed_cells),
-        "earlier_run": earlier_run_text(live["earlier_run"]),
+        "history_rows": table_rows(live_file, live["history"], history_cells),
+        "spike_text": spike_text(live),
+        "explanation": list_items(live_file, live["explanation"]),
+        "live_detector": escape(", ".join(live["detector"])),
+        "live_run": live["run"],
         "live_limits": list_items(live_file, live["limits"]),
         "limits": list_items(readme["file"], readme["limits"]),
         "readme_file": escape(readme["file"]),

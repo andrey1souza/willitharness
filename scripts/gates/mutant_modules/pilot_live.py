@@ -3,10 +3,12 @@ TESTS = ("tests/gates/test_pilot_live.py",)
 SOURCE = "scripts/gates/pilot_live.py"
 
 MUTANTS = (
+    ("stop-server-counts-only-pkill", SOURCE, 'STOP_SERVER_ACTIONS = ("pkill", "pgrep -f", "pgrep --full")', 'STOP_SERVER_ACTIONS = ("pkill", "killall")'),
+    ("stop-server-counts-every-pgrep", SOURCE, 'STOP_SERVER_ACTIONS = ("pkill", "pgrep -f", "pgrep --full")', 'STOP_SERVER_ACTIONS = ("pkill", "pgrep", "killall")'),
     ("reachability-not-loaded", SOURCE, "record_reachability(site, label, Reach.LOADED)", "record_reachability(site, label, Reach.UNKNOWN)"),
     ("report-rows-not-printed", SOURCE, 'print("\\n".join([*report, *lines]))', 'print("\\n".join(lines))'),
     ("pass-line-always-printed", SOURCE, "print(PASS_LINE if code == EXIT_PASSED else NOT_REPRODUCED_MESSAGE)", "print(PASS_LINE)"),
-    ("refusal-exits-one", SOURCE, "        return EXIT_REFUSED", "        return EXIT_FAILED"),
+    ("refusal-exits-one", SOURCE, "        print(refusal)\n        return EXIT_REFUSED", "        print(refusal)\n        return EXIT_FAILED"),
     ("spend-check-dropped", SOURCE, "worst = check_spend(len(ARMS) * len(TASKS), arguments.reps, RUN_CAP_USD, COST_CAP_USD)", "worst = 0.0"),
     ("cells-counted-per-arm-only", SOURCE, "check_spend(len(ARMS) * len(TASKS), arguments.reps", "check_spend(len(ARMS), arguments.reps"),
     ("identical-flag-not-written", SOURCE, "write_pilot_project(Path(directory).resolve(), arguments.reps, arguments.identical)", "write_pilot_project(Path(directory).resolve(), arguments.reps, False)"),
@@ -19,4 +21,12 @@ MUTANTS = (
     ("missing-agent-uncaught", SOURCE, "except (AgentUnavailable, AnalysisError,", "except (AnalysisError,"),
     ("world-not-validated", SOURCE, "    store_validation(root, site.world_dir, validate_world(site.world_dir))\n", ""),
     ("warnings-off", SOURCE, "report_lines(analyze_plan(AnalysisInput(plan, load_records(folder), read_reach(folder), False), True))", "report_lines(analyze_plan(AnalysisInput(plan, load_records(folder), read_reach(folder), False), False))"),
+    ("artifacts-store-not-copied", SOURCE, "    shutil.copytree(source, destination / STORE_DIRECTORY)\n", "    (destination / STORE_DIRECTORY).mkdir()\n"),
+    ("artifacts-plans-not-copied", SOURCE, 'project.glob("plan-*.json")', 'project.glob("none-*.json")'),
+    ("existing-artifacts-folder-accepted", SOURCE, "        if destination.exists():", "        if False:"),
+    ("artifacts-line-not-printed", SOURCE, '        print(f"{ARTIFACTS_LINE}{kept}")\n', "        pass\n"),
+    ("artifacts-kept-without-being-asked", SOURCE, "if destination is not None else None", "if True else None"),
+    ("artifacts-name-can-leave-the-root", SOURCE, "    destination = inside(root, name)", "    destination = root / name"),
+    ("artifacts-root-itself-accepted", SOURCE, "    if destination == root.resolve():", "    if False:"),
+    ("artifacts-root-ignores-the-variable", SOURCE, "    configured = environ.get(ARTIFACTS_ROOT_VARIABLE)", "    configured = None"),
 )

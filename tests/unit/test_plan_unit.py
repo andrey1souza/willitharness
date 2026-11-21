@@ -180,7 +180,7 @@ TASKS = [{"id": "stop-server", "completed_check": {"kind": "calls_contain", "com
 
 def test_a_rule_with_a_command_name_detector_loads_as_forbidden_and_a_plan_without_a_rule_still_loads():
     loaded = load_plan(changed({"rule": RULE, "tasks": TASKS}))
-    assert loaded.rule.detector == plan.Detector("forbidden", "pkill", ""), f"got {loaded.rule.detector}"
+    assert loaded.rule.detector == plan.Detector("forbidden", ("pkill",), ""), f"got {loaded.rule.detector}"
     assert loaded.rule.offered_alternatives == ("kill PID",), f"got {loaded.rule.offered_alternatives}"
     assert loaded.tasks == (plan.Task("stop-server", plan.CompletedCheck("calls_contain", "kill")),), f"got {loaded.tasks}"
     assert (load_plan(VALID).rule, load_plan(VALID).tasks) == (None, ()), "a plan without a rule has none"
@@ -188,17 +188,42 @@ def test_a_rule_with_a_command_name_detector_loads_as_forbidden_and_a_plan_witho
 
 def test_R1_a_required_detector_names_its_action_and_its_point():
     detector = {"kind": "required", "action": "gbrain query", "before": "first_edit"}
-    assert load_plan(changed({"rule": {**RULE, "detector": detector}})).rule.detector == plan.Detector("required", "gbrain query", "first_edit"), "the required detector was not kept"
+    assert load_plan(changed({"rule": {**RULE, "detector": detector}})).rule.detector == plan.Detector("required", ("gbrain query",), "first_edit"), "the required detector was not kept"
+
+
+@pytest.mark.parametrize(
+    "detector",
+    ["pkill", ["pkill"], {"kind": "forbidden", "action": "pkill"}, {"kind": "forbidden", "actions": ["pkill"]}],
+)
+def test_every_spelling_of_one_forbidden_action_loads_the_same_detector(detector):
+    loaded = load_plan(changed({"rule": {**RULE, "detector": detector}})).rule.detector
+    assert loaded == plan.Detector("forbidden", ("pkill",), ""), f"got {loaded}"
+    assert loaded.before == "", "a forbidden detector has no point"
+
+
+def test_a_list_detector_keeps_every_action_in_order_with_its_flags():
+    actions = ["pkill", "pgrep -f", "killall"]
+    loaded = load_plan(changed({"rule": {**RULE, "detector": actions}})).rule.detector
+    assert loaded == plan.Detector("forbidden", ("pkill", "pgrep -f", "killall"), ""), f"got {loaded}"
+    assert load_plan(changed({"rule": {**RULE, "detector": {"kind": "required", "actions": ["a", "b -x"], "before": "final_answer"}}})).rule.detector.actions == ("a", "b -x"), "the object form keeps the list"
 
 
 @pytest.mark.parametrize(
     ("detector", "fragment"),
     [
+        ([], "has actions []"),
+        (["pkill", 3], "has actions ['pkill', 3]"),
+        (["pkill", " "], "has actions ['pkill', ' ']"),
+        ({"kind": "forbidden", "action": "pkill", "actions": ["pkill"]}, "both action and actions"),
+        (["pgrep -fl"], "not one short letter"),
+        (["-f"], "options come last"),
+        (["pgrep -f vitest"], "options come last"),
+        ({"kind": "forbidden"}, "has actions None"),
         ({"kind": "required", "action": "gbrain query"}, "has before ''"),
         ({"kind": "required", "action": "gbrain query", "before": "lunch"}, "has before 'lunch'"),
         ({"kind": "forbidden", "action": "pkill", "before": "first_edit"}, "only a required detector names a point"),
         ({"kind": "maybe", "action": "pkill"}, "detector kind is 'maybe'"),
-        ({"kind": "forbidden", "action": " "}, "has action ' '"),
+        ({"kind": "forbidden", "action": " "}, "has actions ' '"),
         (7, "detector is 7"),
     ],
 )

@@ -15,4 +15,7 @@ MUTANTS = (
     ('limits-heading-renamed', SOURCE, 'LIMITS_HEADING = "## Honest limits"', 'LIMITS_HEADING = "## Working on it"'),
     ('record-moved-to-the-committed-folder', SOURCE, 'GATE_STATUS_FILE = "build/gate_status.json"', 'GATE_STATUS_FILE = "site/data/gate_status.json"'),
     ('record-date-kept', SOURCE, '"command": document["command"], "rows": rows', '"command": document["command"], "date": document["date"], "rows": rows'),
+    ('run-follows-history-unchecked', SOURCE, 'assert document["run"] == len(history) + 1,', 'assert True,'),
+    ('history-cites-the-run-line', SOURCE, "f'\"when\": {json.dumps(item[\"when\"])}'", "f'\"run\": {item[\"run\"]}'"),
+    ('explanation-cites-the-first-line', SOURCE, 'explanation = [{"text": text, "line": json_line(lines, json.dumps(text))} for text in document["explanation"]]', 'explanation = [{"text": text, "line": 1} for text in document["explanation"]]'),
 )

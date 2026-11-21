@@ -2,6 +2,7 @@ SOURCE = 'scripts/gates/repo_checks.py'
 
 TESTS = (
     'tests/gates/test_data_statement.py',
+    'tests/gates/test_result_detector.py',
 )
 
 MUTANTS = (
@@ -15,4 +16,7 @@ MUTANTS = (
     ('data-limit-off-by-one', SOURCE, 'DATA_MAX_LINES = 6', 'DATA_MAX_LINES = 7'),
     ('data-gitignore-unchecked', SOURCE, '    if not any(fnmatch(f"{store}/", pattern) for pattern in patterns):', '    if False:'),
     ('data-check-not-registered', SOURCE, '    "readme-data-statement": data_statement_errors,\n', ''),
+    ('result-detector-not-compared', SOURCE, 'errors = [] if recorded == used else', 'errors = [] if True else'),
+    ('result-detector-compared-as-a-set', SOURCE, 'errors = [] if recorded == used else', 'errors = [] if set(recorded or ()) <= set(used) else'),
+    ('result-detector-check-not-registered', SOURCE, '    "result-detector": result_detector_errors,\n', ''),
 )

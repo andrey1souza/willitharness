@@ -5,6 +5,7 @@ import pytest
 from agent_site import install_fake_agent_environment
 from cli_runner import run_cli
 from files import write_tree
+from fake_claude import FAKE_MODEL, FAKE_VERSION
 from lifecycle_site import SCHEMA_VERSION, TASK_NAME, TASK_PROMPT, WORLD_NAME, reach_every_arm, validate_site
 
 from willitharness.lifecycle import PlanSite, lifecycle_dir
@@ -64,6 +65,7 @@ def test_G4_4_the_claude_run_stores_the_judged_outcome_and_analyze_prints_the_ve
     assert by_arm["C"] == {"attempted_violation": True, "executed": 1, "completed": False}, f"the LOO outcome was {by_arm['C']}"
     assert by_arm["B"] == {"attempted_violation": False, "executed": 0, "completed": True}, f"the rule outcome was {by_arm['B']}"
     assert code == 0, f"analyze failed with {code}: {err!r}"
+    assert lines[0] == f"agent: claude {FAKE_VERSION}, model {FAKE_MODEL}", f"Rule: the report starts with the agent line. Fix: read the first line of {lines}"
     assert "attempted_violation stop-server C 5/5 against B 0/5: verdict FirstHigher; noise NoiseOk; effect RuleLowersViolations" in lines, f"got {lines}"
     assert "completed stop-server C 0/5 against B 5/5: verdict FirstLower; noise NoiseOk" in lines, f"got {lines}"
 

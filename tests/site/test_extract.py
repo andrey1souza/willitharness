@@ -40,7 +40,7 @@ def test_live_data_cites_task_and_limit_lines(tmp_path):
     write_tree(tmp_path, site_files())
     data = extract.live_data(tmp_path)
     assert [(row["task"], row["line"]) for row in data["rows"]] == [("stop-server", 11), ("backup-delete", 24)], f"got {data['rows']}"
-    assert [(limit["text"], limit["line"]) for limit in data["limits"]] == [("The gate uses two toy tasks.", 59), ("The commands are stubs.", 60)], f"got {data['limits']}"
+    assert [(limit["text"], limit["line"]) for limit in data["limits"]] == [("The gate uses two toy tasks.", 75), ("The commands are stubs.", 76)], f"got {data['limits']}"
     assert data["claims"]["proven"] is False and data["gate"] == "G9.9", f"the live data keeps its claims and gate, got {data}"
 
 
@@ -105,3 +105,18 @@ def test_a_source_outside_the_root_is_refused(tmp_path):
         extract.read_source_lines(tmp_path, "../escape.md")
     assert "Fix" in str(raised.value), f"the refusal must say how to fix it, got {raised.value}"
     assert "../escape.md" in str(raised.value), f"the refusal must name the path, got {raised.value}"
+
+
+def test_live_data_cites_history_and_explanation_lines(tmp_path):
+    write_tree(tmp_path, site_files())
+    data = extract.live_data(tmp_path)
+    assert [(item["when"], item["line"]) for item in data["history"]] == [("before the fixes", 65)], f"got {data['history']}"
+    assert [(item["text"], item["line"]) for item in data["explanation"]] == [("The narrow detector counted only `pkill`.", 72)], f"got {data['explanation']}"
+
+
+def test_a_run_number_that_does_not_follow_its_history_fails_loudly(tmp_path):
+    write_tree(tmp_path, site_files())
+    (tmp_path / "fixtures" / "results" / "g4_4.json").write_text(json.dumps(dict(LIVE, run=5), indent=2))
+    with pytest.raises(AssertionError, match="the current run follows its history") as raised:
+        extract.live_data(tmp_path)
+    assert "run 5 with 1 earlier runs" in str(raised.value), f"the failure must show both numbers, got {raised.value}"

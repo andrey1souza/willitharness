@@ -9,7 +9,7 @@ TABLE_HEAD = "# Mistakes\n\n## Mistakes caught by a rule\n\n| Mistake | Category
 TABLE_TAIL = "\n## Mistakes with no rule yet\n"
 GOOD_ROW = "| m | c | r | `tests/gates/test_x.py::test_x` |\n"
 TEST_FILE = "def test_x():\n    assert True\n"
-FILE_CHECKS = {name: check for name, check in repo_checks.CHECKS.items() if name not in ("mutant-tables", "mutant-platforms", "trace-pending", "paid-gate-target", "no-tracked-generated", "docs_freshness", "readme-data-statement", "integrate-source-never-forces", "pr-text-self-contained", *workflow_checks.CHECKS, *hook_checks.CHECKS)}
+FILE_CHECKS = {name: check for name, check in repo_checks.CHECKS.items() if name not in ("mutant-tables", "mutant-platforms", "trace-pending", "paid-gate-target", "no-tracked-generated", "docs_freshness", "readme-data-statement", "integrate-source-never-forces", "pr-text-self-contained", "result-detector", *workflow_checks.CHECKS, *hook_checks.CHECKS)}
 GOOD_README = (
     "# t\n\n## Limits of isolation\n"
     "Isolation uses macOS `sandbox-exec`. The network is not blocked. There is no sandbox on Linux.\n"
@@ -210,3 +210,4 @@ def test_a_makefile_without_the_pilot_target_is_reported(tmp_path):
     write_tree(tmp_path, {"Makefile": "check: test\n\nlive:\n\techo live\n"})
     errors = repo_checks.paid_target_errors(tmp_path)
     assert len(errors) == 1 and "has no pilot target" in errors[0], f"unexpected errors {errors}"
+

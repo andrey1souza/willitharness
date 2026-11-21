@@ -14,6 +14,9 @@ COST_FIELD = "total_cost_usd"
 TURNS_FIELD = "num_turns"
 DENIALS_FIELD = "permission_denials"
 COMMAND_FIELD = "command"
+SYSTEM_EVENT = "system"
+INIT_SUBTYPE = "init"
+MODEL_FIELD = "model"
 COMMAND_SEPARATORS = re.compile(r"[\s;&|()]+")
 ATTEMPT_LABEL = "attempts, not executed commands"
 UNREADABLE_LINE_ERRORS = (ValueError, TypeError, RecursionError)
@@ -64,6 +67,16 @@ def load_event(line):
     event = load_event_with(line, json.loads)
     assert isinstance(event, dict), f"load_event returned {type(event)}. Rule: a line is an object or empty. Fix: use load_event_with."
     return event
+
+
+def model_of(lines):
+    assert not isinstance(lines, (str, bytes)), f"lines is one {type(lines)} value {lines!r}. Rule: pass one line per item. Fix: split the stream first."
+    events = (load_event(line) for line in lines)
+    models = [event.get(MODEL_FIELD) for event in events if event.get("type") == SYSTEM_EVENT and event.get("subtype") == INIT_SUBTYPE]
+    found = next((model for model in models if isinstance(model, str) and model), None)
+    assert found is None or found in models, f"model_of invented the id {found!r} from {models!r}"
+    assert found is None or isinstance(found, str), f"model_of returned {found!r}, not text"
+    return found
 
 
 def bash_command_of(block):

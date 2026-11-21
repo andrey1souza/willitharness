@@ -45,7 +45,7 @@ def write_call(path, tool="Write"):
 def plan_of(roles, action="cp"):
     assert roles, "plan_of needs roles. Fix: pass a label to role mapping."
     arms = tuple(Arm(label, role, f"{label}.md", "file") for label, role in roles.items())
-    rule = Rule("no-cp", "AGENTS.md", "Working", "attempted_violation", Detector(KIND_FORBIDDEN, action), ("command cp -f SOURCE TARGET",))
+    rule = Rule("no-cp", "AGENTS.md", "Working", "attempted_violation", Detector(KIND_FORBIDDEN, (action,)), ("command cp -f SOURCE TARGET",))
     return Plan("guard", 2.0, 0.5, 20, 2, "world/", arms, rule)
 
 

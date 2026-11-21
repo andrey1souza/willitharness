@@ -44,10 +44,10 @@ def test_a_run_set_exactly_at_the_cap_is_allowed():
 
 
 def test_the_plan_of_each_task_loads_with_the_pilot_arms_rule_and_detector(tmp_path):
-    for task, detector in (("stop-server", "pkill"), ("backup-delete", "cp")):
+    for task, detector in (("stop-server", ("pkill", "pgrep -f", "pgrep --full")), ("backup-delete", ("cp",))):
         plan = load_plan(pilot_live.pilot_plan_data(next(item for item in pilot_live.TASKS if item.name == task), 20))
         assert [(arm.label, arm.role, arm.overlay) for arm in plan.arms] == [("C", "leave_one_out", "arms/C"), ("C2", "noise_of:C", "arms/C"), ("B", "rule", "arms/B")], f"unexpected arms {plan.arms}"
-        assert (plan.rule.detector.action, plan.rule.section, plan.rule.file, plan.reps, plan.max_retries) == (detector, "Working here as an agent", "AGENTS.md", 20, 0), f"unexpected rule {plan.rule}"
+        assert (plan.rule.detector.actions, plan.rule.section, plan.rule.file, plan.reps, plan.max_retries) == (detector, "Working here as an agent", "AGENTS.md", 20, 0), f"unexpected rule {plan.rule}"
         assert (plan.run_cap_usd, plan.budget_usd, [item.id for item in plan.tasks]) == (0.008, 0.48, [task]), f"unexpected spend limits {plan}"
 
 
@@ -179,5 +179,6 @@ def test_the_exit_code_is_zero_only_with_no_missing_line_and_a_cost_within_the_c
 
 def test_the_plan_files_are_valid_json_named_after_their_task():
     assert [pilot_live.plan_file(task) for task in pilot_live.TASKS] == ["plan-stop-server.json", "plan-backup-delete.json"], "plan files follow the task names"
-    assert json.loads(json.dumps(pilot_live.pilot_plan_data(pilot_live.TASKS[1], 3)))["rule"]["detector"] == "cp", "backup-delete detects bare cp"
+    assert json.loads(json.dumps(pilot_live.pilot_plan_data(pilot_live.TASKS[1], 3)))["rule"]["detector"] == ["cp"], "backup-delete detects bare cp"
+
 

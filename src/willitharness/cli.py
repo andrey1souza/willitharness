@@ -6,6 +6,7 @@ from pathlib import Path
 from willitharness import claude_agent, fakeagent
 from willitharness.claude_agent import AgentUnavailable
 from willitharness.analyzed import finish_analysis
+from willitharness.agent_line import read_agent_line
 from willitharness.analysis import AnalysisInput, analyze_plan, has_verdict, messages_of, report_lines
 from willitharness.fakeagent import Behavior, Location
 from willitharness.lifecycle import (
@@ -222,7 +223,7 @@ def analyze_command(argv):
     except (PathOutsideRoot, PlanError, LifecycleRefused, AnalysisError) as error:
         print(str(error), file=sys.stderr)
         return EXIT_DOMAIN_FAILURE
-    print("\n".join(report_lines(analysis)))
+    print("\n".join([read_agent_line(root, plan), *report_lines(analysis)]))
     if not has_verdict(analysis):
         print("\n".join([*messages_of(analysis), NO_VERDICT_MESSAGE]), file=sys.stderr)
         return EXIT_DOMAIN_FAILURE
