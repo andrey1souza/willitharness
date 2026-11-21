@@ -18,6 +18,9 @@ EXIT_BREAKS_TRUNK_RULES = 1
 EXIT_USAGE = 2
 MODES = ("commit", "push", "push-ref")
 HEAD_REFERENCE_PREFIX = "refs/heads/"
+VERIFY_STEP = "python3 scripts/guards/integrate.py"
+PUBLISH_STEP = "git push origin <branch>, then open a pull request"
+LAND_LOCAL_STEP = "python3 scripts/guards/integrate.py --land-local"
 
 
 def trunk_exists(repo):
@@ -54,14 +57,14 @@ def branch_errors(repo, branch, now_seconds):
     if len(timestamps) > MAX_BRANCH_COMMITS:
         errors.append(
             f"trunk: branch {branch!r} is {len(timestamps)} commits ahead of {TRUNK}, above {MAX_BRANCH_COMMITS}. "
-            "Rule: integrate small changes. Fix: run scripts/guards/integrate.py now, then split the rest into a new branch."
+            f"Rule: publish small changes. Fix: run {VERIFY_STEP} to verify the branch, then {PUBLISH_STEP}, and split the rest into a new branch."
         )
     if timestamps:
         age_hours = (now_seconds - min(timestamps)) / SECONDS_PER_HOUR
         if age_hours > MAX_BRANCH_AGE_HOURS:
             errors.append(
                 f"trunk: branch {branch!r} is {age_hours:.1f} hours old, above {MAX_BRANCH_AGE_HOURS}. "
-                "Rule: a branch lives less than a day. Fix: run scripts/guards/integrate.py, or delete the branch."
+                f"Rule: a branch lives less than a day. Fix: run {VERIFY_STEP} to verify the branch, then {PUBLISH_STEP}, or delete the branch."
             )
     return errors
 
@@ -74,8 +77,8 @@ def commit_errors(repo, now_seconds):
     branch = current_branch(repo)
     if branch == TRUNK:
         return [
-            f"trunk: a commit on {TRUNK} is blocked. Rule: work lands on {TRUNK} only through scripts/guards/integrate.py, "
-            "after the checks pass. Fix: git switch -c feat/<name>, then commit there."
+            f"trunk: a commit on {TRUNK} is blocked. Rule: work reaches {TRUNK} through a pull request from a branch, not by a commit on it. "
+            f"Fix: git switch -c feat/<name>, then commit there. {LAND_LOCAL_STEP} moves local {TRUNK} for local-only experiments and is not for publishing."
         ]
     return branch_errors(repo, branch, now_seconds)
 
@@ -90,7 +93,7 @@ def merge_errors(repo):
         return []
     return [
         f"trunk: {TRUNK} holds {len(merges)} merge commit(s). Rule: the trunk history is linear. "
-        f"Fix: rebase the branch on {TRUNK} and fast-forward, as scripts/guards/integrate.py does."
+        f"Fix: rebase the branch on {TRUNK} and fast-forward, as {LAND_LOCAL_STEP} does."
     ]
 
 

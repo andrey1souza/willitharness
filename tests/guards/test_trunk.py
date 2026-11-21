@@ -33,6 +33,8 @@ def test_a_commit_on_main_is_blocked_with_the_fix(repo, capsys):
     message = capsys.readouterr().err
     assert code == trunk.EXIT_BREAKS_TRUNK_RULES, f"expected exit 1, got {code}"
     assert "git switch -c feat/<name>" in message, f"the message must give the fix, got {message!r}"
+    expected = "Rule: work reaches main through a pull request from a branch, not by a commit on it. Fix: git switch -c feat/<name>, then commit there. python3 scripts/guards/integrate.py --land-local moves local main for local-only experiments and is not for publishing."
+    assert expected in message, f"the message must name the pull request and --land-local, got {message!r}"
 
 
 def test_the_first_commit_of_a_new_repository_is_allowed(tmp_path):
@@ -64,6 +66,8 @@ def test_a_branch_with_too_many_commits_is_rejected(repo, capsys):
     message = capsys.readouterr().err
     assert code == trunk.EXIT_BREAKS_TRUNK_RULES, f"expected exit 1, got {code}"
     assert f"{SIZE_LIMIT + 1} commits ahead" in message, f"unexpected message {message!r}"
+    expected = "Rule: publish small changes. Fix: run python3 scripts/guards/integrate.py to verify the branch, then git push origin <branch>, then open a pull request, and split the rest into a new branch."
+    assert expected in message, f"the fix must name verify, push and the pull request, got {message!r}"
 
 
 def test_a_branch_ten_commits_ahead_is_still_allowed(repo):
@@ -81,6 +85,8 @@ def test_a_branch_older_than_a_day_is_rejected(repo, capsys):
     message = capsys.readouterr().err
     assert code == trunk.EXIT_BREAKS_TRUNK_RULES, f"expected exit 1, got {code}"
     assert "hours old" in message, f"unexpected message {message!r}"
+    expected = "Rule: a branch lives less than a day. Fix: run python3 scripts/guards/integrate.py to verify the branch, then git push origin <branch>, then open a pull request, or delete the branch."
+    assert expected in message, f"the fix must name verify, push and the pull request, got {message!r}"
 
 
 def test_a_merge_commit_on_main_is_reported(repo, capsys):
@@ -93,6 +99,8 @@ def test_a_merge_commit_on_main_is_reported(repo, capsys):
     message = capsys.readouterr().err
     assert code == trunk.EXIT_BREAKS_TRUNK_RULES, f"expected exit 1, got {code}"
     assert "1 merge commit" in message, f"unexpected message {message!r}"
+    expected = "Fix: rebase the branch on main and fast-forward, as python3 scripts/guards/integrate.py --land-local does."
+    assert expected in message, f"the fix must name --land-local, got {message!r}"
 
 
 def test_a_linear_trunk_with_no_stale_branch_passes_the_push_check(repo):

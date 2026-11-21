@@ -1,0 +1,40 @@
+SOURCE = 'scripts/guards/pr_text.py'
+
+TESTS = (
+    'tests/guards/test_pr_text.py',
+)
+
+MUTANTS = (
+    ('title-drops-the-count', SOURCE, '    return f"{newest} (+{len(commits) - 1} commits)"', '    return newest'),
+    ('title-uses-the-oldest', SOURCE, 'newest = commits[0]["subject"]', 'newest = commits[-1]["subject"]'),
+    ('attribution-repeated', SOURCE, 'return list(dict.fromkeys(found))', 'return found'),
+    ('attribution-never-appended', SOURCE, '    if attribution:\n', '    if False:\n'),
+    ('failed-gates-accepted', SOURCE, 'assert not failed,', 'assert True,'),
+    ('typed-numbers-pass', SOURCE, 'for digits in sorted(set(NUMBER.findall(prose)) - allowed)', 'for digits in sorted(set())'),
+    ('commit-numbers-refused', SOURCE, 'numbers |= {digits for text in commit_text for digits in DIGITS.findall(text)}', 'numbers |= set()'),
+    ('sha-read-as-number', SOURCE, '        prose = prose.replace(commit["sha"][:SHA_LENGTH], "")', '        pass'),
+    ('private-match-case-sensitive', SOURCE, 'if any(re.search(pattern, line, re.IGNORECASE) for pattern in patterns)', 'if any(re.search(pattern, line) for pattern in patterns)'),
+    ('private-scan-skipped', SOURCE, '        if any(re.search(pattern, line, re.IGNORECASE) for pattern in patterns)\n', '        if False\n'),
+    ('phrase-match-case-sensitive', SOURCE, '(?![\\w-])", body, re.IGNORECASE)', '(?![\\w-])", body)'),
+    ('added-phrases-dropped', SOURCE, 'BLOCKED_PHRASES = (*HOLD_BACK_PHRASES, *EXTRA_HOLD_BACK_PHRASES)', 'BLOCKED_PHRASES = HOLD_BACK_PHRASES'),
+    ('long-sentences-pass', SOURCE, '    if share >= MIN_SHORT_SENTENCE_PERCENT:', '    if True:'),
+    ('threshold-off-by-one', SOURCE, '    if share >= MIN_SHORT_SENTENCE_PERCENT:', '    if share > MIN_SHORT_SENTENCE_PERCENT:'),
+    ('attribution-counted-as-prose', SOURCE, ' if line and line not in attribution]', ' if line]'),
+    ('failed-check-exits-zero', SOURCE, '    return EXIT_FAILED if problems else EXIT_CLEAN', '    return EXIT_CLEAN'),
+    ('missing-denylist-passes', SOURCE, '        return EXIT_BLOCKED', '        return EXIT_CLEAN'),
+    ('out-file-ignored', SOURCE, '        located(repo, arguments.out).write_text(body)', '        sys.stdout.write(body)'),
+    ('base-ignored', SOURCE, 'f"{base}..HEAD"', '"HEAD"'),
+    ('outside-path-exits-zero', SOURCE, '        print(f"pr_text: {problem}", file=sys.stderr)\n        return EXIT_FAILED\n\n\nif __name__', '        print(f"pr_text: {problem}", file=sys.stderr)\n        return EXIT_CLEAN\n\n\nif __name__'),
+    ('bad-log-exits-zero', SOURCE, '        return EXIT_FAILED\n    facts_file.write_text', '        return EXIT_CLEAN\n    facts_file.write_text'),
+    ('last-count-takes-first', SOURCE, '    return int(found[-1])', '    return int(found[0])'),
+    ('failed-tests-ignored', SOURCE, '("Tests", TESTS_FAILED.search(log))', '("Tests", None)'),
+    ('failed-pattern-matches-passed', SOURCE, 'TESTS_FAILED = re.compile(r"\\b\\d+ failed\\b")', 'TESTS_FAILED = re.compile(r"\\b\\d+ passed\\b")'),
+    ('mutants-not-summed', SOURCE, 'killed, total = (sum(column) for column in zip(*mutants))', 'killed, total = mutants[0]'),
+    ('survivors-accepted', SOURCE, '("Mutants", killed != total)', '("Mutants", False)'),
+    ('mutants-pattern-unanchored', SOURCE, 'MUTANTS_LINE = re.compile(r"^mutants killed: (\\d+)/(\\d+)$", re.MULTILINE)', 'MUTANTS_LINE = re.compile(r"mutants killed: (\\d+)/(\\d+)", re.MULTILINE)'),
+    ('trace-reads-the-repo-line', SOURCE, '"trace_ids": last_count(TRACE_LINE, log)', '"trace_ids": last_count(REPO_LINE, log)'),
+    ('repo-reads-the-trace-line', SOURCE, '"repo_checks": last_count(REPO_LINE, log)', '"repo_checks": last_count(TRACE_LINE, log)'),
+    ('repo-pattern-unanchored', SOURCE, 'REPO_LINE = re.compile(r"^repo-checks: (\\d+) checks passed$", re.MULTILINE)', 'REPO_LINE = re.compile(r"repo-checks: (\\d+) checks passed", re.MULTILINE)'),
+    ('tests-read-the-trace-line', SOURCE, '"tests": last_count(TESTS_LINE, log)', '"tests": last_count(TRACE_LINE, log)'),
+    ('empty-log-accepted', SOURCE, 'assert log.strip(), "the log is empty.', 'assert True, "the log is empty.'),
+)
