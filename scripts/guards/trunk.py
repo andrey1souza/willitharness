@@ -6,7 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from guards.gitcommand import git_lines
-from guards.push_window import current_moment
+from guards.clock import current_moment
 
 TRUNK = "main"
 BRANCH_PATTERN = re.compile(r"^(feat|fix|chore|docs|test)/[a-z0-9][a-z0-9-]*$")
