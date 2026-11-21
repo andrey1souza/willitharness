@@ -64,6 +64,8 @@ FORCE_FLAG = re.compile(r"^-[A-Za-z]*[fD][A-Za-z]*$")
 PR_TEXT_FILE = Path("scripts") / "guards" / "pr_text.py"
 REMOVABLE_SITE_MODULES = ("status",)
 FORBIDDEN_ARGUMENTS = ("--force", "--force-with-lease", "--hard", "push", "update-ref")
+CONTRACT_FILE = Path("docs") / "contract.md"
+CONTRACT_SENTENCES = ("Ending a plan needs no validated world.", "Each run record carries the validated world hash at the start of the run (T62).")
 
 
 def mistakes_table_errors(root):
@@ -263,6 +265,14 @@ def result_detector_errors(root):
     return errors
 
 
+def contract_sentence_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    text = " ".join((root / CONTRACT_FILE).read_text().split())
+    errors = [f"{CONTRACT_FILE} lacks the sentence {sentence!r}. Rule: the contract states what the code does about ending a plan and world hashes. Fix: restore it." for sentence in CONTRACT_SENTENCES if sentence not in text]
+    assert all(isinstance(error, str) for error in errors), f"errors must be text, got {errors!r}"
+    return errors
+
+
 def registered_mutant_errors(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     assert mutant_tables.MODULES, "the mutant table lists no modules. Rule: a gate with no mutants proves nothing. Fix: add them."
@@ -358,6 +368,7 @@ CHECKS = {
     "result-detector": result_detector_errors,
     "no-tracked-generated": tracked_generated_errors,
     "trace-fixtures": trace_fixtures.stale_fixture_errors,
+    "contract-sentences": contract_sentence_errors,
     "docs_freshness": docs_freshness.docs_freshness_errors,
     "readme-data-statement": data_statement_errors,
     "integrate-not-for-publishing": integrate_publishing_errors,

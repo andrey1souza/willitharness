@@ -1,11 +1,15 @@
+from collections import defaultdict
+
 from willitharness.outcomes import TARGET_OUTCOME
 from willitharness.plan import DEFAULT_REPS
+from willitharness.store import UNKNOWN_WORLD, latest_by_run
 from willitharness.verdict import MIN_RUNS
 from willitharness.vocabulary import Verdict
 
 LOW_N_WARNING = "W-LOWN: arm {arm}, task {task} has {n} usable runs; {recommended} are recommended"
 DENIAL_WARNING = "W-DENIAL: arm {arm}, task {task}: every run has a permission denial"
 SATURATED_WARNING = "saturated: arm {arm}, task {task} has no violating run; not measurable at this n; the model may already obey the rule"
+WORLD_MIX_WARNING = "W-WORLD: arm {arm}, task {task} has runs from {worlds} worlds; the runs do not share one validated world"
 POOLED_WARNING = "pooled: task clustering is ignored"
 AT_BOUND_WARNING = "AtBound: {outcome}, task {task}, arm {first} against arm {second}: both arms at 0% (or 100%); harder tasks are needed"
 
@@ -30,6 +34,18 @@ def cell_warnings(counts, denied):
         if cell in denied:
             lines.append(DENIAL_WARNING.format(arm=cell.arm, task=cell.task))
     assert all(isinstance(line, str) for line in lines), f"cell_warnings must return text, got {lines}"
+    return lines
+
+
+def world_warnings(records):
+    assert isinstance(records, tuple), f"world_warnings needs a tuple of records, got {type(records).__name__}. Fix: pass load_records output."
+    assert all(hasattr(record, "world_hash") for record in records), f"a record has no world_hash in {records!r}. Rule: T62, every record carries the world hash. Fix: build records with Record."
+    worlds = defaultdict(set)
+    for run in latest_by_run(records).values():
+        if run.world_hash != UNKNOWN_WORLD:
+            worlds[(run.arm, run.task)].add(run.world_hash)
+    lines = [WORLD_MIX_WARNING.format(arm=arm, task=task, worlds=len(hashes)) for (arm, task), hashes in sorted(worlds.items()) if len(hashes) > 1]
+    assert all(isinstance(line, str) for line in lines), f"world_warnings must return text, got {lines}"
     return lines
 
 

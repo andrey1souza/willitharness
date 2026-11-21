@@ -22,6 +22,7 @@ from willitharness.store import (
     in_flight_runs,
     latest_by_run,
     load_records,
+    UNKNOWN_WORLD,
     run_id_of,
     runs_to_start,
 )
@@ -268,19 +269,19 @@ def start_running(site):
     return running
 
 
-def started_record(job):
+def started_record(job, world_hash):
     assert isinstance(job, Job), f"started_record needs a Job, got {job!r}. Fix: build the job with Job(cell, rep, attempt)."
-    record = Record(run_id_of(job.cell, job.rep, job.attempt), job.cell.arm, job.cell.task, job.rep, job.attempt, RunState.STARTED, {}, 0.0)
+    record = Record(run_id_of(job.cell, job.rep, job.attempt), job.cell.arm, job.cell.task, job.rep, job.attempt, RunState.STARTED, {}, 0.0, world_hash=world_hash)
     assert record.state is RunState.STARTED, f"a new run is {record.state}. Rule: a run begins Started."
     return record
 
 
-def begin_run(folder, job):
+def begin_run(folder, job, world_hash):
     state = read_state(folder)
     if state is not PlanState.RUNNING:
         raise LifecycleRefused(f"plan is {state}; a run starts only while the plan is Running. Rule: L1. Fix: run willitharness run first.")
     assert isinstance(folder, Path), f"begin_run needs the plan folder as a Path, got {folder!r}. Fix: use lifecycle_dir."
-    record = started_record(job)
+    record = started_record(job, world_hash)
     already = latest_by_run(load_records(folder)).get(record.run_id)
     assert already is None, f"run id {record.run_id} is already stored as {already!r}. Rule: L3 and L9, a (cell, rep, attempt) id is recorded once as Started. Fix: claim the next attempt with claim_next_job."
     append_record(folder, record)
@@ -322,7 +323,7 @@ def claim_next_job(context):
             return None
         seen = cell_counters(records).get(cell, EMPTY_COUNTERS)
         job = Job(cell, seen.usable + seen.in_flight + 1, seen.attempts + 1)
-        begin_run(folder, job)
+        begin_run(folder, job, stored_hash(site.root, site.world_dir) or UNKNOWN_WORLD)
         assert context.ledger.spent + context.ledger.reserved <= context.ledger.budget, f"L2 broken after claiming {job}"
         assert job.attempt <= site.plan.reps + site.plan.max_retries, f"L9 broken: {job} is past reps plus max_retries. Fix: claim only what runs_to_start allows."
         return job
@@ -357,7 +358,7 @@ def finish_job(context, job, result):
     folder = lifecycle_dir(site.root, site.plan)
     run_cap = site.plan.run_cap_usd
     with STORE_LOCK:
-        started = latest_by_run(load_records(folder)).get(started_record(job).run_id)
+        started = latest_by_run(load_records(folder)).get(run_id_of(job.cell, job.rep, job.attempt))
         if started is None or started.state is not RunState.STARTED:
             return None
         final = timed_out_record(started, run_cap) if result.timed_out else judged_record(started, result, site.plan)
@@ -387,8 +388,7 @@ def conclude(context):
         if state is not PlanState.RUNNING:
             return state
         pending = any(count > 0 for count in runs_to_start(facts, load_records(folder)).values())
-        ledger = context.ledger
-        budget_blocks = not budget_allows_start(ledger.spent, ledger.reserved, ledger.run_cap, ledger.budget)
+        budget_blocks = not budget_allows_start(context.ledger.spent, context.ledger.reserved, context.ledger.run_cap, context.ledger.budget)
         if pending and not budget_blocks:
             return state
         target = PlanState.BUDGET_STOPPED if pending else PlanState.COMPLETE
