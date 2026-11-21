@@ -13,6 +13,7 @@ import hook_checks
 import mutant_tables
 import pilot_live
 import trace_check
+import trace_fixtures
 import workflow_checks
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -356,6 +357,7 @@ CHECKS = {
     "paid-gate-target": paid_target_errors,
     "result-detector": result_detector_errors,
     "no-tracked-generated": tracked_generated_errors,
+    "trace-fixtures": trace_fixtures.stale_fixture_errors,
     "docs_freshness": docs_freshness.docs_freshness_errors,
     "readme-data-statement": data_statement_errors,
     "integrate-not-for-publishing": integrate_publishing_errors,

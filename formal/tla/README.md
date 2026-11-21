@@ -164,6 +164,12 @@ and the jar at `~/.cache/tlalings/tla2tools.jar`. Override with `--java` and `--
 The runner exits with 1 on any mismatch. `two_tasks` takes 140.7 s of the 318 s because of
 its liveness check.
 
+## Trace replay
+
+`TraceWalk.tla` extends the model and prints one state line per step. `uv run python replay_traces.py` (or `make replay`, about 15 s, part of `make check`) takes seeded TLC walks of `resume_world`, `unusable` and `resume_abort`, applies each action to the real lifecycle and compares plan state, counters, money, budget and reachability after every step.
+It also tries every action the model forbids and requires the code to refuse it. A divergence prints seed, walk, step and both states. `make replay-fixtures` records the walks in `fixtures/traces/`, which the unit tests replay without Java; `repo_checks` fails when a fixture is older than the model.
+The replay does not cover per-run identity (the model has counters), the verdict steps (`AssessNoise`, `EmitEffect`, `Report` are no-ops for the code), more than one task, or the walk length beyond 18 states.
+
 ## What is NOT proven
 
 - The model is bounded: 3 arms, 1 or 2 tasks, 1 or 2 reps, 0 or 1 retries, small costs,

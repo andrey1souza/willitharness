@@ -130,6 +130,8 @@ def check_invariants(site, before, ever_running):
         assert attempts <= SPEC.reps + SPEC.max_retries, f"L9 broken: {attempts} attempts in {cell}, cap {SPEC.reps + SPEC.max_retries}"
         assert usable >= before["per_cell"][cell][0] and attempts >= before["per_cell"][cell][1], f"L3 broken: counters of {cell} fell from {before['per_cell'][cell]} to {(usable, attempts)}"
     assert after["spent"] >= before["spent"] - 1e-9 and after["stored"] >= before["stored"], f"L3 broken: spent or stored records fell, {before['spent']} to {after['spent']}"
+    started_ids = [record.run_id for record in load_records(lifecycle_dir(site.root, site.plan)) if record.state is RunState.STARTED]
+    assert len(started_ids) == len(set(started_ids)), f"L3 and L9 broken: a (cell, rep, attempt) id is Started twice in {sorted(started_ids)}"
     return after
 
 
