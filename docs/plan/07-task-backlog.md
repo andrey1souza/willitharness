@@ -370,13 +370,17 @@ As a user, I want to know what a plan run can touch, so that running a third-par
 | Threat | Mitigation | Check |
 |---|---|---|
 | Unrelated secrets in the environment reach the agent (GH_TOKEN, AWS keys) | the agent gets an allowlist of variables only | `tests/unit/test_isolation_unit.py`, mutants `every-variable-passes`, `prefix-rule-dropped` |
-| A tool-using run writes outside the world | a macOS `sandbox-exec` profile denies writes except the world and named folders | `tests/gates/test_sandbox_gate.py` runs a real write inside (allowed) and outside (denied); mutants `writes-not-denied`, `world-not-writable` |
-| A tool-using run reads the user's secret folders (.ssh, .aws, .gnupg, .config/gh, .netrc, .docker) | the same profile denies reads of them | the same gate reads a planted key and must fail; mutants `reads-not-denied`, `ssh-folder-readable` |
+| An effect run (Bash only) writes outside the workspace | Claude's own sandbox through `--settings` (`claude_sandbox.sandbox_settings`): `allowWrite` is the workspace, the scratch folder and the calls log; `failIfUnavailable` is true and `allowUnsandboxedCommands` is false | `tests/unit/test_claude_sandbox_unit.py` (literal JSON), `tests/gates/test_real_runner.py`; mutants `fail-if-unavailable-false`, `unsandboxed-commands-allowed`, `workspace-missing-from-allow-write`, `effect-run-gets-no-claude-sandbox`; live gate `scripts/gates/sandbox_live.py` |
+| An effect run reads the user's secret folders (.ssh, .aws, .gnupg, .config/gh, .netrc, .docker) | the same settings put each folder in `denyRead` | the unit test checks each folder; mutants `a-secret-folder-dropped`, `secret-folders-not-denied`; the live gate reads `~/.ssh` and must be blocked |
+| An effect run sends data out through Bash | the same settings give `network.allowedDomains` an empty list, so Bash has no network | mutants `domains-open-by-default`, `named-domains-ignored`; the live gate runs `curl` and must be blocked |
+| A sandbox that cannot start lets the run go on unsandboxed | `failIfUnavailable` true makes `claude` exit, and a run without a result event is recorded unusable | `test_a_run_whose_claude_sandbox_cannot_start_is_unusable_and_runs_nothing`; mutant `fail-if-unavailable-false` |
+| A guard run (Bash, Write, Edit) writes outside the world | a macOS `sandbox-exec` profile denies writes except the world and named folders, because Claude's sandbox does not cover the Write and Edit tools | `tests/gates/test_sandbox_gate.py` runs a real write inside (allowed) and outside (denied); mutants `writes-not-denied`, `world-not-writable`, `guard-run-loses-sandbox-exec`, `effect-run-still-wrapped` |
+| A guard run reads the user's secret folders | the same profile denies reads of them | the same gate reads a planted key and must fail; mutants `reads-not-denied`, `ssh-folder-readable` |
 | A world stub runs arbitrary code | a stub is data (canned output), and `world check` executes nothing from the world | world tests (T23) |
 | The probe agent edits files | the probe runs with `--tools ""` | `tests/unit/test_claude_agent_unit.py`, mutant `tools-left-on` |
 | A run costs more than planned | `--max-budget-usd` per run, a wall-clock timeout, and the reservation rule | T27, T28 |
 
-- Known limit: the profile does not block the network, because the agent itself must reach its API. A tool-using run could still send data out. The sandbox is for macOS only. Run only plans you have read.
+- Known limits: an effect run has no network for Bash and a guard run has the network open, because the agent itself must reach its API. The `claude` process is not confined in either kind: Claude's sandbox covers shell commands only, and `sandbox-exec` cannot be stacked under it on macOS. The Claude sandbox on Linux needs bubblewrap and socat and is untested here. Run only plans you have read.
 - IDs: W2. Gate: G3.3. Deps: T20.
 
 ### T55. Fuzz the two parsers (M)

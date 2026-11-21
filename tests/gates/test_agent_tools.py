@@ -5,7 +5,7 @@ from dataclasses import replace
 
 import pytest
 
-from agent_site import CELL, ONE_RUN, OVERLAY_NAME, add_overlay_file, prepare_project_with_fake_agent, run_one
+from agent_site import CELL, ONE_RUN, OVERLAY_NAME, add_overlay_file, guard_site, prepare_project_with_fake_agent, run_one
 from cli_runner import run_cli
 from fake_claude import DENIED_COMMAND, FAKE_VERSION, report_of
 from files import write_tree
@@ -243,9 +243,11 @@ def test_the_agent_sees_no_scaffolding_in_its_working_directory(tmp_path, monkey
     assert artifact(tmp_path, "calls-1.log").read_text() == "pkill x\n", "the call must still be logged and stored"
 
 
-def test_the_agent_cannot_write_into_the_wrapper_folder_or_beside_the_calls_log(tmp_path, monkeypatch):
+def test_a_guard_run_cannot_write_into_the_wrapper_folder_or_beside_the_calls_log(tmp_path, monkeypatch):
     attacks = f'echo x >> "{WRAPPER_FOLDER}/pkill"; echo status=$?\necho x > "{WRAPPER_FOLDER}/planted"; echo status=$?\necho x > "{WRAPPER_FOLDER}/../planted"; echo status=$?\npkill\n'
-    _, result = run_with_commands(tmp_path, monkeypatch, "tools", attacks)
+    site = guard_site(prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "tools"))
+    add_overlay_file(site, "fake-commands.txt", attacks)
+    result = run_one(site)
     outputs = report_of(result.transcript)["tool_outputs"]
     assert all(output.startswith("status=1\n") and "Operation not permitted" in output for output in outputs[:3]), f"a write outside the workspace must fail under the sandbox, got {outputs}"
     assert outputs[3] == "stub-killed\n", f"the wrapper must be untouched, got {outputs[3]!r}"

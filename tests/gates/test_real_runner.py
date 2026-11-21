@@ -1,13 +1,15 @@
+import json
 import math
 import os
 import sys
 import threading
 import time
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
-from agent_site import ONE_RUN, TWO_RUNS, prepare_project_with_fake_agent, run_one
+from agent_site import ONE_RUN, TWO_RUNS, add_overlay_file, guard_site, prepare_project_with_fake_agent, run_one
 from cli_runner import run_cli
 from fake_claude import ESCAPE_TARGET_FILE, PID_FILE, SECRET_VARIABLE, report_of
 from files import write_tree
@@ -71,11 +73,58 @@ def test_the_agent_environment_drops_unlisted_variables_and_gets_a_private_temp_
     assert report["claude_tmpdir"] == report["tmpdir"], f"claude must write its command output inside the private scratch folder, got CLAUDE_CODE_TMPDIR {report['claude_tmpdir']} and TMPDIR {report['tmpdir']}"
 
 
-def test_the_agent_can_write_in_its_workspace_and_nowhere_else(tmp_path, monkeypatch):
-    site = prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok")
+def test_a_guard_run_can_write_in_its_workspace_and_nowhere_else(tmp_path, monkeypatch):
+    site = guard_site(prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok"))
     report = report_of(run_one(site).transcript)
     assert report["wrote_inside"] is True, f"the agent could not write in its workspace, report {report}"
     assert report["wrote_outside"] is False and not (tmp_path / "outside" / "escaped.txt").exists(), f"the agent wrote outside its workspace, report {report}"
+
+
+def test_an_effect_run_leaves_the_claude_process_unwrapped_because_the_claude_sandbox_covers_bash_only(tmp_path, monkeypatch):
+    site = prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok")
+    report = report_of(run_one(site).transcript)
+    assert report["wrote_outside"] is True and (tmp_path / "outside" / "escaped.txt").exists(), f"an effect run must not be wrapped in sandbox-exec, report {report}"
+    assert "--settings" in report["arguments"], f"an effect run must carry the Claude sandbox settings instead, got {report['arguments']}"
+
+
+def test_the_effect_run_sandbox_settings_name_the_run_folders_and_the_secret_folders(tmp_path, monkeypatch):
+    site = prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok")
+    report = report_of(run_one(site).transcript)
+    work = report["cwd"]
+    run_root = os.path.dirname(work)
+    home = str(Path.home())
+    settings = json.loads(report["arguments"][report["arguments"].index("--settings") + 1])
+    assert settings == {
+        "sandbox": {
+            "enabled": True,
+            "failIfUnavailable": True,
+            "allowUnsandboxedCommands": False,
+            "filesystem": {
+                "allowWrite": [work, f"{run_root}/tmp", f"{run_root}/calls.log"],
+                "denyRead": [f"{home}/.ssh", f"{home}/.aws", f"{home}/.gnupg", f"{home}/.config/gh", f"{home}/.netrc", f"{home}/.docker"],
+            },
+            "network": {"allowedDomains": []},
+        }
+    }, f"the settings of an effect run are wrong: {settings}"
+
+
+def test_a_guard_run_has_no_claude_sandbox_settings(tmp_path, monkeypatch):
+    site = guard_site(prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok"))
+    arguments = report_of(run_one(site).transcript)["arguments"]
+    assert "--settings" not in arguments, f"a guard run keeps sandbox-exec and gets no Claude sandbox, got {arguments}"
+    assert arguments[arguments.index("--tools") + 1] == "Bash,Write,Edit", f"a guard run keeps the file tools, got {arguments}"
+
+
+def test_a_run_whose_claude_sandbox_cannot_start_is_unusable_and_runs_nothing(tmp_path, monkeypatch):
+    site = prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "tools sandbox-unavailable")
+    marker = tmp_path / "outside" / "ran.txt"
+    add_overlay_file(site, "fake-commands.txt", f"echo ran > {marker}\n")
+    setup = run_setup(site)
+    outcome = execute_plan(setup, claude_runner(setup, "haiku"))
+    (run,) = stored_final_runs(site)
+    assert outcome is PlanState.COMPLETE, f"the plan must end Complete, got {outcome}"
+    assert run.state is RunState.RECORDED_UNUSABLE and run.usable == {"attempted_violation": False, "completed": False}, f"a run without a sandbox is unusable and counts for nothing, got {run}"
+    assert not marker.exists(), "the command ran although the sandbox could not start. Rule: a run never falls back to no sandbox."
 
 
 def test_the_workspace_is_removed_after_the_run(tmp_path, monkeypatch):
@@ -122,8 +171,8 @@ def test_a_plan_of_normal_runs_ends_complete_with_usable_records_at_their_cost(t
     assert all(run.state is RunState.RECORDED_USABLE and math.isclose(run.cost_usd, 0.01) for run in runs), f"every run costs 0.01 and is usable, got {runs}"
 
 
-def test_G3_11_abort_kills_the_agent_that_is_in_flight(tmp_path, monkeypatch):
-    site = prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "hang")
+def test_G3_11_abort_kills_the_guard_agent_that_is_in_flight_and_the_sandbox_lets_it_write_its_config_folder(tmp_path, monkeypatch):
+    site = guard_site(prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "hang"))
     setup = RunSetup(site, (TASK_NAME,), ABORT_TIMEOUT_SECONDS)
     outcomes = []
     worker = threading.Thread(target=lambda: outcomes.append(execute_plan(setup, claude_runner(setup, "haiku"))))

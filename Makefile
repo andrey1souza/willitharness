@@ -32,6 +32,7 @@ live:
 	uv run python scripts/gates/isolation_live.py
 	uv run python scripts/gates/run_live.py
 	uv run python scripts/gates/shell_live.py
+	uv run python scripts/gates/sandbox_live.py
 
 pilot:
 	uv run python scripts/gates/pilot_live.py --artifacts "$$(date -u +%Y%m%dT%H%M%SZ)"

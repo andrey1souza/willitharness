@@ -7,22 +7,22 @@ import subprocess
 import tempfile
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from willitharness.artifacts import RunArtifacts, artifact_directory, store_artifacts
 from willitharness.claude_agent import build_command, claude_version, tool_policy
+from willitharness.claude_sandbox import NO_DOMAINS, sandbox_settings
 from willitharness.isolation import agent_environment, sandbox_profile, sandboxed_command
 from willitharness.lifecycle import TIMED_OUT, PlanState, RunSetup, finished, lifecycle_dir, read_state
 from willitharness.paths import PathOutsideRoot, inside
 from willitharness.plan import PlanError, has_guard_arm
-from willitharness.stubs import calls_path, copy_without_reserved, stub_folder, write_stub_wrappers
+from willitharness.stubs import calls_path, copy_without_reserved, scratch_path, stub_folder, write_stub_wrappers
 from willitharness.world import allowed_commands, prompt_text
 
 POLL_SECONDS = 0.05
 RUN_DIRECTORY_PREFIX = "willitharness-run-"
 WORK_NAME = "work"
-SCRATCH_NAME = "tmp"
 TEMP_VARIABLE = "TMPDIR"
 CLAUDE_TEMP_VARIABLE = "CLAUDE_CODE_TMPDIR"
 CONFIG_VARIABLE = "CLAUDE_CONFIG_DIR"
@@ -142,8 +142,8 @@ def build_workspace(site, arm_label, run_root):
     copy_without_reserved(site.world_dir, work)
     copy_without_reserved(inside(site.root, arms[arm_label].overlay), work)
     write_stub_wrappers(site.world_dir, run_root)
-    (run_root / SCRATCH_NAME).mkdir()
-    assert work.is_dir() and (run_root / SCRATCH_NAME).is_dir(), f"the workspace under {run_root} is incomplete"
+    scratch_path(run_root).mkdir()
+    assert work.is_dir() and scratch_path(run_root).is_dir(), f"the workspace under {run_root} is incomplete"
     return work
 
 
@@ -156,9 +156,18 @@ def agent_config_directory(environ, home):
 
 def writable_extras(run_root, environ, home):
     assert run_root.is_dir(), f"{run_root} is not a directory. Fix: pass the run folder."
-    extras = (run_root / SCRATCH_NAME, calls_path(run_root), agent_config_directory(environ, home), home / HOME_STATE_NAME)
+    extras = (scratch_path(run_root), calls_path(run_root), agent_config_directory(environ, home), home / HOME_STATE_NAME)
     assert all(path.is_absolute() for path in extras), f"an extra writable path is relative: {extras!r}. Fix: use absolute paths."
     return extras
+
+
+def run_sandbox(guarded, work, run_root, home):
+    assert work.is_dir() and run_root.is_dir(), f"{work} or {run_root} is not a directory. Fix: build the workspace first."
+    assert home.is_dir(), f"{home} is not a directory. Rule: the sandbox hides secret folders under home. Fix: pass the user's home."
+    profile = sandbox_profile(work, home, writable_extras(run_root, os.environ, home)) if guarded else None
+    settings = "" if guarded else sandbox_settings(work, run_root, home, NO_DOMAINS)
+    assert (profile is None) != (settings == ""), f"a run needs exactly one sandbox, got profile {profile!r} and settings {settings!r}. Rule: guard runs use sandbox-exec, effect runs use the Claude sandbox."
+    return profile, settings
 
 
 def kill_group(process):
@@ -181,11 +190,18 @@ def kill_every_live_group():
 atexit.register(kill_every_live_group)
 
 
+def agent_argv(command, profile):
+    assert command, "agent_argv needs a command. Fix: pass the claude command."
+    argv = command if profile is None else sandboxed_command(command, profile)
+    assert argv[-len(command):] == command, f"agent_argv changed the claude command: {argv!r}. Rule: the wrapper only goes in front."
+    return argv
+
+
 def start_agent(command, profile, work, environment):
-    assert command and profile, f"start_agent needs a command and a profile, got {command!r} and {profile!r}. Fix: build them first."
+    assert command, f"start_agent needs a command, got {command!r}. Fix: build it first."
     assert work.is_dir(), f"{work} is not a directory. Rule: the agent starts in its workspace. Fix: build the workspace first."
     process = subprocess.Popen(
-        sandboxed_command(command, profile),
+        agent_argv(command, profile),
         cwd=work,
         env=environment,
         stdin=subprocess.DEVNULL,
@@ -223,7 +239,7 @@ def run_environment(run_root, environ):
     assert stub_folder(run_root).is_dir(), f"{stub_folder(run_root)} is not a directory. Rule: the wrappers exist before the run starts. Fix: write them first."
     scrubbed = agent_environment(environ)
     path = os.pathsep.join([str(stub_folder(run_root)), scrubbed[PATH_VARIABLE]])
-    scratch = str(run_root / SCRATCH_NAME)
+    scratch = str(scratch_path(run_root))
     environment = {**scrubbed, PATH_VARIABLE: path, TEMP_VARIABLE: scratch, CLAUDE_TEMP_VARIABLE: scratch}
     assert environment[PATH_VARIABLE].startswith(str(stub_folder(run_root))), f"the stub folder is not first on PATH: {environment[PATH_VARIABLE]!r}"
     return environment
@@ -250,13 +266,14 @@ def run_cell(runner, cell, rep, attempt):
     site = runner.setup.site
     home = Path.home()
     prompt = prompt_text(site.world_dir, cell.task)
-    policy = tool_policy(has_guard_arm(site.plan), allowed_commands(site.world_dir))
+    guarded = has_guard_arm(site.plan)
+    policy = tool_policy(guarded, allowed_commands(site.world_dir))
     with tempfile.TemporaryDirectory(prefix=RUN_DIRECTORY_PREFIX, dir=runner.base) as directory:
         run_root = Path(directory).resolve()
         work = build_workspace(site, cell.arm, run_root)
-        profile = sandbox_profile(work, home, writable_extras(run_root, os.environ, home))
+        profile, settings = run_sandbox(guarded, work, run_root, home)
         environment = run_environment(run_root, os.environ)
-        command = build_command(prompt, runner.model, site.plan.run_cap_usd, policy)
+        command = build_command(prompt, runner.model, site.plan.run_cap_usd, replace(policy, settings=settings))
         deadline = time.monotonic() + runner.setup.timeout_seconds
         output = watch(start_agent(command, profile, work, environment), deadline, lifecycle_dir(site.root, site.plan))
         calls = calls_text(run_root)

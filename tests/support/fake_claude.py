@@ -9,6 +9,8 @@ COMMANDS_FILE = "fake-commands.txt"
 COMMANDS_VARIABLE = "CLAUDE_CODE_FAKE_COMMANDS"
 COST_VARIABLE = "CLAUDE_CODE_FAKE_COST"
 DENIED_COMMAND = "rm important.txt"
+SANDBOX_ERROR = "Error: sandbox.enabled is true but the sandbox cannot start"
+SANDBOX_EXIT_CODE = 1
 
 BEHAVIOR_FILE = "fake-behavior.txt"
 PID_FILE = "agent.pid"
@@ -26,6 +28,11 @@ if sys.argv[1:] == ["--version"]:
 behaviors = open("{BEHAVIOR_FILE}").read().split() if os.path.exists("{BEHAVIOR_FILE}") else ["ok"]
 arguments = sys.argv[1:]
 config = os.environ["CLAUDE_CONFIG_DIR"]
+def settings_of(arguments):
+    return json.loads(arguments[arguments.index("--settings") + 1]) if "--settings" in arguments else {{}}
+if "sandbox-unavailable" in behaviors and settings_of(arguments).get("sandbox", {{}}).get("failIfUnavailable"):
+    sys.stderr.write("{SANDBOX_ERROR}\\n")
+    sys.exit({SANDBOX_EXIT_CODE})
 if "hang" in behaviors:
     open(os.path.join(config, "{PID_FILE}"), "w").write(str(os.getpid()))
     time.sleep({HANG_SECONDS})

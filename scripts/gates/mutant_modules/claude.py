@@ -27,4 +27,7 @@ MUTANTS = (
     ('version-exit-code-ignored', 'src/willitharness/claude_agent.py', '    if completed.returncode != 0 or not version:', '    if not version:'),
     ('empty-version-accepted', 'src/willitharness/claude_agent.py', '    if completed.returncode != 0 or not version:', '    if completed.returncode != 0:'),
     ('missing-binary-not-refused', 'src/willitharness/claude_agent.py', '    except (OSError, subprocess.TimeoutExpired) as error:', '    except subprocess.TimeoutExpired as error:'),
+    ('settings-flag-dropped', 'src/willitharness/claude_agent.py', '        flags += [SETTINGS_FLAG, policy.settings]\n', '        flags += []\n'),
+    ('probe-gets-settings-flag', 'src/willitharness/claude_agent.py', '    if policy.settings:\n', '    if True:\n'),
+    ('settings-flag-renamed', 'src/willitharness/claude_agent.py', 'SETTINGS_FLAG = "--settings"', 'SETTINGS_FLAG = "--setting"'),
 )

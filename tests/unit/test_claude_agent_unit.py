@@ -76,3 +76,24 @@ def test_a_policy_command_sets_tools_allowlist_and_the_default_permission_mode_b
 def test_a_policy_without_commands_passes_no_empty_allowlist():
     command = build_command("hello", MODEL, BUDGET, tool_policy(False, []))
     assert "--allowedTools" not in command and command[command.index("--permission-mode") + 1] == "default", f"got {command}"
+
+
+def test_a_policy_with_settings_passes_them_once_after_the_allowlist():
+    settings = '{"sandbox": {"enabled": true}}'
+    policy = ToolPolicy("Bash", ("Bash(ls:*)",), settings)
+    command = build_command("hello", MODEL, BUDGET, policy)
+    assert command.count("--settings") == 1 and command[command.index("--settings") + 1] == settings, f"settings wrong in {command}"
+    assert command.index("--settings") > command.index("--allowedTools"), f"settings must follow the allowlist, got {command}"
+
+
+def test_a_policy_without_settings_and_a_probe_get_no_settings_flag():
+    plain = build_command("hello", MODEL, BUDGET, tool_policy(False, ["ls"]))
+    assert "--settings" not in plain, f"a policy built without settings must not pass the flag, got {plain}"
+    probe = build_command("hello", MODEL, BUDGET, PROBE_POLICY)
+    assert "--settings" not in probe, f"a probe run keeps sandbox-exec and gets no Claude sandbox, got {probe}"
+
+
+def test_a_probe_with_settings_is_refused():
+    with pytest.raises(AssertionError) as raised:
+        build_command("hello", MODEL, BUDGET, ToolPolicy("", (), "{}"))
+    assert "Rule:" in str(raised.value) and "--settings" in str(raised.value), f"unexpected message {str(raised.value)!r}"

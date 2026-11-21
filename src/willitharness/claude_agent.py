@@ -15,6 +15,7 @@ EFFECT_TOOLS = "Bash"
 GUARD_TOOLS = "Bash,Write,Edit"
 PERMISSION_MODE = "default"
 ALLOW_PATTERN = "Bash({command}:*)"
+SETTINGS_FLAG = "--settings"
 
 
 class AgentUnavailable(Exception):
@@ -25,6 +26,7 @@ class AgentUnavailable(Exception):
 class ToolPolicy:
     tools: str
     allowed: tuple
+    settings: str = ""
 
 
 PROBE_POLICY = ToolPolicy("", ())
@@ -45,7 +47,10 @@ def tool_flags(policy):
         flags += ["--permission-mode", PERMISSION_MODE]
     if policy.tools and policy.allowed:
         flags += ["--allowedTools", ",".join(policy.allowed)]
+    if policy.settings:
+        flags += [SETTINGS_FLAG, policy.settings]
     assert flags[:2] == ["--tools", policy.tools], f"tool_flags changed the tools flag: {flags!r}"
+    assert policy.tools or SETTINGS_FLAG not in flags, f"a run without tools got {SETTINGS_FLAG}: {flags!r}. Rule: only a tool-using run gets the Claude sandbox."
     return flags
 
 

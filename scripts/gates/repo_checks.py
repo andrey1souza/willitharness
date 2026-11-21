@@ -42,9 +42,9 @@ README_FILE = Path("README.md")
 ISOLATION_HEADING = "## Limits of isolation"
 ISOLATION_MAX_LINES = 6
 ISOLATION_PHRASES = (
-    "isolation uses macos sandbox-exec",
-    "the network is not blocked",
-    "there is no sandbox on linux",
+    "effect runs use claude's own sandbox and have no network",
+    "guard runs use macos sandbox-exec and their network is open",
+    "the linux sandbox path is untested",
     "run only plans you have read",
     "not a security boundary against a hostile plan",
     "the claude process itself is not confined",
