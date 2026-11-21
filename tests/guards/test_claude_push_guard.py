@@ -80,3 +80,18 @@ def test_main_blocks_a_bash_push_outside_the_window(capsys):
     printed = capsys.readouterr().err
     assert code == guard.BLOCK_EXIT_CODE, "a Bash push at 14:00 must be blocked, got code %r" % (code,)
     assert "push-window" in printed, "the hook must print the window message, got %r" % (printed,)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "WILLITHARNESS_NOW=2026-11-17T20:00:00 git push origin main",
+        "env git push origin main",
+        "sh -c 'git push origin main'",
+        "bash push.sh",
+    ],
+)
+def test_a_push_wrapped_in_another_command_is_not_seen(command):
+    code, message = guard.verdict_for(command, OUTSIDE)
+    assert code == guard.ALLOW_EXIT_CODE, "%r is a known gap that the README states, got code %r. Fix: if the hook now reads it, update the README sentence and this test." % (command, code)
+
