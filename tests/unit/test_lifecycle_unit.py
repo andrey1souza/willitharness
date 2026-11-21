@@ -28,7 +28,7 @@ from willitharness.lifecycle import (
     start_running,
     write_state,
 )
-from willitharness.store import Cell, Record, RunState, append_record, cell_counters, in_flight_runs, latest_by_run, load_records, spent
+from willitharness.store import UNKNOWN_WORLD, Cell, Record, RunState, append_record, cell_counters, in_flight_runs, latest_by_run, load_records, spent
 from willitharness.vocabulary import Reach
 
 SMALL = SiteSpec(arm_count=1, budget_usd=1.0, run_cap_usd=0.02, reps=2, max_retries=1)
@@ -211,7 +211,7 @@ def test_L1_a_start_is_refused_unless_the_plan_is_running_and_stores_nothing(tmp
     validate_site(site)
     refresh_state(site)
     with pytest.raises(LifecycleRefused) as raised:
-        begin_run(folder_of(site), Job(CELL, 1, 1))
+        begin_run(folder_of(site), Job(CELL, 1, 1), UNKNOWN_WORLD)
     assert "plan is WorldValidated" in str(raised.value), f"got {raised.value}"
     assert stored_final_runs(site) == (), "no run record may exist"
 
@@ -219,7 +219,7 @@ def test_L1_a_start_is_refused_unless_the_plan_is_running_and_stores_nothing(tmp
 def test_L1_a_start_in_running_stores_a_started_record(tmp_path):
     site = ready_site(tmp_path, SMALL)
     start_running(site)
-    begin_run(folder_of(site), Job(CELL, 1, 1))
+    begin_run(folder_of(site), Job(CELL, 1, 1), UNKNOWN_WORLD)
     assert [(run.run_id, run.state.value) for run in stored_final_runs(site)] == [("A/stop-server/1#1", "Started")], "one Started run"
 
 

@@ -37,6 +37,7 @@ test that does not exist.
 | The README named directories and scripts without a file suffix, and no check read them, so a renamed directory would leave a stale table row. | A stale path claim in the README | `scripts/gates/docs_freshness.py`, function `readme_path_errors` | `tests/gates/test_docs_freshness.py::test_a_missing_directory_in_the_readme_table_is_reported_with_value_rule_and_fix` |
 | Commits were signed with the work key, so GitHub showed them as unverified for the personal account. | Wrong signing key | `scripts/guards/identity.py`, called by `.githooks/pre-commit` | `tests/guards/test_identity.py::test_a_signing_key_that_is_not_listed_for_the_email_is_rejected_with_a_fix` |
 | A checkout had `core.bare` set to true, so `git status` failed with a work tree error and git let `git branch -f` move the checked-out branch. The cause is unproven. | A silent repository setting flip | `scripts/guards/bare_checkout.py`, the first command of `.githooks/pre-push`, kept first by a repo check | `tests/guards/test_bare_checkout.py::test_a_checkout_marked_bare_is_reported_with_the_value_the_rule_and_the_fix` |
+| `requires-python` said `>=3.11`, but a test file does not compile on Python 3.11, and no CI job ran that version. | A supported version that nobody tests | `scripts/gates/workflow_checks.py`, functions `oldest_python_errors` and `python_claim_errors` | `tests/gates/test_workflow_checks.py::test_a_minimum_python_that_no_ci_job_runs_is_reported` |
 
 ## Mistakes with no rule yet
 

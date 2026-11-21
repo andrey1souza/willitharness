@@ -1,6 +1,6 @@
 # 02. Architecture
 
-Language: Python 3.11 or later. The core uses the standard library only (A5).
+Language: Python 3.12 or later. The core uses the standard library only (A5).
 Dev tools: `pytest`, `hypothesis`, `behave` (or `pytest-bdd`). Formal tools:
 Java with TLC, and Lean 4 with `lake`. Contract: v0.5.
 

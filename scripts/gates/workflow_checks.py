@@ -38,6 +38,7 @@ JOB_NAMES = {
     "site-build": "Site build and freshness check (Linux)",
     "simulation": "Statistical simulation, false-positive rate and power (Linux)",
     "macos-full": "Full tests, mutation, traceability and repository checks on macOS (sandbox tests)",
+    "oldest-python-linux": "Tests on the oldest Python the project supports (Linux, advisory, not required)",
     "latest-python-linux": "Tests, mutation, traceability and repo checks, latest Python (Linux, advisory, not required)",
     "latest-python-macos": "Tests, mutation, traceability and repo checks, latest Python (macOS, advisory, not required)",
     "build": "Build the site (Linux)",
@@ -61,6 +62,9 @@ UV_USE = re.compile(r"setup-uv|\buv (?:sync|run)\b")
 EXPLICIT_PYTHON = re.compile(r"python-version:|\bUV_PYTHON\b|--python\b")
 MAJOR_MINOR = re.compile(r"(\d+)\.(\d+)")
 MINIMUM_SPECIFIER = re.compile(r"^>=\s*(\d+)\.(\d+)$")
+PYTHON_CLAIM = re.compile(r"Python (\d+)\.(\d+) or later")
+DOCS_DIRECTORY = Path("docs")
+README_FILE = Path("README.md")
 BLOCK_SCALARS = ("|", ">", "|-", ">-", "|+", ">+")
 
 
@@ -292,6 +296,52 @@ def python_version_errors(root):
     return [] if satisfied else [f"{PYTHON_VERSION_FILE} pins {pinned.group(0)}, below requires-python {specifier}"]
 
 
+def minimum_python(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    specifier = tomllib.loads((root / PYPROJECT_FILE).read_text()).get("project", {}).get("requires-python", "")
+    found = MINIMUM_SPECIFIER.match(specifier)
+    minimum = tuple(map(int, found.groups())) if found else None
+    assert minimum is None or len(minimum) == 2, f"minimum must be None or (major, minor), got {minimum!r}"
+    return minimum
+
+
+def oldest_python_jobs(workflow_text, minimum):
+    assert isinstance(workflow_text, str), f"workflow text must be str, got {type(workflow_text).__name__}. Fix: pass read_text output."
+    assert len(minimum) == 2, f"minimum must be (major, minor), got {minimum!r}. Fix: pass minimum_python output."
+    sets_minimum = re.compile(rf"python-version:\s*['\"]?{minimum[0]}\.{minimum[1]}['\"]?\s*$", re.MULTILINE)
+    return [job for job, block in job_blocks(workflow_text).items() if sets_minimum.search(block) and PYTEST_COMMAND.search(block)]
+
+
+def oldest_python_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert PYTEST_COMMAND.pattern, "the pytest command pattern is empty"
+    minimum = minimum_python(root)
+    if minimum is None:
+        return []
+    workflows = sorted((root / WORKFLOW_DIRECTORY).glob("*.yml"))
+    if any(oldest_python_jobs(path.read_text(), minimum) for path in workflows):
+        return []
+    version = f"{minimum[0]}.{minimum[1]}"
+    return [f"no CI job runs `uv run pytest` on Python {version}, the minimum in requires-python. Rule: a supported version is a tested version. Fix: add a job whose setup-uv sets python-version \"{version}\" and runs the tests, or raise requires-python"]
+
+
+def python_claim_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert PYTHON_CLAIM.pattern, "the claim pattern is empty"
+    minimum = minimum_python(root)
+    if minimum is None:
+        return []
+    files = [root / README_FILE, *sorted((root / DOCS_DIRECTORY).rglob("*.md"))]
+    errors = [
+        f"{path.relative_to(root)} says 'Python {found.group(1)}.{found.group(2)} or later', but requires-python is >={minimum[0]}.{minimum[1]}. Rule: one source names the minimum Python. Fix: change the text to match pyproject.toml"
+        for path in files if path.is_file()
+        for found in PYTHON_CLAIM.finditer(path.read_text())
+        if tuple(map(int, found.groups())) != minimum
+    ]
+    assert all(isinstance(error, str) for error in errors), f"errors must be text, got {errors!r}"
+    return errors
+
+
 def security_file_errors(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     assert REQUIRED_FILES, "no security files are required. Rule: a gate with no expectations proves nothing."
@@ -356,6 +406,8 @@ CHECKS = {
     "workflow-advisory-not-required": advisory_required_errors,
     "workflow-python-source": python_source_errors,
     "python-version-file": python_version_errors,
+    "oldest-python-tested": oldest_python_errors,
+    "python-claims-in-docs": python_claim_errors,
     "security-files": security_file_errors,
     "security-policy-headings": security_policy_errors,
     "codeowners": codeowners_errors,
