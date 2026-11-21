@@ -14,6 +14,8 @@ FEATURES_DIRECTORY = Path("features")
 MUTANT_DIRECTORY = Path("scripts") / "gates" / "mutant_modules"
 PACKAGE_DIRECTORY = Path("src") / "willitharness"
 README_FILE = Path("README.md")
+RUNTIME_PATHS = (".willitharness",)
+RUNTIME_PATH_SOURCE = Path("src") / "willitharness" / "world.py"
 DOCS_DIRECTORY = Path("docs")
 PLAN_DIRECTORY = DOCS_DIRECTORY / "plan"
 HISTORICAL_DIRECTORY = DOCS_DIRECTORY / "research"
@@ -86,6 +88,7 @@ FILE_REFERENCE = re.compile(r"`([\w.][\w.-]*(?:/[\w.*-]+)+\.(?:md|py|sh|json|fea
 PATH_SPAN = re.compile(r"`([^`\s]+)`")
 NOT_A_PATH = re.compile(r"[<*$={}|:]|--|^/")
 KNOWN_FILE_SUFFIX = re.compile(r"\.(?:md|py|sh|json|feature|toml|yml|lean|tla)$")
+RUNTIME_REFERENCE = re.compile(r"`(?:rm -r )?(" + "|".join(re.escape(path) for path in RUNTIME_PATHS) + r")(?:/[\w<>.-]+)*/?`")
 USAGE_SEPARATOR = " | "
 USAGE_PREFIX = "usage: "
 PROGRAM = "willitharness "
@@ -314,10 +317,25 @@ def readme_path_errors(path, text, root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     errors = []
     for line, token in unsuffixed_path_claims(text):
+        if token.split("/")[0] in RUNTIME_PATHS:
+            continue
         names_a_repo_path = token.endswith("/") or (root / token.split("/")[0]).exists()
         if names_a_repo_path and not (root / token.rstrip("/")).exists():
             errors.append(f"{path}:{line} points at {token}, which does not exist. Rule: a directory or script the README names exists. Fix: correct the path or delete the claim.")
     assert all(isinstance(error, str) for error in errors), f"errors must be text, got {errors!r}"
+    return errors
+
+
+def runtime_errors(path, text, root):
+    assert isinstance(text, str), f"runtime_errors needs text, got {type(text).__name__}. Fix: pass the file contents."
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    source_file = root / RUNTIME_PATH_SOURCE
+    source = source_file.read_text() if source_file.is_file() else ""
+    errors = []
+    for line, found in matches_with_lines(text, RUNTIME_REFERENCE):
+        folder = found.group(1)
+        if f'"{folder}"' not in source:
+            errors.append(f"{path}:{line} names the runtime folder {folder}, which {RUNTIME_PATH_SOURCE} does not define. Rule: a documented runtime path is the folder the code writes. Fix: correct the name.")
     return errors
 
 
@@ -382,6 +400,7 @@ def docs_freshness_errors(root):
         errors += reference_errors(path, shown, root)
         if path == README_FILE:
             errors += readme_path_errors(path, shown, root)
+        errors += runtime_errors(path, shown, root)
         errors += planned_errors(path, text, facts)
     assert all(isinstance(error, str) for error in errors), f"errors must be text, got {errors!r}"
     return errors

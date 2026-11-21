@@ -2,26 +2,31 @@ import subprocess
 from pathlib import Path
 
 ALLOWED_VARIABLES = frozenset({
-    "PATH", "HOME", "USER", "LOGNAME", "LANG", "TERM", "TMPDIR",
-    "CLAUDE_CONFIG_DIR", "ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL",
+    "PATH", "HOME", "USER", "LOGNAME", "LANG", "LC_ALL", "TERM", "TMPDIR",
+    "CLAUDE_CONFIG_DIR", "CLAUDE_CODE_TMPDIR", "CLAUDE_CODE_FAKE_COMMANDS", "CLAUDE_CODE_FAKE_COST",
+    "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_BASE_URL",
     "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "SSL_CERT_FILE", "NODE_EXTRA_CA_CERTS",
 })
 SHELL_VARIABLE = "SHELL"
 AGENT_SHELL = "/bin/bash"
-ALLOWED_PREFIXES = ("LC_", "CLAUDE_CODE_")
+SECRET_MARKERS = ("TOKEN", "SECRET", "KEY", "PASSWORD")
+AUTHENTICATION_VARIABLES = frozenset({"ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"})
 SECRET_DIRECTORIES = (".ssh", ".aws", ".gnupg", ".config/gh", ".netrc", ".docker")
 WRITABLE_DEVICES = ("/dev/null", "/dev/dtracehelper", "/dev/tty", "/dev/stdout", "/dev/stderr")
 SANDBOX_TIMEOUT_SECONDS = 30
 
 
+def unlisted_secret_names(names):
+    assert not isinstance(names, str), f"unlisted_secret_names needs a collection of names, got the string {names!r}. Fix: pass a set of names."
+    assert AUTHENTICATION_VARIABLES, "no authentication variable is named. Rule: a user may authenticate with a key or token. Fix: restore the set."
+    return sorted(name for name in names if any(marker in name for marker in SECRET_MARKERS) and name not in AUTHENTICATION_VARIABLES)
+
+
 def agent_environment(environ):
     assert hasattr(environ, "items"), f"agent_environment needs a mapping of variables, got {type(environ).__name__}. Fix: pass os.environ."
     assert "PATH" in environ, "the environment has no PATH. Rule: the agent cannot find its tools without it. Fix: set PATH."
-    kept = {
-        name: value
-        for name, value in environ.items()
-        if name in ALLOWED_VARIABLES or name.startswith(ALLOWED_PREFIXES)
-    }
+    assert not unlisted_secret_names(ALLOWED_VARIABLES), f"the allowed list names secrets: {unlisted_secret_names(ALLOWED_VARIABLES)}. Rule: only the authentication variables may look like secrets. Fix: remove them from ALLOWED_VARIABLES."
+    kept = {name: value for name, value in environ.items() if name in ALLOWED_VARIABLES}
     kept[SHELL_VARIABLE] = AGENT_SHELL
     assert kept.keys() - {SHELL_VARIABLE} <= environ.keys(), f"the scrubbed environment gained variables: {sorted(kept.keys() - environ.keys())}"
     assert kept[SHELL_VARIABLE] == AGENT_SHELL, f"the agent shell is {kept[SHELL_VARIABLE]!r}. Rule: the agent never loads the user's shell profile or aliases. Fix: set {SHELL_VARIABLE} to {AGENT_SHELL}."

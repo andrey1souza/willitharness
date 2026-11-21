@@ -28,6 +28,12 @@ linear and `main` stays green. The hooks enforce this: `scripts/guards/trunk.py`
 ## Security
 Report vulnerabilities privately; see `SECURITY.md`. `make security` audits the GitHub settings (needs network and an admin `gh` token; not part of `make check`).
 
+## Data
+`.willitharness/` stores run records, transcripts, calls logs, reachability, state and approvals.
+Transcripts can hold your task text. Secret environment values are redacted from stored artifacts.
+Git ignores the folder.
+Delete everything with `rm -r .willitharness`. Delete one plan with `rm -r .willitharness/<plan>`.
+
 ## Checks
 `make check` runs the tests, zanity, every mutation module, the trace gate, the repo checks and the simulation. `make formal` runs the Lean and TLA+ gates. `make live` runs the real agent on the reachability fixtures (about a cent) and fails above $0.10.
 

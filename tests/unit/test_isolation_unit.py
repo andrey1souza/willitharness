@@ -1,10 +1,47 @@
 import pytest
 
 from files import plant
-from willitharness.isolation import agent_environment, sandbox_profile, sandboxed_command
+from willitharness.isolation import agent_environment, sandbox_profile, sandboxed_command, unlisted_secret_names
 
 SECRETS = {"GH_TOKEN": "x", "AWS_SECRET_ACCESS_KEY": "x", "GITHUB_TOKEN": "x", "NPM_TOKEN": "x", "OPENAI_API_KEY": "x"}
-NEEDED = {"PATH": "/bin", "HOME": "/home/u", "ANTHROPIC_API_KEY": "k", "LC_ALL": "C", "CLAUDE_CODE_ENTRYPOINT": "cli"}
+NEEDED = {"PATH": "/bin", "HOME": "/home/u", "ANTHROPIC_API_KEY": "k", "LC_ALL": "C", "CLAUDE_CODE_TMPDIR": "/tmp/t"}
+SESSION_VARIABLES = (
+    "CLAUDE_CODE_MESSAGING_TOKEN", "CLAUDE_CODE_MESSAGING_SOCKET", "CLAUDE_CODE_CHILD_SESSION", "CLAUDE_CODE_CHILD_NOTES_DIR",
+    "CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_SESSION_ATTENDED", "CLAUDE_CODE_EXECPATH", "CLAUDE_CODE_ENTRYPOINT",
+)
+EXPLICIT_VARIABLES = (
+    "CLAUDE_CONFIG_DIR", "CLAUDE_CODE_TMPDIR", "CLAUDE_CODE_FAKE_COMMANDS", "CLAUDE_CODE_FAKE_COST",
+    "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN", "LC_ALL",
+)
+UNKNOWN_VARIABLES = ("CLAUDE_CODE_X", "CLAUDE_CODE_FUTURE_FLAG", "LC_TIME", "CLAUDE_CONFIG_DIR_EXTRA")
+MINIMAL = {"PATH": "/bin"}
+
+
+@pytest.mark.parametrize("name", SESSION_VARIABLES)
+def test_a_parent_session_variable_is_dropped(name):
+    scrubbed = agent_environment({**MINIMAL, name: "v"})
+    assert name not in scrubbed, f"{name} reached the agent: {sorted(scrubbed)}"
+    assert scrubbed == {"PATH": "/bin", "SHELL": "/bin/bash"}, f"only PATH and the agent shell may remain, got {scrubbed}"
+
+
+@pytest.mark.parametrize("name", EXPLICIT_VARIABLES)
+def test_an_explicitly_listed_variable_passes(name):
+    scrubbed = agent_environment({**MINIMAL, name: "v"})
+    assert scrubbed.get(name) == "v", f"{name} is on the explicit list but was dropped: {scrubbed}"
+    assert scrubbed == {"PATH": "/bin", name: "v", "SHELL": "/bin/bash"}, f"unexpected variables {scrubbed}"
+
+
+@pytest.mark.parametrize("name", UNKNOWN_VARIABLES)
+def test_an_unknown_claude_code_or_locale_variable_is_dropped_because_there_is_no_prefix_rule(name):
+    scrubbed = agent_environment({**MINIMAL, name: "v"})
+    assert name not in scrubbed, f"{name} passed without being named: {sorted(scrubbed)}"
+    assert scrubbed == {"PATH": "/bin", "SHELL": "/bin/bash"}, f"only PATH and the agent shell may remain, got {scrubbed}"
+
+
+def test_only_the_authentication_variables_on_the_allowed_list_look_like_secrets_and_anthropic_api_key_stays_allowed_for_users_who_authenticate_with_it():
+    assert unlisted_secret_names(EXPLICIT_VARIABLES) == [], f"an explicit variable looks like a secret: {unlisted_secret_names(EXPLICIT_VARIABLES)}"
+    assert unlisted_secret_names([*EXPLICIT_VARIABLES, "CLAUDE_CODE_MESSAGING_TOKEN", "DB_PASSWORD"]) == ["CLAUDE_CODE_MESSAGING_TOKEN", "DB_PASSWORD"], "a secret-named variable outside the authentication set must be reported"
+    assert agent_environment({**MINIMAL, "ANTHROPIC_API_KEY": "k"})["ANTHROPIC_API_KEY"] == "k", "ANTHROPIC_API_KEY must reach the agent"
 
 
 def test_unrelated_secrets_never_reach_the_agent():

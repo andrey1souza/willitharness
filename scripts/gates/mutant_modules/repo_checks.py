@@ -1,0 +1,18 @@
+SOURCE = 'scripts/gates/repo_checks.py'
+
+TESTS = (
+    'tests/gates/test_data_statement.py',
+)
+
+MUTANTS = (
+    ('data-section-not-required', SOURCE, '    if section is None:\n        return [f"{README_FILE} has no', '    if False:\n        return [f"{README_FILE} has no'),
+    ('data-heading-renamed', SOURCE, 'DATA_HEADING = "## Data"', 'DATA_HEADING = "## Storage"'),
+    ('data-redaction-not-required', SOURCE, '"task text", "redacted", "ignores"', '"task text", "ignores"'),
+    ('data-task-text-not-required', SOURCE, '"approvals", "task text", "redacted"', '"approvals", "redacted"'),
+    ('data-delete-command-not-required', SOURCE, '"ignores", "rm -r .willitharness", ".willitharness/<plan>")', '"ignores", ".willitharness/<plan>")'),
+    ('data-plan-delete-not-required', SOURCE, '"rm -r .willitharness", ".willitharness/<plan>")', '"rm -r .willitharness")'),
+    ('data-length-unchecked', SOURCE, 'if len(lines) > DATA_MAX_LINES:', 'if False:'),
+    ('data-limit-off-by-one', SOURCE, 'DATA_MAX_LINES = 6', 'DATA_MAX_LINES = 7'),
+    ('data-gitignore-unchecked', SOURCE, '    if not any(fnmatch(f"{store}/", pattern) for pattern in patterns):', '    if False:'),
+    ('data-check-not-registered', SOURCE, '    "readme-data-statement": data_statement_errors,\n', ''),
+)

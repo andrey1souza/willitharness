@@ -253,3 +253,21 @@ def test_other_documents_are_not_held_to_the_readme_path_rule(tmp_path):
 def test_a_missing_script_with_a_suffix_is_reported_once(tmp_path):
     errors = readme_errors(tmp_path, README_TABLE + "Run `scripts/missing/tool.py` first.\n")
     assert len(errors) == 1 and "scripts/missing/tool.py" in errors[0], f"the reference check and the path check must not both report it, got {errors}"
+
+
+WORLD = 'STORE_DIR = ".willitharness"\n'
+
+
+def test_a_runtime_folder_the_code_defines_is_accepted_in_every_documented_form(tmp_path):
+    readme = "# tool\n`.willitharness/` holds runs. Delete with `rm -r .willitharness` or `rm -r .willitharness/<plan>`.\n"
+    errors = errors_for(tmp_path, {"README.md": readme, "src/willitharness/world.py": WORLD})
+    assert errors == [], f"the runtime folder must be accepted, got {errors}"
+    assert docs_freshness.RUNTIME_PATHS == (".willitharness",), f"the runtime paths are {docs_freshness.RUNTIME_PATHS}"
+
+
+def test_a_runtime_folder_the_code_no_longer_defines_is_reported(tmp_path):
+    readme = "# tool\nDelete with `rm -r .willitharness`.\n"
+    errors = errors_for(tmp_path, {"README.md": readme, "src/willitharness/world.py": 'STORE_DIR = ".other"\n'})
+    assert len(errors) == 1 and "names the runtime folder .willitharness" in errors[0], f"got {errors}"
+    missing = errors_for(tmp_path, {"README.md": readme})
+    assert len(missing) == 1, f"a missing source file must also be reported, got {missing}"

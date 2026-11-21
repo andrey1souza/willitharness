@@ -5,6 +5,9 @@ TESTS = (
 )
 
 MUTANTS = (
+    ('runtime-folder-unchecked', SOURCE, 'if f\'"{folder}"\' not in source:', 'if False:'),
+    ('runtime-source-always-found', SOURCE, 'source = source_file.read_text() if source_file.is_file() else ""', 'source = \'"\' + RUNTIME_PATHS[0] + \'"\''),
+    ('runtime-path-not-listed', SOURCE, 'RUNTIME_PATHS = (".willitharness",)', 'RUNTIME_PATHS = (".other",)'),
     ('version-not-compared', SOURCE, 'if found.group(1) != str(facts[key]):', 'if False:'),
     ('world-range-against-id-count', SOURCE, '"world-rules", re.compile(rf"{WORLD_PREFIX}1 to {WORLD_PREFIX}(\\d+)"), "world_rule_count"', '"world-rules", re.compile(rf"{WORLD_PREFIX}1 to {WORLD_PREFIX}(\\d+)"), "id_count"'),
     ('id-list-subset-accepted', SOURCE, 'if listed != facts["ids"]:', 'if not listed <= facts["ids"]:'),
@@ -42,4 +45,5 @@ MUTANTS = (
     ('placeholder-treated-as-a-path', SOURCE, 'NOT_A_PATH = re.compile(r"[<*$={}|:]|--|^/")', 'NOT_A_PATH = re.compile(r"[*$={}|:]|--|^/")'),
     ('suffixed-file-reported-twice', SOURCE, ' and not KNOWN_FILE_SUFFIX.search(token)', ''),
     ('claim-without-a-slash-collected', SOURCE, 'if "/" in token and not NOT_A_PATH', 'if not NOT_A_PATH'),
+    ('runtime-folder-not-exempt-from-path-claims', SOURCE, '        if token.split("/")[0] in RUNTIME_PATHS:', '        if False:'),
 )
