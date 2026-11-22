@@ -3,9 +3,13 @@ SOURCE = 'scripts/gates/repo_checks.py'
 TESTS = (
     'tests/gates/test_data_statement.py',
     'tests/gates/test_result_detector.py',
+    'tests/gates/test_home_path_check.py',
 )
 
 MUTANTS = (
+    ('home-path-check-not-registered', SOURCE, '    "no-home-paths": home_path_errors,\n', ''),
+    ('home-path-folders-not-scanned', SOURCE, 'for leak in leak_check.leaks_in(present)', 'for leak in leak_check.leaks_in([])'),
+    ('missing-folder-scanned', SOURCE, 'if (root / name).is_dir()]', 'if True]'),
     ('data-section-not-required', SOURCE, '    if section is None:\n        return [f"{README_FILE} has no', '    if False:\n        return [f"{README_FILE} has no'),
     ('data-heading-renamed', SOURCE, 'DATA_HEADING = "## Data"', 'DATA_HEADING = "## Storage"'),
     ('data-redaction-not-required', SOURCE, '"task text", "redacted", "ignores"', '"task text", "ignores"'),
