@@ -1,0 +1,19 @@
+[
+  {
+    "name": "no-skip-hooks",
+    "message": "Blocked by guard (no-skip-hooks): a commit may not skip the pre-commit check; run `git commit -m MESSAGE` and wait for the check to finish",
+    "offered_alternatives": [
+      "git commit -m MESSAGE"
+    ],
+    "blocked": [
+      {
+        "program": "git",
+        "flag_pattern": "--no-verify"
+      },
+      {
+        "program": "git",
+        "flag_pattern": "-[a-zA-Z]*n[a-zA-Z]*"
+      }
+    ]
+  }
+]
