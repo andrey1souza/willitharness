@@ -38,7 +38,7 @@ JOB_NAMES = {
     "site-build": "Site build and freshness check (Linux)",
     "simulation": "Statistical simulation, false-positive rate and power (Linux)",
     "macos-full": "Full tests, mutation, traceability and repository checks on macOS (sandbox tests)",
-    "oldest-python-linux": "Tests on the oldest Python the project supports (Linux, advisory, not required)",
+    "oldest-python-linux": "Tests on the oldest Python the project supports (Linux)",
     "latest-python-linux": "Tests, mutation, traceability and repo checks, latest Python (Linux, advisory, not required)",
     "latest-python-macos": "Tests, mutation, traceability and repo checks, latest Python (macOS, advisory, not required)",
     "build": "Build the site (Linux)",
@@ -46,7 +46,7 @@ JOB_NAMES = {
 }
 REQUIRED_JOBS = (
     "unit-tests", "behavior-tests", "property-tests", "golden-tests", "tooling-tests", "mutation-tests",
-    "traceability", "repo-rules", "zanity", "gitleaks", "site-build", "simulation", "macos-full",
+    "traceability", "repo-rules", "zanity", "gitleaks", "site-build", "simulation", "macos-full", "oldest-python-linux",
 )
 REQUIRED_CHECK_NAMES = tuple(JOB_NAMES[job] for job in REQUIRED_JOBS)
 MAX_JOB_NAME_LENGTH = 100

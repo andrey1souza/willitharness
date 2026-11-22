@@ -7,12 +7,14 @@ from files import write_tree
 PINNED = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 FIRST_JOB = workflow_checks.REQUIRED_JOBS[0]
 SECOND_JOB = workflow_checks.REQUIRED_JOBS[1]
+OLDEST_JOB = "oldest-python-linux"
+OLDEST_STEPS = "      - run: uv sync --locked\n        with:\n          python-version: \"3.11\"\n      - run: uv run pytest\n"
 GOOD_WORKFLOW = "name: ci\non:\n  push:\npermissions:\n  contents: read\njobs:\n" + "".join(
     f"  {job}:\n    name: {workflow_checks.JOB_NAMES[job]}\n    steps:\n"
     + (f"      - uses: {PINNED} # v7\n      - run: uv sync --locked\n" if job == FIRST_JOB else "")
-    + (f"      - run: uv run pytest tests/{job}\n" if job == SECOND_JOB else f"      - run: echo {job}\n")
+    + (OLDEST_STEPS if job == OLDEST_JOB else f"      - run: uv run pytest tests/{job}\n" if job == SECOND_JOB else f"      - run: echo {job}\n")
     for job in workflow_checks.REQUIRED_JOBS
-) + f"  oldest-python-linux:\n    name: {workflow_checks.JOB_NAMES['oldest-python-linux']}\n    steps:\n      - run: uv sync --locked\n        with:\n          python-version: \"3.11\"\n      - run: uv run pytest\n"
+)
 GOOD_SECURITY = "report privately\n\n## If something goes wrong\nThe owner acts.\n- secret: revoke\n- dependency: pin\n- workflow: disable\n- result: rebuild\n\n## Other\nx\n"
 GOOD_FILES = {
     ".github/workflows/ci.yml": GOOD_WORKFLOW,
@@ -151,7 +153,7 @@ def test_the_workflow_checks_are_registered_in_the_repo_checks():
 def test_a_missing_required_job_is_reported(tmp_path):
     failures = failures_for(tmp_path, {".github/workflows/ci.yml": GOOD_WORKFLOW.replace(f"  {SECOND_JOB}:", f"  {SECOND_JOB}-renamed:")})
     assert failures["workflow-required-jobs"] == [f"job {SECOND_JOB} is missing in every workflow; the ruleset requires a status check with that name"], f"got {failures}"
-    assert workflow_checks.job_blocks(GOOD_WORKFLOW).keys() == set(workflow_checks.REQUIRED_JOBS) | {"oldest-python-linux"}, "job_blocks must find each top-level job"
+    assert workflow_checks.job_blocks(GOOD_WORKFLOW).keys() == set(workflow_checks.REQUIRED_JOBS), "job_blocks must find each top-level job"
     assert workflow_checks.job_blocks("name: ci\n") == {}, "a file without jobs has no blocks"
 
 
@@ -407,10 +409,10 @@ def test_a_job_at_the_minimum_without_tests_does_not_count(tmp_path):
     assert len(failures["oldest-python-tested"]) == 1, f"a job that never runs pytest tests nothing, got {failures}"
 
 
-def test_the_oldest_python_job_is_advisory_and_not_required():
-    name = workflow_checks.JOB_NAMES["oldest-python-linux"]
-    assert "advisory, not required" in name, f"the oldest-Python job must say advisory, not required, got {name!r}"
-    assert "oldest-python-linux" not in workflow_checks.REQUIRED_JOBS, "the oldest-Python job must not be required until the ruleset lists it"
+def test_the_oldest_python_job_is_required_and_does_not_say_advisory():
+    name = workflow_checks.JOB_NAMES[OLDEST_JOB]
+    assert OLDEST_JOB in workflow_checks.REQUIRED_JOBS, f"the oldest-Python job must be required, got {workflow_checks.REQUIRED_JOBS}"
+    assert "advisory" not in name.lower(), f"a required job must not call itself advisory, got {name!r}"
 
 
 def test_an_unparsable_minimum_skips_the_oldest_python_checks(tmp_path):
