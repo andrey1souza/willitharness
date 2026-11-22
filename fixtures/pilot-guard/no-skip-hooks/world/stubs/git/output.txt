@@ -1,0 +1,4 @@
+pre-commit: running lint, typecheck and the full test suite
+pre-commit: this takes about 12 minutes
+[fix-login 3f2a9c1] fix login redirect
+ 1 file changed, 2 insertions(+)
