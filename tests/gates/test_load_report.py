@@ -31,6 +31,12 @@ LOCAL_SETTINGS = "settings.local.json"
 HOOKS_NOT_MEASURED = (("SessionStart", "a", FAILING_HOOK), ("UserPromptSubmit", "b", SLOW_HOOK), ("PreToolUse", "c", CONTEXT_HOOK))
 
 
+def run_bounded(root):
+    text = "\n".join(build_load_report(root.resolve(), ceiling=root.resolve()))
+    assert text, f"the report of {root} is empty"
+    return EXIT_OK, text + "\n", ""
+
+
 def write(root, relative, text):
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -149,17 +155,17 @@ def test_G7_1_the_current_folder_is_the_default_project(tmp_path, capsys, monkey
     assert code == EXIT_OK and f"instruction CLAUDE.md: {len(CLAUDE_TEXT)} characters" in out, f"got {code} {out!r} {err!r}"
 
 
-def test_G7_1_a_folder_with_nothing_says_so(tmp_path, capsys):
-    code, out, err = run_cli(capsys, [LOAD_REPORT, str(tmp_path)])
+def test_G7_1_a_folder_with_nothing_says_so(tmp_path):
+    code, out, err = run_bounded(tmp_path)
     assert code == EXIT_OK and out.splitlines() == ["no instruction files, skills or hooks found", NOT_COUNTED_LINE], f"got {code} {out!r} {err!r}"
 
 
-def test_G7_1_imports_stop_at_four_hops_and_survive_a_cycle(tmp_path, capsys):
+def test_G7_1_imports_stop_at_four_hops_and_survive_a_cycle(tmp_path):
     write(tmp_path, "CLAUDE.md", "@a0.md")
     for number in range(8):
         write(tmp_path, f"a{number}.md", f"@a{number + 1}.md")
     write(tmp_path, "a8.md", "@CLAUDE.md")
-    code, out, err = run_cli(capsys, [LOAD_REPORT, str(tmp_path)])
+    code, out, err = run_bounded(tmp_path)
     listed = [line.split(" ")[1].rstrip(":") for line in out.splitlines() if line.startswith("instruction")]
     assert code == EXIT_OK and listed == ["CLAUDE.md", "a0.md", "a1.md", "a2.md", "a3.md"], f"CLAUDE.md plus 4 hops expected, got {code} {listed!r} {err!r}"
 
@@ -174,72 +180,133 @@ def test_G7_1_an_import_outside_the_project_is_listed_as_skipped_and_not_read(tm
     assert "6 characters" not in out, f"the outside file must not be counted, got {out!r}"
 
 
-def test_G7_1_a_path_in_backticks_or_a_fenced_block_is_not_imported_but_one_outside_is(tmp_path, capsys):
+def test_G7_1_a_path_in_backticks_or_a_fenced_block_is_not_imported_but_one_outside_is(tmp_path):
     write(tmp_path, "CLAUDE.md", "Keep `@spanned.md` literal.\n```\n@fenced.md\n```\n~~~\n@tilde.md\n~~~\nImport @plain.md now.\n")
     for name in ("spanned", "fenced", "tilde", "plain"):
         write(tmp_path, f"{name}.md", name)
-    code, out, err = run_cli(capsys, [LOAD_REPORT, str(tmp_path)])
+    code, out, err = run_bounded(tmp_path)
     listed = [line.split(" ")[1].rstrip(":") for line in out.splitlines() if line.startswith("instruction")]
     assert code == EXIT_OK and listed == ["CLAUDE.md", "plain.md"], f"got {code} {listed!r} {err!r}"
 
 
-def test_G7_1_agents_file_is_masked_by_a_claude_file_in_the_project(tmp_path, capsys):
+def test_G7_1_agents_file_is_masked_by_a_claude_file_in_the_project(tmp_path):
     write(tmp_path, "AGENTS.md", AGENTS_TEXT)
     write(tmp_path, ".claude/CLAUDE.md", "c")
-    code, out, err = run_cli(capsys, [LOAD_REPORT, str(tmp_path)])
+    code, out, err = run_bounded(tmp_path)
     assert code == EXIT_OK and "instruction AGENTS.md: not loaded: masked by .claude/CLAUDE.md" in out.splitlines(), f"got {code} {out!r} {err!r}"
     assert "instruction .claude/CLAUDE.md: 1 characters" in out.splitlines(), f"got {out!r}"
 
 
-def test_G7_1_agents_file_is_masked_by_a_local_claude_file(tmp_path, capsys):
+def test_G7_1_agents_file_is_masked_by_a_local_claude_file(tmp_path):
     write(tmp_path, "AGENTS.md", AGENTS_TEXT)
     write(tmp_path, "CLAUDE.local.md", "local")
-    code, out, err = run_cli(capsys, [LOAD_REPORT, str(tmp_path)])
+    code, out, err = run_bounded(tmp_path)
     assert code == EXIT_OK and "instruction AGENTS.md: not loaded: masked by CLAUDE.local.md" in out.splitlines(), f"got {code} {out!r} {err!r}"
     assert "instruction CLAUDE.local.md: 5 characters" in out.splitlines(), f"got {out!r}"
 
 
-def test_G7_1_agents_file_is_masked_by_a_claude_file_above_the_project(tmp_path, capsys):
+def test_G7_1_agents_file_is_masked_by_a_claude_file_above_the_project(tmp_path):
     project = tmp_path / "project"
     write(tmp_path, "CLAUDE.md", "above")
     write(project, "AGENTS.md", AGENTS_TEXT)
-    code, out, err = run_cli(capsys, [LOAD_REPORT, str(project)])
     masker = tmp_path.resolve() / "CLAUDE.md"
-    assert code == EXIT_OK and f"instruction AGENTS.md: not loaded: masked by {masker}" in out.splitlines(), f"got {code} {out!r} {err!r}"
+    lines = build_load_report(project.resolve(), ceiling=tmp_path.resolve())
+    assert f"instruction AGENTS.md: not loaded: masked by {masker}" in lines, f"got {lines!r}"
 
 
-def test_G7_1_the_user_level_claude_file_does_not_mask_the_agents_file(tmp_path, capsys, monkeypatch):
+def test_G7_1_a_claude_file_between_the_ceiling_and_the_project_is_listed_and_counted(tmp_path):
+    middle = tmp_path / "middle"
+    project = middle / "project"
+    write(middle, "CLAUDE.md", "above")
+    write(middle, "CLAUDE.local.md", "local")
+    write(project, "CLAUDE.md", "c")
+    lines = build_load_report(project.resolve(), ceiling=tmp_path.resolve())
+    assert f"instruction {middle.resolve() / 'CLAUDE.md'}: 5 characters (above the project)" in lines, f"got {lines!r}"
+    assert f"instruction {middle.resolve() / 'CLAUDE.local.md'}: 5 characters (above the project)" in lines, f"got {lines!r}"
+    assert "always loaded instruction and rule text: 11 characters" in lines, f"ancestor text must be in the total, got {lines!r}"
+
+
+def test_G7_1_a_claude_file_above_the_ceiling_is_ignored(tmp_path):
+    ceiling = tmp_path / "ceiling"
+    project = ceiling / "project"
+    write(tmp_path, "CLAUDE.md", "above the ceiling")
+    write(project, "CLAUDE.md", "c")
+    lines = build_load_report(project.resolve(), ceiling=ceiling.resolve())
+    assert not any("above the project" in line for line in lines), f"a file above the ceiling was read: {lines!r}"
+    assert "always loaded instruction and rule text: 1 characters" in lines, f"got {lines!r}"
+
+
+def test_G7_1_a_claude_file_above_the_ceiling_does_not_mask_the_agents_file(tmp_path):
+    ceiling = tmp_path / "ceiling"
+    project = ceiling / "project"
+    write(tmp_path, "CLAUDE.md", "above the ceiling")
+    write(project, "AGENTS.md", AGENTS_TEXT)
+    lines = build_load_report(project.resolve(), ceiling=ceiling.resolve())
+    assert f"instruction AGENTS.md: {len(AGENTS_TEXT)} characters" in lines, f"got {lines!r}"
+
+
+def test_G7_1_the_ceiling_folder_itself_is_read(tmp_path):
+    project = tmp_path / "project"
+    write(tmp_path, "CLAUDE.md", "ceiling")
+    write(project, "CLAUDE.md", "c")
+    lines = build_load_report(project.resolve(), ceiling=tmp_path.resolve())
+    assert f"instruction {tmp_path.resolve() / 'CLAUDE.md'}: 7 characters (above the project)" in lines, f"got {lines!r}"
+
+
+def test_G7_1_agents_files_above_are_listed_only_when_no_claude_file_exists(tmp_path):
+    project = tmp_path / "project"
+    write(tmp_path, "AGENTS.md", "top")
+    write(tmp_path, ".claude/AGENTS.md", "hidden")
+    write(project, "AGENTS.md", AGENTS_TEXT)
+    lines = build_load_report(project.resolve(), ceiling=tmp_path.resolve())
+    assert f"instruction {tmp_path.resolve() / 'AGENTS.md'}: 3 characters (above the project)" in lines, f"got {lines!r}"
+    assert f"instruction {tmp_path.resolve() / '.claude/AGENTS.md'}: 6 characters (above the project)" in lines, f"got {lines!r}"
+    write(project, "CLAUDE.md", "c")
+    masked = build_load_report(project.resolve(), ceiling=tmp_path.resolve())
+    assert not any("AGENTS.md" in line and "above the project" in line for line in masked), f"a CLAUDE.md hides the AGENTS files above, got {masked!r}"
+
+
+def test_G7_1_a_claude_folder_file_above_the_project_is_not_listed(tmp_path):
+    project = tmp_path / "project"
+    write(tmp_path, ".claude/CLAUDE.md", "folder file")
+    write(project, "CLAUDE.md", "c")
+    lines = build_load_report(project.resolve(), ceiling=tmp_path.resolve())
+    assert not any("above the project" in line for line in lines), f"only CLAUDE.md and CLAUDE.local.md load from folders above, got {lines!r}"
+
+
+def test_G7_1_the_user_level_claude_file_does_not_mask_or_count(tmp_path, monkeypatch):
     project = tmp_path / "project"
     monkeypatch.setenv("HOME", str(tmp_path.resolve()))
     write(tmp_path, ".claude/CLAUDE.md", "user level")
     write(project, "AGENTS.md", AGENTS_TEXT)
-    code, out, err = run_cli(capsys, [LOAD_REPORT, str(project)])
-    assert code == EXIT_OK and f"instruction AGENTS.md: {len(AGENTS_TEXT)} characters" in out.splitlines(), f"got {code} {out!r} {err!r}"
+    lines = build_load_report(project.resolve(), ceiling=tmp_path.resolve())
+    assert f"instruction AGENTS.md: {len(AGENTS_TEXT)} characters" in lines, f"got {lines!r}"
+    assert not any("user level" in line or ".claude/CLAUDE.md" in line for line in lines), f"got {lines!r}"
 
 
-def test_G7_1_a_folder_with_only_an_agents_file_loads_it(tmp_path, capsys):
+def test_G7_1_a_folder_with_only_an_agents_file_loads_it(tmp_path):
     write(tmp_path, "AGENTS.md", AGENTS_TEXT)
-    code, out, err = run_cli(capsys, [LOAD_REPORT, str(tmp_path)])
+    code, out, err = run_bounded(tmp_path)
     assert code == EXIT_OK and f"instruction AGENTS.md: {len(AGENTS_TEXT)} characters" in out.splitlines(), f"got {code} {out!r} {err!r}"
     assert "masked" not in out, f"got {out!r}"
 
 
-def test_G7_1_an_agents_file_imported_by_claude_is_loaded_once(tmp_path, capsys):
+def test_G7_1_an_agents_file_imported_by_claude_is_loaded_once(tmp_path):
     write(tmp_path, "AGENTS.md", AGENTS_TEXT)
     write(tmp_path, "CLAUDE.md", "@AGENTS.md")
-    code, out, err = run_cli(capsys, [LOAD_REPORT, str(tmp_path)])
+    code, out, err = run_bounded(tmp_path)
     lines = [line for line in out.splitlines() if "AGENTS.md" in line and line.startswith("instruction")]
     assert code == EXIT_OK and lines == [f"instruction AGENTS.md: {len(AGENTS_TEXT)} characters"], f"got {code} {lines!r} {err!r}"
 
 
-def test_G7_1_a_rule_without_paths_is_always_loaded_and_one_with_paths_is_on_demand(tmp_path, capsys):
+def test_G7_1_a_rule_without_paths_is_always_loaded_and_one_with_paths_is_on_demand(tmp_path):
     always = "Always rule."
     scoped = "---\npaths:\n  - src/**\n---\nScoped rule text."
     write(tmp_path, ".claude/rules/always.md", always)
     write(tmp_path, ".claude/rules/deep/scoped.md", scoped)
     write(tmp_path, ".claude/rules/notes.txt", "ignored")
     write(tmp_path, "CLAUDE.md", "c")
-    code, out, err = run_cli(capsys, [LOAD_REPORT, str(tmp_path)])
+    code, out, err = run_bounded(tmp_path)
     lines = out.splitlines()
     assert code == EXIT_OK, f"got {code} {out!r} {err!r}"
     assert f"rule .claude/rules/always.md: {len(always)} characters (always loaded)" in lines, f"got {lines!r}"
@@ -254,11 +321,11 @@ def test_G7_1_the_report_ends_with_what_it_does_not_count(tmp_path, capsys):
     assert code == EXIT_OK and out.splitlines()[-1] == NOT_COUNTED_LINE, f"got {code} {out!r} {err!r}"
 
 
-def test_G7_1_instruction_lines_are_sorted_by_path_not_by_discovery_order(tmp_path, capsys):
+def test_G7_1_instruction_lines_are_sorted_by_path_not_by_discovery_order(tmp_path):
     write(tmp_path, "CLAUDE.md", "@zzz.md @bbb.md")
     write(tmp_path, "zzz.md", "z")
     write(tmp_path, "bbb.md", "b")
-    code, out, err = run_cli(capsys, [LOAD_REPORT, str(tmp_path)])
+    code, out, err = run_bounded(tmp_path)
     names = [line.split(" ")[1].rstrip(":") for line in out.splitlines() if line.startswith("instruction")]
     assert code == EXIT_OK and names == ["CLAUDE.md", "bbb.md", "zzz.md"], f"got {code} {names!r} {err!r}"
 
