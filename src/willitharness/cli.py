@@ -31,7 +31,7 @@ from willitharness.plan import PlanError, read_plan
 from willitharness.paths import PathOutsideRoot, inside
 from willitharness.real_runner import check_channels, claude_runner
 from willitharness.probe import DEFAULT_LABEL, PROMPT_TEMPLATE, ProbeRefused, check_requested_runs, parse_run, probe
-from willitharness.store import load_records, spent
+from willitharness.store import latest_by_run, load_records, spent
 from willitharness.world import WorldError, store_validation, task_commands, validate_world
 
 EXIT_OK = 0
@@ -194,7 +194,7 @@ def run_report(site, state):
     assert isinstance(state, PlanState), f"run_report needs a PlanState, got {state!r}. Fix: pass the state execute_plan returned."
     assert isinstance(site, PlanSite), f"run_report needs a PlanSite, got {site!r}. Fix: build one with plan_site_from."
     records = load_records(lifecycle_dir(site.root, site.plan))
-    print(f"plan {state}: {len(records)} runs, spent ${spent(records):.2f}")
+    print(f"plan {state}: {len(latest_by_run(records))} runs, spent ${spent(records):.2f}")
     codes = {PlanState.COMPLETE: EXIT_OK, PlanState.BUDGET_STOPPED: EXIT_BUDGET_STOPPED}
     if state not in codes:
         print(f"plan is {state}; no further runs started", file=sys.stderr)

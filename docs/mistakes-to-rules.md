@@ -39,6 +39,7 @@ test that does not exist.
 | `requires-python` said `>=3.11`, but a test file does not compile on Python 3.11, and no CI job ran that version. | A supported version that nobody tests | `scripts/gates/workflow_checks.py`, functions `oldest_python_errors` and `python_claim_errors` | `tests/gates/test_workflow_checks.py::test_a_minimum_python_that_no_ci_job_runs_is_reported` |
 | A push of a feature branch was aimed at the protected `main`. The branch had `origin/main` as its upstream, and the exact cause is unproven. | A feature branch aimed at `main` | `scripts/guards/trunk.py`, function `push_ref_errors`, called by `.githooks/pre-push` | `tests/guards/test_trunk.py::test_a_branch_other_than_main_may_not_be_pushed_to_main` |
 | `run` told the user to probe the arm and record the result, but no CLI command recorded it, so a plan could not run from the CLI alone. | A message that names an action no command can do | `src/willitharness/cli.py`, the `--plan` and `--arm` options of `probe` | `tests/gates/test_probe_command.py::test_every_arm_probed_through_the_cli_lets_run_start` |
+| The `run` summary counted records, and each run has a started record and a final record, so it printed twice the number of runs. | A count of the wrong thing | `src/willitharness/cli.py`, function `run_report` | `tests/gates/test_probe_command.py::test_every_arm_probed_through_the_cli_lets_run_start` |
 
 ## Mistakes with no rule yet
 
