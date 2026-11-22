@@ -7,6 +7,6 @@ MUTANTS = (
     ('recall-ignored', 'src/willitharness/fakeagent.py', 'values[0] if values and draw < behavior.recall else', 'values[0] if values else'),
     ('walk-passes-the-boundary', 'src/willitharness/fakeagent.py', 'while chain[-1] != boundary:', 'while chain[-1] != chain[-1].parent:'),
     ('seed-ignored', 'src/willitharness/fakeagent.py', 'random.Random(f"{behavior.seed}:{run_index}")', 'random.Random()'),
-    ('seed-message-changed', 'src/willitharness/fakeagent.py', '"seed required; pass --seed N"', '"seed needed"'),
+    ('seed-message-changed', 'src/willitharness/fakeagent.py', '"seed required; pass --seed N. Rule: a fake run is reproducible from its seed. Fix: pass --seed N."', '"seed needed"'),
     ('claude-file-not-read', 'src/willitharness/fakeagent.py', 'CONTEXT_FILE = "CLAUDE.md"', 'CONTEXT_FILE = "CLAUDE.txt"'),
 )

@@ -11,6 +11,7 @@ from pathlib import Path
 import docs_freshness
 import hook_checks
 import leak_check
+import message_check
 import mutant_tables
 import pilot_live
 import trace_check
@@ -33,6 +34,7 @@ RETIRED_COMMAND = "behave features/"
 PENDING_FILE = Path("scripts") / "gates" / "trace_pending.json"
 GENERATED_PATHS = (Path("formal") / "tla" / "generated", Path("site") / "data" / "gate_status.json")
 MAKEFILE = Path("Makefile")
+SOURCE_FOLDER = "src"
 DATA_HEADING = "## Data"
 DATA_MAX_LINES = 6
 DATA_TERMS = ("run records", "transcripts", "calls logs", "reachability", "state", "approvals", "task text", "redacted", "ignores", "rm -r .willitharness", ".willitharness/<plan>")
@@ -346,6 +348,12 @@ def pr_text_import_errors(root):
     ]
 
 
+def failure_message_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert (root / SOURCE_FOLDER).is_dir(), f"{root} has no {SOURCE_FOLDER} folder. Rule: the gate scans the shipped source. Fix: run it from the repository root."
+    return message_check.source_errors(root / SOURCE_FOLDER)
+
+
 def integrate_source_errors(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     assert INTEGRATE_FILE.name == "integrate.py", f"INTEGRATE_FILE is {INTEGRATE_FILE}. Fix: point it at integrate.py."
@@ -387,6 +395,7 @@ CHECKS = {
     "integrate-not-for-publishing": integrate_publishing_errors,
     "integrate-source-never-forces": integrate_source_errors,
     "pr-text-self-contained": pr_text_import_errors,
+    "failure-messages": failure_message_errors,
     **workflow_checks.CHECKS,
     **hook_checks.CHECKS,
 }

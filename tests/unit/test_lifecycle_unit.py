@@ -143,7 +143,7 @@ def test_L1_the_run_refuses_to_start_on_a_world_never_validated(tmp_path):
     site = make_site(tmp_path, SMALL)
     with pytest.raises(LifecycleRefused) as raised:
         start_running(site)
-    assert str(raised.value) == "world not validated; run: willitharness world check", f"got {raised.value}"
+    assert str(raised.value).startswith("world not validated; run: willitharness world check. Rule:"), f"got {raised.value}"
     assert stored_final_runs(site) == (), "no run may exist"
 
 
@@ -152,7 +152,7 @@ def test_W3_the_run_refuses_to_start_on_a_changed_world(tmp_path):
     edit_world(site)
     with pytest.raises(LifecycleRefused) as raised:
         start_running(site)
-    assert str(raised.value) == "world changed since validation; run: willitharness world check", f"got {raised.value}"
+    assert str(raised.value).startswith("world changed since validation; run: willitharness world check. Rule:"), f"got {raised.value}"
     assert stored_final_runs(site) == (), "no run may exist"
 
 
@@ -393,7 +393,7 @@ def test_abort_after_the_plan_is_analyzed_is_refused_and_the_state_stays(tmp_pat
         move_to(folder_of(site), step)
     with pytest.raises(LifecycleRefused) as raised:
         abort_plan(tmp_path, site.plan)
-    assert str(raised.value) == "plan already analyzed; abort is not possible", f"got {raised.value}"
+    assert str(raised.value).startswith("plan already analyzed; abort is not possible. Rule:"), f"got {raised.value}"
     observed = read_state(folder_of(site))
     assert observed is PlanState.ANALYZED, f"an analyzed plan stays analyzed; got {observed}, expected PlanState.ANALYZED"
 
@@ -421,7 +421,7 @@ def test_L5_analyze_on_a_running_plan_says_to_wait(tmp_path):
     start_running(site)
     with pytest.raises(LifecycleRefused) as raised:
         analyze_gate(tmp_path, site.plan)
-    assert str(raised.value) == "plan still running; analyze after Complete or BudgetStopped", f"got {raised.value}"
+    assert str(raised.value).startswith("plan still running; analyze after Complete or BudgetStopped. Rule:"), f"got {raised.value}"
 
 
 @pytest.mark.parametrize("early", [(), (PlanState.WORLD_VALIDATED,), (PlanState.WORLD_VALIDATED, PlanState.REACHABILITY_CHECKED)])

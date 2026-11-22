@@ -5,7 +5,7 @@ TESTS = (
 SOURCE = 'scripts/gates/message_check.py'
 
 MUTANTS = (
-    ('value-check-dropped', SOURCE, 'if not VALUE_PATTERN.search(text):', 'if False:'),
+    ('value-note-dropped', SOURCE, 'result = VALUE_PATTERN.search(text) is None', 'result = False'),
     ('rule-check-dropped', SOURCE, 'if RULE_MARKER not in text:', 'if False:'),
     ('fix-check-dropped', SOURCE, 'if not FIX_AT_END_PATTERN.search(text) or RULE_MARKER in text.rsplit(FIX_MARKER, 1)[-1]:', 'if False:'),
     ('fix-need-not-be-last', SOURCE, 'if not FIX_AT_END_PATTERN.search(text) or RULE_MARKER in text.rsplit(FIX_MARKER, 1)[-1]:', 'if FIX_MARKER not in text:'),
@@ -16,7 +16,7 @@ MUTANTS = (
     ('exemption-by-prefix', SOURCE, 'entry.text == message.text', 'message.text.startswith(entry.text[:10])'),
     ('exemption-table-extra-entry', SOURCE, 'Exemption("report.py", "plan aborted; no verdict", "T47"),', 'Exemption("report.py", "plan aborted; no verdict", "T47"),\n    Exemption("cli.py", "error", "T47"),'),
     ('violation-exits-zero', SOURCE, 'EXIT_FAILED = 1', 'EXIT_FAILED = 0'),
-    ('pass-line-reworded', SOURCE, 'name the value, state the rule and end with a fix"', 'name the value and state the rule"'),
+    ('pass-line-reworded', SOURCE, 'state the rule and end with a fix"', 'state the rule"'),
     ('count-dropped', SOURCE, 'PASS_LINE.format(count=len(messages))', 'PASS_LINE.format(count=0)'),
     ('raise-not-scanned', SOURCE, 'if raised and node.exc.args:', 'if False:'),
     ('print-not-scanned', SOURCE, 'named_print = isinstance(call.func, ast.Name) and call.func.id == PRINT_NAME', 'named_print = False'),
@@ -27,5 +27,14 @@ MUTANTS = (
     ('fstring-field-dropped', SOURCE, 'value.value if is_text(value) else INTERPOLATION_FIELD', 'value.value if is_text(value) else ""'),
     ('ambiguous-constant-kept', SOURCE, 'if name_counts[name] == 1}', 'if name_counts[name] >= 1}'),
     ('usage-exits-zero', SOURCE, 'EXIT_USAGE = 2', 'EXIT_USAGE = 0'),
+    ('repo-check-not-registered', 'scripts/gates/repo_checks.py', '    "failure-messages": failure_message_errors,\n', ''),
+    ('repo-check-scans-nothing', 'scripts/gates/repo_checks.py', 'return message_check.source_errors(root / SOURCE_FOLDER)', 'return []'),
+    ('note-breaks-the-verdict', SOURCE, 'if notes:', 'if notes and not violations:\n        result = EXIT_FAILED\n    if notes:'),
+    ('usage-prefix-dropped', SOURCE, 'NOT_FAILURE_PREFIXES = ("usage:", "warning:")', 'NOT_FAILURE_PREFIXES = ("warning:",)'),
+    ('warning-prefix-dropped', SOURCE, 'NOT_FAILURE_PREFIXES = ("usage:", "warning:")', 'NOT_FAILURE_PREFIXES = ("usage:",)'),
+    ('prefix-matches-anywhere', SOURCE, 'message.text.startswith(NOT_FAILURE_PREFIXES)', 'any(prefix in message.text for prefix in NOT_FAILURE_PREFIXES)'),
+    ('exempt-messages-get-notes', SOURCE, 'if names_no_value(message.text) and not is_exempt(message, exemptions)', 'if names_no_value(message.text)'),
+    ('value-missing-fails', SOURCE, 'if RULE_MARKER not in text:', 'if names_no_value(text):\n        result.append(MISSING_RULE)\n    if RULE_MARKER not in text:'),
+    ('analyze-exemption-for-report-text', SOURCE, 'Exemption("lifecycle.py", "plan aborted; no verdict", "T29"),', 'Exemption("lifecycle.py", "plan aborted; no verdict", "T29"),\n    Exemption("lifecycle.py", "no verdicts yet; run: willitharness analyze", "T47"),'),
     ('violation-lines-dropped', SOURCE, 'if problems and not is_exempt(message, exemptions):', 'if False:'),
 )

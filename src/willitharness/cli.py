@@ -104,7 +104,7 @@ def claude_runner_for_cli(arguments, index):
 
 
 RUNNERS = {"fake": scripted_fake_runner, "claude": claude_runner_for_cli}
-FAKE_NEEDS = "the fake agent needs --seed and --boundary. Fix: pass both."
+FAKE_NEEDS = "the fake agent needs --seed and --boundary. Rule: the fake agent walks up from a seeded start to a boundary. Fix: pass both."
 
 
 def recording_site(plan_name, arm):
@@ -200,7 +200,7 @@ def run_report(site, state):
     print(f"plan {state}: {len(latest_by_run(records))} runs, spent ${spent(records):.2f}")
     codes = {PlanState.COMPLETE: EXIT_OK, PlanState.BUDGET_STOPPED: EXIT_BUDGET_STOPPED}
     if state not in codes:
-        print(f"plan is {state}; no further runs started", file=sys.stderr)
+        print(f"plan is {state}; no further runs started. Rule: a plan ends as Complete or BudgetStopped. Fix: read the plan state, then run willitharness run again or start a new plan.", file=sys.stderr)
     return codes.get(state, EXIT_DOMAIN_FAILURE)
 
 

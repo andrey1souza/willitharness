@@ -153,7 +153,7 @@ Scenarios: `side-effects.feature`, `report.feature`.
 |---|---|---|---|
 | G6.1 | `uv run pytest tests/gates/test_side_effects.py` | all pass: `git -C` 22 of 60 against 1 of 60 is listed with counts per arm (S1) | a mutant with a threshold that hides it fails |
 | G6.2 | `uv run willitharness report tests/golden/demo-plan \| diff - tests/golden/demo-report.md` | no output, exit 0 | an edited golden file makes `diff` exit 1 |
-| G6.3 | `uv run python scripts/gates/message_check.py src` | `all N failure messages name the value, state the rule and end with a fix` | a fixture message `error` exits 1 |
+| G6.3 | `uv run python scripts/gates/message_check.py src` | `all N failure messages state the rule and end with a fix`, then one `note:` line per message that names no value; the same check runs as `failure-messages` in the repo checks | a fixture message `error` exits 1 |
 | G6.4 | `uv run pytest tests/gates/test_full_plan_end_to_end.py` | the fake-agent plan goes from Drafted to Analyzed and the report holds the decision for the rule | a mutant that skips analysis makes the report command refuse (exit 1) and the test fail |
 | G6.5 | `uv run python scripts/gates/s2_type_check.py` | `decision parameters are exactly: reach, effect, guard` | a mutant of `decide` with a `side_effects` parameter exits 1 |
 Cost cap: $0.20 (optional live smoke).

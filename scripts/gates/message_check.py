@@ -19,10 +19,11 @@ PRINT_NAME = "print"
 FORMAT_NAME = "format"
 WRITE_NAME = "write"
 FILE_KEYWORD = "file"
-MISSING_VALUE = "the value"
 MISSING_RULE = "the rule"
 MISSING_FIX = "a closing fix"
-PASS_LINE = "all {count} failure messages name the value, state the rule and end with a fix"
+NOT_FAILURE_PREFIXES = ("usage:", "warning:")
+PASS_LINE = "all {count} failure messages state the rule and end with a fix"
+NOTE_LINE = "note: message at {path}:{line} names no value"
 
 
 class Exemption(NamedTuple):
@@ -40,6 +41,7 @@ class FailureMessage(NamedTuple):
 EXEMPTIONS = (
     Exemption("report.py", "no verdicts yet; run: willitharness analyze", "T47"),
     Exemption("report.py", "plan aborted; no verdict", "T47"),
+    Exemption("lifecycle.py", "plan aborted; no verdict", "T29"),
 )
 
 
@@ -141,20 +143,19 @@ def failure_messages(root):
 def problems_of(text):
     assert isinstance(text, str), f"problems_of needs message text, got {text!r}. Fix: pass the message string."
     result = []
-    if not VALUE_PATTERN.search(text):
-        result.append(MISSING_VALUE)
     if RULE_MARKER not in text:
         result.append(MISSING_RULE)
     if not FIX_AT_END_PATTERN.search(text) or RULE_MARKER in text.rsplit(FIX_MARKER, 1)[-1]:
         result.append(MISSING_FIX)
-    assert all(problem in (MISSING_VALUE, MISSING_RULE, MISSING_FIX) for problem in result), f"problems_of built an unknown problem in {result!r}"
+    assert all(problem in (MISSING_RULE, MISSING_FIX) for problem in result), f"problems_of built an unknown problem in {result!r}"
     return tuple(result)
 
 
 def is_exempt(message, exemptions):
     assert isinstance(message, FailureMessage), f"is_exempt needs a FailureMessage, got {message!r}. Fix: build it with failure_messages."
     assert all(isinstance(entry, Exemption) for entry in exemptions), f"is_exempt needs Exemption entries, got {exemptions!r}. Fix: build them with Exemption."
-    result = any(entry.file_name == message.path.name and entry.text == message.text for entry in exemptions)
+    listed = any(entry.file_name == message.path.name and entry.text == message.text for entry in exemptions)
+    result = listed or message.text.startswith(NOT_FAILURE_PREFIXES)
     assert result is True or result is False, f"is_exempt built the non-boolean {result!r}"
     return result
 
@@ -168,9 +169,34 @@ def violation_lines(messages, exemptions):
             missing = " and ".join(problems)
             result.append(
                 f"{message.path}:{message.line}: the message {message.text!r} lacks {missing}. "
-                f"Rule: every failure message names the value, states the rule and ends with a fix. Fix: write it as '<value> ... Rule: <rule>. Fix: <fix>.'"
+                f"Rule: every failure message states the rule and ends with a fix. Fix: write it as '<value> ... Rule: <rule>. Fix: <fix>.'"
             )
     assert len(result) <= len(messages), f"violation_lines found more violations than messages: {len(result)} of {len(messages)}"
+    return result
+
+
+def names_no_value(text):
+    assert isinstance(text, str), f"names_no_value needs message text, got {text!r}. Fix: pass the message string."
+    result = VALUE_PATTERN.search(text) is None
+    assert result is True or result is False, f"names_no_value built the non-boolean {result!r}"
+    return result
+
+
+def note_lines(messages, exemptions):
+    assert isinstance(messages, list), f"note_lines needs a list of messages, got {messages!r}. Fix: build it with failure_messages."
+    result = [
+        NOTE_LINE.format(path=message.path, line=message.line)
+        for message in messages
+        if names_no_value(message.text) and not is_exempt(message, exemptions)
+    ]
+    assert len(result) <= len(messages), f"note_lines found more notes than messages: {len(result)} of {len(messages)}"
+    return result
+
+
+def source_errors(root):
+    assert Path(root).is_dir(), f"source_errors needs a source directory, got {root!r}. Fix: pass the folder to scan, for example src."
+    result = violation_lines(failure_messages(root), EXEMPTIONS)
+    assert all(isinstance(line, str) for line in result), f"source_errors built a non-text error in {root}"
     return result
 
 
@@ -184,6 +210,9 @@ def scan_exit_code(root):
     else:
         print(PASS_LINE.format(count=len(messages)))
         result = EXIT_PASSED
+    notes = note_lines(messages, EXEMPTIONS)
+    if notes:
+        print("\n".join(notes))
     assert result in (EXIT_PASSED, EXIT_FAILED), f"scan_exit_code built the unknown code {result!r}"
     return result
 

@@ -147,7 +147,7 @@ def check_arms(arms):
         if target != loo_label:
             raise PlanError(
                 f"noise pair must repeat the LOO arm {loo_label}; {arm.label} repeats {target}. "
-                f"Fix: set the role of {arm.label} to noise_of:{loo_label}."
+                f"Rule: a noise pair repeats the LOO arm. Fix: set the role of {arm.label} to noise_of:{loo_label}."
             )
 
 
@@ -228,7 +228,7 @@ def read_tasks(raw):
         raise PlanError(f"tasks is {raw!r}. Rule: tasks is a list of objects with id and completed_check. Fix: write a list.")
     for entry in raw:
         if not isinstance(entry, dict):
-            raise PlanError(f"a task must be an object, got {entry!r}. Fix: write each task as an object with id and completed_check.")
+            raise PlanError(f"a task must be an object, got {entry!r}. Rule: tasks is a list of objects. Fix: write each task as an object with id and completed_check.")
     tasks = tuple(Task(text_field(entry, "id", "task"), read_check(entry.get("completed_check"), entry.get("id"))) for entry in raw)
     ids = [task.id for task in tasks]
     duplicates = sorted({item for item in ids if ids.count(item) > 1})
@@ -261,7 +261,7 @@ def whole_number(data, key, default, minimum):
 
 def load_plan(data):
     if not isinstance(data, dict):
-        raise PlanError(f"a plan must be an object, got {type(data).__name__}. Fix: write the plan as a JSON object.")
+        raise PlanError(f"a plan must be an object, got {type(data).__name__}. Rule: a plan file holds one JSON object. Fix: write the plan as a JSON object.")
     if data.get("schema") != SCHEMA_VERSION:
         raise PlanError(f"schema is {data.get('schema')!r}. Rule: this version reads schema {SCHEMA_VERSION}. Fix: set schema to {SCHEMA_VERSION}.")
     name = data.get("name")

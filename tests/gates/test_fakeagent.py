@@ -52,7 +52,7 @@ def test_a_run_without_a_seed_exits_two_with_the_fix(tmp_path, capsys):
     code = fakeagent.main(["--directory", str(child), "--boundary", str(boundary)])
     errors = capsys.readouterr().err
     assert code == fakeagent.EXIT_USAGE, f"expected exit {fakeagent.EXIT_USAGE}, got {code}"
-    assert errors.strip() == "seed required; pass --seed N", f"unexpected message {errors!r}"
+    assert errors.strip().startswith("seed required; pass --seed N. Rule:"), f"unexpected message {errors!r}"
 
 
 def test_the_command_prints_the_same_bytes_for_the_same_seed(tmp_path, capsys):

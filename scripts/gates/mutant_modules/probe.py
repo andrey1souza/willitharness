@@ -20,6 +20,6 @@ MUTANTS = (
     ('unknown-arm-exits-zero', 'src/willitharness/cli.py', 'return None, EXIT_DOMAIN_FAILURE\n    state = read_state', 'return None, EXIT_OK\n    state = read_state'),
     ('result-recorded-after-the-run-started', 'src/willitharness/cli.py', 'if state not in PRE_RUN_ORDER:', 'if False:'),
     ('plan-without-arm-accepted', 'src/willitharness/cli.py', 'if (arguments.plan is None) != (arguments.arm is None):', 'if False:'),
-    ('run-refusal-names-no-command', 'src/willitharness/lifecycle.py', 'run: willitharness probe --plan <plan.json> --arm', 'probe the arm and record the result'),
+    ('run-refusal-names-no-command', 'src/willitharness/lifecycle.py', 'Fix: run willitharness probe --plan <plan.json> --arm', 'probe the arm and record the result'),
     ('run-summary-counts-records', 'src/willitharness/cli.py', '{len(latest_by_run(records))} runs', '{len(records)} runs'),
 )

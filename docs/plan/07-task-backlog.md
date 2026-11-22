@@ -323,8 +323,8 @@ As a user, I want a plain report with every answer, the warnings and the limits,
 - IDs: L5, V6, E1, D6, S2. Gate: G6.2. Deps: T35, T43, T45.
 
 ### T48. Failure-message actionability gate (S)
-As a maintainer, I want every failure message to name the value, state the rule and end with a fix.
-- Given the source tree, when I run `python scripts/gates/message_check.py src`, then it prints `all N failure messages name the value, state the rule and end with a fix`.
+As a maintainer, I want every failure message to state the rule and end with a fix, and a note for each that names no value.
+- Given the source tree, when I run `python scripts/gates/message_check.py src`, then it prints `all N failure messages state the rule and end with a fix`, and one `note:` line for each message that names no value. The check runs as `failure-messages` in the repo checks.
 - Given a fixture message `error`, then it exits 1.
 - IDs: none. Gate: G6.3. Deps: T47.
 
