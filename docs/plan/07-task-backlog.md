@@ -322,7 +322,7 @@ As a user, I want a plain report with every answer, the warnings and the limits,
 - Given analyze not run, then the command exits 1 with `no verdicts yet; run: willitharness analyze`. Given an aborted plan, then `plan aborted; no verdict`. Given an edited golden file, then `diff` exits 1.
 - IDs: L5, V6, E1, D6, S2. Gate: G6.2. Deps: T35, T43, T45.
 
-### T48. Failure-message actionability gate (S) not built (T48)
+### T48. Failure-message actionability gate (S)
 As a maintainer, I want every failure message to name the value, state the rule and end with a fix.
 - Given the source tree, when I run `python scripts/gates/message_check.py src`, then it prints `all N failure messages name the value, state the rule and end with a fix`.
 - Given a fixture message `error`, then it exits 1.
