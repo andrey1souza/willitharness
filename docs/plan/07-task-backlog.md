@@ -289,10 +289,11 @@ As a maintainer, I want G1 to match its proven table.
 - Given one result changed in a copy, then it exits 1 and names the case.
 - IDs: G1. Gate: G5.7. Deps: T40, the Lean fork's JSON.
 
-### T43. The decide command (S) not built (T43)
+### T43. The decide command (S)
 As a user, I want one command that prints the decision, so that I act on it.
 - Given 45 synthetic plan states, when I run `python scripts/gates/decide_all.py`, then it prints `45 of 45 equal to the decision table`.
 - Given a mutant of `decision.py`, then it prints the first mismatch and exits 1.
+- Given a finished plan, when I run `willitharness decide plan.json`, then it prints one decision line for each task and rule.
 - IDs: D1 to D12. Gate: G5.4. Deps: T09, T34, T40.
 
 ### T44. Live reproduction of the guard message effect (M) not built (T44)

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from willitharness import claude_agent, fakeagent
 from willitharness.claude_agent import AgentUnavailable
+from willitharness.decide_plan import DecideRefused, decision_line, rule_decisions
 from willitharness.analyzed import finish_analysis
 from willitharness.agent_line import read_agent_line
 from willitharness.analysis import AnalysisInput, analyze_plan, has_verdict, messages_of, report_lines
@@ -41,7 +42,7 @@ EXIT_BUDGET_STOPPED = 4
 USAGE = (
     "usage: willitharness plan check <plan.json> | willitharness world check <world-dir> "
     "| willitharness probe --agent fake|claude --directory D --runs N --target-token T --control-token C [--boundary B --seed S] [--model M] [--plan P --arm A] "
-    "| willitharness run <plan.json> --agent fake|claude [--timeout-seconds S] [--model M] | willitharness abort <plan.json> | willitharness analyze <plan.json>"
+    "| willitharness run <plan.json> --agent fake|claude [--timeout-seconds S] [--model M] | willitharness abort <plan.json> | willitharness analyze <plan.json> | willitharness decide <plan.json>"
 )
 EXIT_CODES = (EXIT_OK, EXIT_DOMAIN_FAILURE, EXIT_USAGE, EXIT_AGENT_MISSING, EXIT_BUDGET_STOPPED)
 FAKE_RUN_COST_USD = 0.01
@@ -268,6 +269,23 @@ def analyze_command(argv):
     return EXIT_OK
 
 
+def decide_plan_command(argv):
+    assert isinstance(argv, list), f"decide_plan_command needs a list of arguments, got {argv!r}. Fix: pass the arguments after decide."
+    assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
+    parser = argparse.ArgumentParser(prog="willitharness decide")
+    parser.add_argument("plan")
+    arguments = parser.parse_args(argv)
+    root = Path.cwd()
+    try:
+        lines = [decision_line(item) for item in rule_decisions(root, read_plan(root, arguments.plan))]
+    except (PathOutsideRoot, PlanError, LifecycleRefused, AnalysisError, DecideRefused) as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_DOMAIN_FAILURE
+    print("\n".join(lines))
+    assert lines, "a decision run prints a line for each rule and task"
+    return EXIT_OK
+
+
 def main(argv):
     assert isinstance(argv, list), f"main needs a list of arguments, got {argv!r}. Fix: pass sys.argv[1:]."
     assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
@@ -284,7 +302,9 @@ def main(argv):
         return plan_command(rest, argv[0])
     if command == ["analyze"]:
         return analyze_command(rest)
-    print(f"unknown command {argv!r}. Rule: v0 has plan check, world check, probe, run, abort and analyze so far. Fix: {USAGE}", file=sys.stderr)
+    if command == ["decide"]:
+        return decide_plan_command(rest)
+    print(f"unknown command {argv!r}. Rule: v0 has plan check, world check, probe, run, abort, analyze and decide so far. Fix: {USAGE}", file=sys.stderr)
     return EXIT_USAGE
 
 
