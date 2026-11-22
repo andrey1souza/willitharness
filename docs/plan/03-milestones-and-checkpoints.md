@@ -40,7 +40,7 @@ Scenarios: none (infrastructure).
 | Gate | Command | Expected output | Bad input (must be rejected) |
 |---|---|---|---|
 | G0.1 | `uv run python -m willitharness --version` | `willitharness 0.0.0`, exit 0 | `python -m willitharness --versoin` exits 2 with `unknown option --versoin; use --version` |
-| G0.2 | `not built (T02)` | `leak-check: clean`, exit 0 | `fixtures/bad/leak.txt` holds a home-directory path; the check exits 1 with `leak-check: found 1` |
+| G0.2 | `uv run python scripts/gates/leak_check.py src tests features docs fixtures` | `leak-check: clean`, exit 0 | a folder with one file holding a home-directory path; the check exits 1 with `leak-check: found 1` (`tests/gates/test_leak_check.py`) |
 | G0.3 | `uv run python scripts/gates/mutants.py all` | `GATE G0.1 OK (good passes, bad rejected)` | a test gate whose bad input passes; the runner prints `BROKEN (bad input accepted)` and exits 1 |
 
 Exit criteria: `make check` runs G0.1 to G0.3; the repo holds no user files or
