@@ -155,7 +155,7 @@ Scenarios: `side-effects.feature`, `report.feature`.
 | G6.2 | `not built (T47)` | no output, exit 0 | an edited golden file makes `diff` exit 1 |
 | G6.3 | `not built (T48)` | `all N failure messages name the value, state the rule and end with a fix` | a fixture message `error` exits 1 |
 | G6.4 | `not built (T49)` | the fake-agent plan goes from Drafted to Reported | a mutant that skips analysis makes the report command refuse (exit 1) and the test fail |
-| G6.5 | `not built (T46)` | `decision parameters are exactly: reach, effect, guard` | a mutant of `decide` with a `side_effects` parameter exits 1 |
+| G6.5 | `uv run python scripts/gates/s2_type_check.py` | `decision parameters are exactly: reach, effect, guard` | a mutant of `decide` with a `side_effects` parameter exits 1 |
 Cost cap: $0.20 (optional live smoke).
 Exit criteria: the report is deterministic, lists every question, shows the
 warnings, and has a limits section; the decision cannot depend on side effects.
