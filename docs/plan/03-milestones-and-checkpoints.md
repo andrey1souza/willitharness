@@ -134,7 +134,7 @@ Scenarios: `guard-test.feature`, `decision-table.feature`.
 | Gate | Command | Expected output | Bad input |
 |---|---|---|---|
 | G5.1 | `uv run pytest tests/gates/test_guard_corpus_gate.py` | all pass: every bad command blocked (blockCoverage 1), every good command allowed | a guard that allows `pkill -f` fails |
-| G5.2 | `not built (T39)` | `messages: 2 accepted, 0 rejected` | a file with the old message `never use pkill or pgrep -f; record each PID you start and kill only those PIDs` exits 1 with `rejected: no runnable alternative` |
+| G5.2 | `uv run python -m willitharness.guard check-messages fixtures/rules/messages.json` | `messages: 2 accepted, 0 rejected` | a file with the old message `never use pkill or pgrep -f; record each PID you start and kill only those PIDs` exits 1 with `rejected: no runnable alternative` |
 | G5.3 | `uv run pytest tests/unit/test_bypass_unit.py` | all pass: `Write` after a block gives bypassRate 0.4; the offered `command cp -f` and `unlink` are not bypass; `/bin/cp` is an alternative channel | a detector that ignores `Write` fails |
 | G5.4 | `not built (T43)` | `45 of 45 equal to the decision table` | a mutant of `decision.py` prints the first mismatch and exits 1 |
 | G5.5 (@live) | `not built (T44)` | `usable message completes more than no-alternative message`, `GATE G5.5 PASS` | two arms with the same message print `no difference` and exit 1 |
