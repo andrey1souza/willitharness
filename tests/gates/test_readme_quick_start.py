@@ -23,7 +23,7 @@ REACHED_LINE = "reachability: Loaded"
 TOKEN_LINE = "the target token appeared in 3 of 3 runs"
 RECORDED_FIRST = "recorded: arm A is Loaded in plan demo; plan state WorldValidated"
 RECORDED_SECOND = "recorded: arm B is Loaded in plan demo; plan state ReachabilityChecked"
-RUN_LINE = "plan Complete: 8 runs, spent $0.04"
+RUN_LINE = "plan Complete: 4 runs, spent $0.04"
 ANALYZE_REFUSAL = "has no leave_one_out arm or no rule arm to compare"
 SHOWN_IN_README = (PLAN_OK_LINE, WORLD_VALID_PREFIX, REACHED_LINE, TOKEN_LINE, RECORDED_FIRST, RUN_LINE)
 
