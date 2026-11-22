@@ -121,7 +121,9 @@ def test_every_arm_probed_through_the_cli_lets_run_start(tmp_path, monkeypatch, 
         assert cli.main(record_arguments(work, arm)) == cli.EXIT_OK, f"probing arm {arm} must succeed"
     capsys.readouterr()
     code = cli.main(["run", "plan.json", "--agent", "fake"])
-    assert code == cli.EXIT_OK, f"after probing every arm run must start and finish, got {code}; {capsys.readouterr()}"
+    output = capsys.readouterr().out
+    assert code == cli.EXIT_OK, f"after probing every arm run must start and finish, got {code}; {output!r}"
+    assert output == "plan Complete: 4 runs, spent $0.04\n", f"2 arms x 2 reps are 4 runs, not 4 runs counted as records, got {output!r}"
 
 
 def test_an_unknown_arm_is_refused_before_any_probe_runs(tmp_path, monkeypatch, capsys):

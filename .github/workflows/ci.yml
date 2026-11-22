@@ -116,7 +116,7 @@ jobs:
       - run: uv run python scripts/gates/repo_checks.py
 
   oldest-python-linux:
-    name: Tests on the oldest Python the project supports (Linux, advisory, not required)
+    name: Tests on the oldest Python the project supports (Linux)
     runs-on: ubuntu-latest
     env:
       UV_MANAGED_PYTHON: "1"

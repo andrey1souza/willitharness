@@ -265,7 +265,7 @@ As a user, I want a guard that blocks a command and says what to do, so that the
 - Given a guard that allows `pkill -f`, then the test fails.
 - IDs: G1 (blockCoverage). Gate: G5.1. Deps: T20.
 
-### T39. Block-message actionability check (S) not built (T39)
+### T39. Block-message actionability check (S)
 As a maintainer, I want messages checked for a way forward, so that the spike's bad message cannot return.
 - Given the message `never use pkill or pgrep -f; record each PID you start and kill only those PIDs`, when I run `python -m willitharness.guard check-messages fixtures/rules/messages.json`, then it exits 1 with `rejected: no runnable alternative`.
 - Given the two fixed messages, then it prints `messages: 2 accepted, 0 rejected`.
@@ -457,7 +457,7 @@ As an analyst, I want an arm to deliver its rule through `--append-system-prompt
 - Given the reachability probe for that arm, then it uses the same channel as the run.
 - IDs: none. Gate: G3.10. Deps: T63.
 
-### T65. Close the world-hash gaps (S)
+### T65. Close the world-hash gaps (S) not built (T65)
 As an analyst, I want the world hash of a run to be the hash of the files at the claim and old runs to be counted, so that an edit that was not validated again, and records from before T62, cannot hide a mixed world.
 - Given a world edited after validation, when a run is claimed, then the record holds the hash of the files now, and `analyze` warns that the run left the validated world.
 - Given records written before T62, then `analyze` states how many runs carry no world hash.
