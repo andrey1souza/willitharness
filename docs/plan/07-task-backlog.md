@@ -1,6 +1,6 @@
 # 07. Task backlog
 
-67 tasks in dependency order (contract v0.5). Each is a BDD story with Given, When,
+68 tasks in dependency order (contract v0.5). Each is a BDD story with Given, When,
 Then acceptance, the contract IDs it covers, a gate from file 03, a size and its
 dependencies. Sizes: S under half a day, M about a day, L two or three days. A task
 is done when its gate passes with its bad input rejected.
@@ -16,7 +16,7 @@ Summary:
 | M5 guard and decision | T38 to T44 | 7 |
 | M6 side effects and report | T45 to T49 | 5 |
 | M7 formal gates | T50 | 1 |
-| Added after M7 | T51 to T67 | 17 |
+| Added after M7 | T51 to T68 | 18 |
 
 Golden tables referenced by name (Lean fork, not final): `decision_table.json`,
 `effect_table.json`, `probe_table.json`, `guard_table.json` in `../../formal/lean/`.
@@ -487,3 +487,13 @@ As an owner of a harness, I want to compare a skill or hook with its own text gi
 - Given the owner rule "no benefit shown after N runs means remove", then `decide` prints remove candidate only when each arm has at least N runs. The report states the smallest change those runs could detect.
 - Given each arm, then the report shows turns and cost per arm.
 - IDs: none yet. New decision rows go into the contract, the golden table and the Lean proof in the same change that builds this task. Gate: new, defined with the task. Deps: T43, T64, T66.
+
+### T68. The probe command records its result for a plan arm (S)
+As an analyst, I want `probe` to record its result for an arm of my plan, so that `run` can start with the CLI alone.
+- Given `probe` with `--plan` and `--arm`, then it prints the result, records it for that arm, and prints the arm and the plan state.
+- Given an arm that is not in the plan, then it exits 1 and names the arms of the plan. No probe runs, so the check costs nothing.
+- Given `--plan` without `--arm`, or `--arm` without `--plan`, then it exits 2 with a fix.
+- Given a plan that already started running, then it exits 1 and says to probe before the run.
+- Given every arm probed, then `run` starts.
+- Given `run` before an arm is probed, then it exits 1 and names the `probe` command.
+- IDs: none. Gate: `uv run pytest tests/gates/test_probe_command.py`. Deps: T19.

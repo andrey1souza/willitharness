@@ -258,7 +258,7 @@ def start_running(site):
         raise LifecycleRefused(WORLD_CHANGED)
     absent = missing_arms(site)
     if absent:
-        raise LifecycleRefused(f"no reachability result for arm {absent[0]} of plan {site.plan.name} (missing: {', '.join(absent)}); probe the arm and record the result")
+        raise LifecycleRefused(f"no reachability result for arm {absent[0]} of plan {site.plan.name} (missing: {', '.join(absent)}); run: willitharness probe --plan <plan.json> --arm {absent[0]} with the probe options")
     if state is not PlanState.RUNNING and state is not PlanState.REACHABILITY_CHECKED:
         raise LifecycleRefused(f"plan is {state}; a run can start only from ReachabilityChecked or Running")
     if state is PlanState.REACHABILITY_CHECKED:
