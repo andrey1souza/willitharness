@@ -23,7 +23,7 @@ A planned feature shows the id of its task in `docs/plan/07-task-backlog.md`.
 | `willitharness abort <plan.json>` | Marks a plan as aborted. | works |
 | `willitharness analyze <plan.json>` | Gives a verdict for a plan that has a `leave_one_out` arm and a `rule` arm. | works |
 | `willitharness decide <plan.json>` | Prints one decision for each task and rule of a finished plan. | works |
-| The report | Shows the decision and its evidence. | not built (T47) |
+| `willitharness report <plan-dir or plan.json>` | Prints a Markdown report of an analyzed plan: the answer to each question, the decision, the warnings and the limits. | works |
 | Comparing a skill or hook with the same text as a plain prompt | Tests whether the form matters, not only the text. | not built (T67) |
 
 The `claude` agent runs real sessions and costs money. The `fake` agent runs offline and costs nothing.
