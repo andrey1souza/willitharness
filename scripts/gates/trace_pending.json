@@ -10,11 +10,6 @@
     "reason": "the class field is named diff_swap; rename to DI2_swap after a Lean rebuild"
   },
   {
-    "id": "S1",
-    "place": "tests",
-    "reason": "side-effect tests arrive in M6"
-  },
-  {
     "id": "S2",
     "place": "tests",
     "reason": "side-effect tests arrive in M6"

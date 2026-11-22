@@ -303,7 +303,7 @@ As a user, I want the tool to reproduce the guard-message finding, so that Q3 is
 
 ## M6. Side effects and report
 
-### T45. Side-effect report S1 (M) not built (T45)
+### T45. Side-effect report S1 (M)
 As a user, I want to see what else changed when a rule loaded, so that surprises are visible.
 - Given `git -C` in 22 of 60 runs of arm B and 1 of 60 of arm C, when I build the report, then it lists the command with `22 of 60` and `1 of 60`.
 - Given no command that differs, then it says `no command differs between arms`. Alternative channels such as `Write` are listed with counts.

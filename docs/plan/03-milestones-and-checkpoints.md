@@ -151,7 +151,7 @@ Scenarios: `side-effects.feature`, `report.feature`.
 
 | Gate | Command | Expected output | Bad input |
 |---|---|---|---|
-| G6.1 | `not built (T45)` | all pass: `git -C` 22 of 60 against 1 of 60 is listed with counts per arm (S1) | a mutant with a threshold that hides it fails |
+| G6.1 | `uv run pytest tests/gates/test_side_effects.py` | all pass: `git -C` 22 of 60 against 1 of 60 is listed with counts per arm (S1) | a mutant with a threshold that hides it fails |
 | G6.2 | `not built (T47)` | no output, exit 0 | an edited golden file makes `diff` exit 1 |
 | G6.3 | `not built (T48)` | `all N failure messages name the value, state the rule and end with a fix` | a fixture message `error` exits 1 |
 | G6.4 | `not built (T49)` | the fake-agent plan goes from Drafted to Reported | a mutant that skips analysis makes the report command refuse (exit 1) and the test fail |
