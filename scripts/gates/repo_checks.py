@@ -10,6 +10,7 @@ from pathlib import Path
 
 import docs_freshness
 import hook_checks
+import leak_check
 import mutant_tables
 import pilot_live
 import trace_check
@@ -64,6 +65,7 @@ FORCE_FLAG = re.compile(r"^-[A-Za-z]*[fD][A-Za-z]*$")
 PR_TEXT_FILE = Path("scripts") / "guards" / "pr_text.py"
 REMOVABLE_SITE_MODULES = ("status",)
 FORBIDDEN_ARGUMENTS = ("--force", "--force-with-lease", "--hard", "push", "update-ref")
+LEAK_FOLDERS = ("src", "tests", "features", "docs", "fixtures")
 CONTRACT_FILE = Path("docs") / "contract.md"
 CONTRACT_SENTENCES = ("Ending a plan needs no validated world.", "Each run record carries the validated world hash at the start of the run (T62).")
 
@@ -354,7 +356,18 @@ def integrate_source_errors(root):
     ]
 
 
+def home_path_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    assert LEAK_FOLDERS, "no folders are scanned. Rule: the hygiene gate scans the shipped folders. Fix: restore LEAK_FOLDERS."
+    present = [root / name for name in LEAK_FOLDERS if (root / name).is_dir()]
+    return [
+        f"{leak} holds a home-directory path. Rule: no user path reaches the repo. Fix: replace it with a relative path or a placeholder."
+        for leak in leak_check.leaks_in(present)
+    ] if present else []
+
+
 CHECKS = {
+    "no-home-paths": home_path_errors,
     "mistakes-table": mistakes_table_errors,
     "readme-isolation-limits": readme_isolation_errors,
     "gitignore": gitignore_errors,

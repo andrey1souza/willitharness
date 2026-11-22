@@ -19,4 +19,13 @@ MUTANTS = (
     ('tolerance-zero', SOURCE, 'MATCH_TOLERANCE_POINTS = 5', 'MATCH_TOLERANCE_POINTS = 0'),
     ('no-match-worded-as-match', SOURCE, 'verdict = "matches" if close else "does not match"', 'verdict = "matches"'),
     ('history-cost-dropped', SOURCE, 'plain(f"${item[\'cost_usd\']!r}")', 'plain("")'),
+    ('works-is-warn', SOURCE, '"works": "keep",', '"works": "warn",'),
+    ('command-and-description-swapped', SOURCE, 'cells = [plain(item["command"]), plain(item["does"]), status_cell(item["status"])]', 'cells = [plain(item["does"]), plain(item["command"]), status_cell(item["status"])]'),
+    ('command-block-not-escaped', SOURCE, 'escape(block["text"], quote=False)', 'block["text"]'),
+    ('command-block-label-dropped', SOURCE, '<p>{inline(block["label"])}</p>\\n<pre', '<pre'),
+    ('command-block-not-focusable', SOURCE, '<pre tabindex="0">', '<pre>'),
+    ('license-shows-the-file-name', SOURCE, '"license_name": escape(project["license"]),', '"license_name": escape(project["license_file"]),'),
+    ('summary-not-inline', SOURCE, '"summary": inline(readme["summary"]["text"]),', '"summary": escape(readme["summary"]["text"]),'),
+    ('isolation-not-inline', SOURCE, '"isolation": inline(readme["isolation"]["text"]),', '"isolation": escape(readme["isolation"]["text"]),'),
+    ('repository-link-shows-the-file', SOURCE, '"repository_url": escape(project["repository"], quote=True),', '"repository_url": escape(project["file"], quote=True),'),
 )

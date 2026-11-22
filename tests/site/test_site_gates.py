@@ -105,7 +105,7 @@ def test_a_bad_citation_is_reported(tmp_path, site, citation, fragment):
 
 def test_a_list_item_without_a_source_is_reported(tmp_path, site):
     data, files = site
-    page = files["index.html"].replace('<li data-source="README.md:6">', "<li>")
+    page = files["index.html"].replace('<li data-source="README.md:35">', "<li>")
     problems = gates.trace_problems(tmp_path, "index.html", page)
     assert len(problems) == 1 and "a <li> has no data-source" in problems[0], f"got {problems}"
     assert gates.trace_problems(tmp_path, "index.html", files["index.html"]) == [], "the original page passes"
@@ -242,3 +242,32 @@ def test_a_site_without_the_page_fails_loudly(tmp_path, site):
         gates.site_problems(tmp_path, {"style.css": files["style.css"]}, data, GOOD_COUNTS)
     assert "Fix" in str(raised.value), f"the failure must say how to fix it, got {raised.value}"
     assert raised.type is AssertionError, f"expected an assertion failure, got {raised.type}"
+
+
+def test_a_changed_command_block_is_reported(tmp_path, site):
+    data, files = site
+    assert gates.code_block_problems("index.html", files["index.html"], data) == [], "the built page shows every block unchanged"
+    page = files["index.html"].replace("toolname run plan.json --runs 3", "toolname run plan.json")
+    problems = gates.code_block_problems("index.html", page, data)
+    assert len(problems) == 1 and "README.md:27" in problems[0] and "unchanged" in problems[0], f"got {problems}"
+
+
+def test_every_readme_block_must_appear_on_the_page(tmp_path, site):
+    data, files = site
+    page = files["index.html"].replace("Checks a plan.", "x").replace("not built (T43)", "x").replace("MIT License", "x").replace("The process is not confined.", "x").replace("Run the plan.", "x")
+    problems = gates.coverage_problems("index.html", page, data)
+    assert [problem.split("'")[1] for problem in problems] == ["Runs use a `sandbox`. The process is not", "MIT License", "Run the plan.", "Checks a plan.", "not built (T43)"], f"got {problems}"
+
+
+def test_a_page_without_the_readme_blocks_is_rejected_by_the_site_gates(tmp_path, site):
+    data, files = site
+    page = files["index.html"].replace('<pre tabindex="0"><code>uv sync', '<pre tabindex="0"><code>uv  sync')
+    problems = gates.site_problems(tmp_path, {**files, "index.html": page}, data, GOOD_COUNTS)
+    assert any("README.md:18" in problem and "unchanged" in problem for problem in problems), f"got {problems}"
+
+
+def test_a_command_with_markup_passes_the_block_check(tmp_path):
+    write_tree(tmp_path, {**site_files(), "README.md": site_files()["README.md"].replace("toolname run plan.json --runs 3", "toolname run <plan.json> && echo done")})
+    data = extract.site_data(tmp_path)
+    files = render.render_site(tmp_path, data)
+    assert gates.code_block_problems("index.html", files["index.html"], data) == [], "the escaped block matches its source text"

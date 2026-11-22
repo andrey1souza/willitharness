@@ -12,6 +12,7 @@ STYLE_NAME = "style.css"
 CODE_SPAN = re.compile(r"`([^`]+)`")
 QUESTION_COLUMNS = ("Question", "Name", "Asks", "Answer")
 DECISION_COLUMNS = ("Case", "When", "Decision")
+COMMAND_COLUMNS = ("Command", "What it does", "Status")
 GATE_COLUMNS = ("Gate", "Status", "Result")
 LIVE_COLUMNS = ("Task", "Arm C", "Arm B", "Verdict", "Noise", "Effect")
 COMPLETED_COLUMNS = ("Task", "Arm C", "Arm B", "Verdict", "Note")
@@ -19,6 +20,7 @@ HISTORY_COLUMNS = ("When", "Run", "Detector", "Cost", "Results")
 STOP_SERVER_TASK = "stop-server"
 MATCH_TOLERANCE_POINTS = 5
 TONES = {
+    "works": "keep",
     "FixLoading": "warn",
     "Keep": "keep",
     "ReplaceWithGuard": "keep",
@@ -103,6 +105,19 @@ def gate_cells(item):
     return cells
 
 
+def command_cells(item):
+    assert "does" in item, f"a command item needs does, got {sorted(item)}. Fix: pass extract output."
+    cells = [plain(item["command"]), plain(item["does"]), status_cell(item["status"])]
+    assert len(cells) == len(COMMAND_COLUMNS), f"a command row has {len(COMMAND_COLUMNS)} cells, got {len(cells)}. Fix: match the table head."
+    return cells
+
+
+def code_blocks(blocks):
+    assert blocks, "code blocks need entries. Fix: pass the extracted blocks."
+    assert all("label" in block and "text" in block for block in blocks), f"blocks need label and text, got {blocks!r}"
+    return "\n".join(f'<p>{inline(block["label"])}</p>\n<pre tabindex="0"><code>{escape(block["text"], quote=False)}</code></pre>' for block in blocks)
+
+
 def arm_cell(arm, hits, runs):
     assert 0 <= hits <= runs, f"arm {arm} has {hits} hits of {runs} runs. Rule: hits never exceed runs. Fix: correct the result file."
     assert arm, "an arm needs its label. Fix: pass the arm from the result file."
@@ -169,8 +184,8 @@ def list_items(file, entries):
 
 
 def page_values(data):
-    readme, contract, gates, live = data["readme"], data["contract"], data["gates"], data["live"]
-    contract_file, live_file = contract["file"], live["file"]
+    readme, project, contract, gates, live = data["readme"], data["project"], data["contract"], data["gates"], data["live"]
+    contract_file, live_file, readme_file = contract["file"], live["file"], readme["file"]
     assert readme["description"], "the README gave no description. Fix: restore the line under the title."
     values = {
         "title": escape(readme["title"]),
@@ -197,8 +212,17 @@ def page_values(data):
         "live_detector": escape(", ".join(live["detector"])),
         "live_run": live["run"],
         "live_limits": list_items(live_file, live["limits"]),
-        "limits": list_items(readme["file"], readme["limits"]),
-        "readme_file": escape(readme["file"]),
+        "limits": list_items(readme_file, readme["limits"]),
+        "readme_file": escape(readme_file),
+        "summary": inline(readme["summary"]["text"]),
+        "command_rows": table_rows(readme_file, readme["commands"], command_cells),
+        "offline_lead": inline(readme["offline"]["lead"]["text"]),
+        "offline_blocks": code_blocks(readme["offline"]["blocks"]),
+        "isolation": inline(readme["isolation"]["text"]),
+        "repository_url": escape(project["repository"], quote=True),
+        "license_name": escape(project["license"]),
+        "project_file": escape(project["file"]),
+        "license_file": escape(project["license_file"]),
     }
     assert all(value != "" for value in values.values()), f"no placeholder value may be empty, got {sorted(key for key, value in values.items() if value == '')}"
     return values
@@ -206,7 +230,7 @@ def page_values(data):
 
 def render_site(root, data):
     assert isinstance(root, Path), f"render_site needs a Path root, got {root!r}. Fix: pass the repository root."
-    assert set(data) == {"readme", "contract", "gates", "live"}, f"site data needs four parts, got {sorted(data)}. Fix: pass site_data output."
+    assert set(data) == {"readme", "project", "contract", "gates", "live"}, f"site data needs five parts, got {sorted(data)}. Fix: pass site_data output."
     page = Template(inside(root, TEMPLATE_FILE).read_text()).substitute(page_values(data))
     style = inside(root, STYLE_FILE).read_text()
     return {PAGE_NAME: page, STYLE_NAME: style}

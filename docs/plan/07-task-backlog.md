@@ -29,9 +29,9 @@ As a maintainer, I want an importable package, so that every task has a base.
 - Given an unknown option `--versoin`, when I run it, then it exits 2 with `unknown option --versoin; use --version`.
 - IDs: none. Gate: G0.1. Deps: none.
 
-### T02. Hygiene gate: no user files or secrets in the repo (S) not built (T02)
+### T02. Hygiene gate: no user files or secrets in the repo (S)
 As a maintainer, I want a leak check, so that no home path or key reaches the repo.
-- Given a file with a home-directory path, when I run `scripts/gates/leak_check.sh src tests features docs fixtures`, then it exits 1 with `leak-check: found 1`.
+- Given a file with a home-directory path, when I run `uv run python scripts/gates/leak_check.py src tests features docs fixtures`, then it exits 1 with `leak-check: found 1`.
 - Given clean folders, then it prints `leak-check: clean` and exits 0.
 - IDs: none. Gate: G0.2. Deps: T01.
 

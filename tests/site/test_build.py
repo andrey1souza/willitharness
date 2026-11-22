@@ -105,3 +105,30 @@ def test_a_record_without_counts_is_refused(tmp_path):
         build.write_gate_status(tmp_path, {})
     assert "Fix" in str(raised.value), f"the failure must say how to fix it, got {raised.value}"
     assert not (tmp_path / RECORD).exists(), f"nothing is written, got {sorted(tmp_path.iterdir())}"
+
+
+@pytest.mark.parametrize(
+    ("file", "old", "new"),
+    [
+        ("README.md", "| works |", "| done |"),
+        ("README.md", "## What works today\n", "## What runs today\n"),
+        ("README.md", "```sh", "```bash"),
+        ("README.md", "## Limits of isolation\n", "## Isolation\n"),
+        ("pyproject.toml", "https://example.org/toolname", "git@host:toolname"),
+    ],
+)
+def test_a_missing_or_malformed_source_stops_the_build_and_writes_no_site(tmp_path, file, old, new):
+    write_tree(tmp_path, tree_without_record())
+    (tmp_path / file).write_text((tmp_path / file).read_text().replace(old, new))
+    with pytest.raises(AssertionError, match="Fix"):
+        build.main(["--root", str(tmp_path)])
+    assert not (tmp_path / "build" / "site").exists(), "a failing build writes no site"
+
+
+def test_a_missing_license_stops_the_build(tmp_path):
+    write_tree(tmp_path, tree_without_record())
+    (tmp_path / "LICENSE").unlink()
+    with pytest.raises(FileNotFoundError) as raised:
+        build.main(["--root", str(tmp_path), "--check"])
+    assert "LICENSE" in str(raised.value), f"the failure must name the missing file, got {raised.value}"
+    assert not (tmp_path / "build" / "site").exists(), "a failing build writes no site"
