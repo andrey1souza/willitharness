@@ -144,7 +144,7 @@ until it is final. The loaders live in `src/willitharness/conformance.py`.
 |---|---|---|
 | `willitharness plan check <plan>` | Validates the plan (arms, noise pair repeats the LOO arm, budget) | 0, 1, 2 |
 | `willitharness world check <world-dir>` | Validates the world (W1 to W5) and stores the hash | 0, 1 |
-| `willitharness probe --agent fake\|claude --directory D --runs N --target-token T --control-token C [--boundary B --seed S] [--model M]` | Runs the reachability probe (P1 to P4) | 0, 2, 3 |
+| `willitharness probe --agent fake\|claude --directory D --runs N --target-token T --control-token C [--boundary B --seed S] [--model M] [--plan P --arm A]` | Runs the reachability probe (P1 to P4). With `--plan` and `--arm` it records the result for that arm | 0, 2, 3 |
 | `willitharness run <plan> --agent fake\|claude [--timeout-seconds S] [--model M]` | Runs cells, resumes, retries, stops at budget; reps come from the plan | 0, 1, 4 |
 | `willitharness abort <plan>` | Aborts; records in-flight runs unusable and charges RUN_CAP | 0, 1 |
 | `willitharness analyze <plan>` | Counts, verdicts, noise status, warnings | 0, 1 |

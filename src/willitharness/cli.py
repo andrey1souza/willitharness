@@ -12,11 +12,14 @@ from willitharness.fakeagent import Behavior, Location
 from willitharness.lifecycle import (
     LifecycleRefused,
     PlanSite,
+    PRE_RUN_ORDER,
     PlanState,
     RunSetup,
     abort_plan,
     analyze_gate,
     read_reach,
+    read_state,
+    record_reachability,
     resume_if_stopped,
     finished,
     lifecycle_dir,
@@ -37,7 +40,7 @@ EXIT_AGENT_MISSING = 3
 EXIT_BUDGET_STOPPED = 4
 USAGE = (
     "usage: willitharness plan check <plan.json> | willitharness world check <world-dir> "
-    "| willitharness probe --agent fake|claude --directory D --runs N --target-token T --control-token C [--boundary B --seed S] [--model M] "
+    "| willitharness probe --agent fake|claude --directory D --runs N --target-token T --control-token C [--boundary B --seed S] [--model M] [--plan P --arm A] "
     "| willitharness run <plan.json> --agent fake|claude [--timeout-seconds S] [--model M] | willitharness abort <plan.json> | willitharness analyze <plan.json>"
 )
 EXIT_CODES = (EXIT_OK, EXIT_DOMAIN_FAILURE, EXIT_USAGE, EXIT_AGENT_MISSING, EXIT_BUDGET_STOPPED)
@@ -47,6 +50,7 @@ ENDS_RESUME_WARNING = "warning: analyze ends resume; the plan is Analyzed and ca
 NO_VERDICT_MESSAGE = "no verdict produced; the plan keeps its state"
 NO_TASKS = "the world has no tasks. Rule: a plan runs its arms on the tasks of tasks.txt. Fix: add a task line to the world."
 PLAN_ARGUMENT_COUNT = 3
+RECORD_NEEDS_BOTH = "--plan and --arm go together. Rule: a result is recorded for one arm of one plan. Fix: give both, or give neither to only print the result."
 WORLD_ARGUMENT_COUNT = 3
 
 
@@ -99,6 +103,27 @@ RUNNERS = {"fake": scripted_fake_runner, "claude": claude_runner_for_cli}
 FAKE_NEEDS = "the fake agent needs --seed and --boundary. Fix: pass both."
 
 
+def recording_site(plan_name, arm):
+    assert (plan_name is None) == (arm is None), f"plan {plan_name!r} and arm {arm!r} go together. Fix: check both options before calling."
+    if plan_name is None:
+        return None, EXIT_OK
+    try:
+        site = plan_site_from(Path.cwd(), plan_name)
+    except (PlanError, WorldError, PathOutsideRoot) as error:
+        print(str(error), file=sys.stderr)
+        return None, EXIT_DOMAIN_FAILURE
+    labels = [known.label for known in site.plan.arms]
+    if arm not in labels:
+        print(f"arm {arm!r} is not an arm of plan {site.plan.name}. Rule: reachability belongs to a plan arm. Fix: use one of {', '.join(labels)}.", file=sys.stderr)
+        return None, EXIT_DOMAIN_FAILURE
+    state = read_state(lifecycle_dir(site.root, site.plan))
+    if state not in PRE_RUN_ORDER:
+        print(f"plan {site.plan.name} is {state}. Rule: reachability is recorded before the first run. Fix: probe before willitharness run.", file=sys.stderr)
+        return None, EXIT_DOMAIN_FAILURE
+    assert site.plan.arms and arm in labels, f"recording_site returned a site where {arm!r} is not an arm of {labels}"
+    return site, EXIT_OK
+
+
 def probe_command(argv, runners):
     assert isinstance(argv, list), f"probe_command needs a list of arguments, got {argv!r}. Fix: pass the arguments after probe."
     assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
@@ -111,6 +136,8 @@ def probe_command(argv, runners):
     parser.add_argument("--target-token", required=True)
     parser.add_argument("--control-token", required=True)
     parser.add_argument("--label", default=DEFAULT_LABEL)
+    parser.add_argument("--plan")
+    parser.add_argument("--arm")
     parser.add_argument("--recall", type=float, default=fakeagent.CERTAIN_RECALL)
     parser.add_argument("--model", default=claude_agent.DEFAULT_MODEL)
     parser.add_argument("--run-budget-usd", type=float, default=claude_agent.DEFAULT_RUN_BUDGET_USD)
@@ -123,11 +150,20 @@ def probe_command(argv, runners):
     except ProbeRefused as refusal:
         print(str(refusal), file=sys.stderr)
         return EXIT_USAGE
+    if (arguments.plan is None) != (arguments.arm is None):
+        print(RECORD_NEEDS_BOTH, file=sys.stderr)
+        return EXIT_USAGE
+    site, refused = recording_site(arguments.plan, arguments.arm)
+    if refused != EXIT_OK:
+        return refused
     transcripts = [runners[arguments.agent](arguments, index) for index in range(arguments.runs)]
     result = probe([parse_run(lines, arguments.target_token, arguments.control_token) for lines in transcripts])
     print(f"reachability: {result.reach}")
     print(result.message)
     print(f"cost: ${sum(claude_agent.transcript_cost(lines) for lines in transcripts):.4f}")
+    if site is not None:
+        recorded_state = record_reachability(site, arguments.arm, result.reach)
+        print(f"recorded: arm {arguments.arm} is {result.reach} in plan {site.plan.name}; plan state {recorded_state}")
     assert result.message, f"a probe result must print a message, got reach {result.reach}"
     return EXIT_OK
 
