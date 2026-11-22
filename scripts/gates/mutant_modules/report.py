@@ -1,5 +1,6 @@
 TESTS = (
     'tests/gates/test_report_golden.py',
+    'tests/gates/test_full_plan_end_to_end.py',
 )
 
 REPORT = 'src/willitharness/report.py'
