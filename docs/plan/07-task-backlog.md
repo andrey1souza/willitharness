@@ -465,7 +465,7 @@ As an analyst, I want the world hash of a run to be the hash of the files at the
 - Given a plan that ended while its world differed from the validated one, then `analyze` says so.
 - IDs: W3. Gate: G3.4. Deps: T62.
 
-### T66. Load report: the text a harness adds to every session (S) not built (T66)
+### T66. Load report: the text a harness adds to every session (S)
 As an owner of a harness, I want a list of the text the agent loads at the start of a session and its size, so that I see what each rule, skill and hook costs before I run any test.
 - Given a project with instruction files, then the report lists each file with its character count.
 - Given a skill, then the report gives the character count of its name and description, which are always loaded. It gives the count of its body separately, which is loaded only after the `Skill` tool call (`docs/research/spike-c-skills-hooks.md`).
