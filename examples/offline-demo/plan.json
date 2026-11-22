@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "name": "demo",
+  "world": "world",
+  "budget_usd": 1.0,
+  "run_cap_usd": 0.02,
+  "reps": 2,
+  "max_retries": 0,
+  "arms": [
+    {
+      "label": "A",
+      "role": "rule",
+      "overlay": "A.md"
+    },
+    {
+      "label": "B",
+      "role": "rule",
+      "overlay": "B.md"
+    }
+  ]
+}
