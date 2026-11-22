@@ -3,12 +3,13 @@ from analysis_site import FULL_ROLES, NO_PAIR_ROLES, CellShape, analysis_plan_da
 from cli_runner import run_cli
 
 from willitharness.analysis import INFORMATIONAL_DENIALS, AnalysisInput, analyze_plan, report_lines
-from willitharness.lifecycle import PlanState, lifecycle_dir, read_state, record_reachability
+from willitharness.lifecycle import NOT_ENDED, PlanState, ResumeRecord, lifecycle_dir, read_state, record_reachability, write_resume
 from willitharness.outcomes import AnalysisError
 from willitharness.plan import load_plan
 from willitharness.store import Cell, Record, RunState, append_record, load_records
 from willitharness.guard import evaluate
 from willitharness.vocabulary import Coverage, GuardResult, Reach
+from willitharness.world import stored_hash
 
 STOP, BACKUP = "stop-server", "backup-delete"
 NOISE_OK = {Cell("C", STOP): CellShape(20, 17), Cell("C2", STOP): CellShape(20, 16), Cell("B", STOP): CellShape(20, 0)}
@@ -226,3 +227,30 @@ def test_a_denial_in_one_task_leaves_the_completed_row_of_another_task_alone(tmp
     lines = report_lines(analyze_site(site_with_state(tmp_path, FULL_ROLES, (cells, PlanState.COMPLETE)), False, False))
     assert "completed stop-server C 19/20 against B 19/20: verdict Inconclusive; noise NoiseOk" in lines, f"the stop-server cell has no denial, got {lines}"
     assert any(line.startswith("completed backup-delete") and INFORMATIONAL_DENIALS in line for line in lines), f"the denied task must be informational, got {lines}"
+
+
+def test_G3_4_analyze_counts_runs_without_a_world_hash(tmp_path, monkeypatch, capsys):
+    site_with_state(tmp_path, FULL_ROLES, (NOISE_OK, PlanState.COMPLETE))
+    monkeypatch.chdir(tmp_path)
+    code, out, err = run_cli(capsys, ANALYZE)
+    assert code == 0, f"got {code} {err!r}"
+    assert "W-NOHASH: 60 runs carry no world hash; they were recorded before T62 and cannot show a mixed world" in out, f"got {out!r}. Rule: T65, analyze counts runs with no world hash."
+
+
+def test_G3_4_analyze_says_when_the_plan_ended_in_a_changed_world(tmp_path, monkeypatch, capsys):
+    site = site_with_state(tmp_path, FULL_ROLES, (NOISE_OK, PlanState.COMPLETE))
+    write_resume(lifecycle_dir(site.root, site.plan), ResumeRecord(1.0, "fingerprint", NOT_ENDED, True))
+    monkeypatch.chdir(tmp_path)
+    code, out, err = run_cli(capsys, ANALYZE)
+    assert code == 0, f"got {code} {err!r}"
+    assert "W-WORLD: the plan ended while its world differed from the validated one" in out, f"got {out!r}. Rule: T65."
+
+
+def test_G3_4_analyze_warns_that_a_run_left_the_validated_world(tmp_path, monkeypatch, capsys):
+    site = site_with_state(tmp_path, FULL_ROLES, (NOISE_OK, PlanState.COMPLETE))
+    cell = Cell("B", STOP)
+    append_record(lifecycle_dir(site.root, site.plan), Record("B/stop-server/99#99", "B", STOP, 99, 99, RunState.STARTED, {}, 0.0, world_hash="notit00"))
+    monkeypatch.chdir(tmp_path)
+    code, out, err = run_cli(capsys, ANALYZE)
+    validated = stored_hash(site.root, site.world_dir)
+    assert f"W-WORLD: arm {cell.arm}, task {cell.task} has 1 runs that left the validated world {validated}" in out, f"got {out!r}. Rule: T65."

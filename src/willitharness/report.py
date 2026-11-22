@@ -7,6 +7,7 @@ from willitharness.artifacts import RUNS_DIR, TRANSCRIPT_NAME
 from willitharness.decide_plan import RuleDecision, decision_line, rule_decisions
 from willitharness.detectors import calls_of
 from willitharness.lifecycle import ANALYZE_AFTER_ABORT, FINAL_STATES, PlanState, lifecycle_dir, read_reach, read_state
+from willitharness.world_facts import world_facts
 from willitharness.outcomes import COMPLETED_OUTCOME, TARGET_OUTCOME, cell_counts
 from willitharness.paths import inside
 from willitharness.plan import Plan
@@ -212,7 +213,7 @@ def report_input(root, plan):
     folder = lifecycle_dir(root, plan)
     check_reportable(folder)
     records = load_records(folder)
-    analysis = analyze_plan(AnalysisInput(plan, records, read_reach(folder), False), True)
+    analysis = analyze_plan(AnalysisInput(plan, records, read_reach(folder), False, world_facts(root, plan)), True)
     data = ReportInput(
         plan,
         read_agent_line(root, plan),

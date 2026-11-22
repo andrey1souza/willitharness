@@ -10,6 +10,7 @@ from willitharness.analyzed import finish_analysis
 from willitharness.agent_line import read_agent_line
 from willitharness.analysis import AnalysisInput, analyze_plan, has_verdict, messages_of, report_lines
 from willitharness.fakeagent import Behavior, Location
+from willitharness.world_facts import world_facts
 from willitharness.lifecycle import (
     LifecycleRefused,
     PlanSite,
@@ -257,7 +258,7 @@ def analyze_command(argv):
         plan = read_plan(root, arguments.plan)
         analyze_gate(root, plan)
         folder = lifecycle_dir(root, plan)
-        analysis = analyze_plan(AnalysisInput(plan, load_records(folder), read_reach(folder), arguments.pooled), True)
+        analysis = analyze_plan(AnalysisInput(plan, load_records(folder), read_reach(folder), arguments.pooled, world_facts(root, plan)), True)
     except (PathOutsideRoot, PlanError, LifecycleRefused, AnalysisError) as error:
         print(str(error), file=sys.stderr)
         return EXIT_DOMAIN_FAILURE

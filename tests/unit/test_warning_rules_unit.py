@@ -1,12 +1,12 @@
 import pytest
 from analysis_site import COMPLETED, FULL_ROLES, TARGET, analyze_site, filled_cells, site_with_state
 
-from willitharness.analysis import Row
+from willitharness.analysis import AnalysisInput, Row, analyze_plan
 from willitharness.counts import Counts
-from willitharness.lifecycle import PlanState, lifecycle_dir
-from willitharness.store import Cell, Record, RunState, append_record, run_id_of
+from willitharness.lifecycle import PlanState, lifecycle_dir, read_reach
+from willitharness.store import Cell, Record, RunState, append_record, load_records, run_id_of
 from willitharness.vocabulary import EffectResult, NoiseStatus, Verdict
-from willitharness.warning_rules import at_bound, cell_warnings, row_warnings, world_warnings
+from willitharness.warning_rules import NO_WORLD_FACTS, WorldFacts, at_bound, cell_warnings, row_warnings, world_mix_lines, world_warnings
 
 
 def row(outcome, first, second, verdict):
@@ -58,12 +58,12 @@ def started_in_world(run_id, arm, world_hash):
 
 def test_T62_a_cell_with_two_worlds_gets_one_warning_naming_it():
     records = (started_in_world("B/stop-server/1#1", "B", "aa"), started_in_world("B/stop-server/2#2", "B", "bb"), started_in_world("C/stop-server/1#1", "C", "aa"))
-    assert world_warnings(records) == ["W-WORLD: arm B, task stop-server has runs from 2 worlds; the runs do not share one validated world"], "only cell B mixes worlds"
+    assert world_warnings(records, NO_WORLD_FACTS) == ["W-WORLD: arm B, task stop-server has runs from 2 worlds; the runs do not share one validated world"], "only cell B mixes worlds"
 
 
 def test_T62_cells_with_one_world_or_no_recorded_world_get_no_warning():
     records = (started_in_world("B/stop-server/1#1", "B", "aa"), started_in_world("B/stop-server/2#2", "B", "aa"), started_in_world("C/stop-server/1#1", "C", ""), started_in_world("C/stop-server/2#2", "C", "bb"))
-    assert world_warnings(records) == [], "one hash per cell, and a record without a hash, are not a mix"
+    assert world_mix_lines(records) == [], "one hash per cell, and a record without a hash, are not a mix"
 
 
 def test_T62_analyze_reports_a_cell_that_mixes_worlds_only_with_warnings_on(tmp_path):
@@ -75,3 +75,40 @@ def test_T62_analyze_reports_a_cell_that_mixes_worlds_only_with_warnings_on(tmp_
     shown, hidden = analyze_site(site, False, True).warnings, analyze_site(site, False, False).warnings
     assert wanted in shown, f"the mix {wanted!r} must be reported, got {shown}. Fix: add world_warnings to analyze_plan."
     assert hidden == (), f"warnings off must print none, got {hidden}. Rule: with_warnings controls every warning."
+
+
+LEFT_WORLD = "W-WORLD: arm B, task stop-server has 1 runs that left the validated world aa; their world hash differs from the validated hash"
+NO_HASH = "W-NOHASH: {n} runs carry no world hash; they were recorded before T62 and cannot show a mixed world"
+ENDED_CHANGED = "W-WORLD: the plan ended while its world differed from the validated one; run willitharness world check and run the plan again before you trust it"
+
+
+def test_T65_a_run_whose_hash_differs_from_the_validated_hash_left_the_validated_world():
+    records = (started_in_world("B/stop-server/1#1", "B", "aa"), started_in_world("B/stop-server/2#2", "B", "bb"))
+    mix = "W-WORLD: arm B, task stop-server has runs from 2 worlds; the runs do not share one validated world"
+    assert world_warnings(records, WorldFacts("aa", False)) == [mix, LEFT_WORLD], "the mix line stays and only the run with hash bb left world aa"
+    assert world_warnings(records[:1], WorldFacts("aa", False)) == [], "a run in the validated world does not warn"
+    assert not any("left the validated world" in line for line in world_warnings(records, NO_WORLD_FACTS)), f"with no validated hash there is nothing to leave, got {world_warnings(records, NO_WORLD_FACTS)}"
+
+
+def test_T65_runs_without_a_hash_are_counted_and_never_counted_as_leaving_the_world():
+    records = (started_in_world("B/stop-server/1#1", "B", ""), started_in_world("C/stop-server/1#1", "C", ""), started_in_world("C/stop-server/2#2", "C", "aa"))
+    assert world_warnings(records, WorldFacts("aa", False)) == [NO_HASH.format(n=2)], "two runs carry no hash and the hashed run is in the validated world"
+    assert world_warnings(records[2:], WorldFacts("aa", False)) == [], "no run without a hash, no count line"
+
+
+def test_T65_a_plan_that_ended_in_a_changed_world_gets_one_line_saying_so():
+    records = (started_in_world("B/stop-server/1#1", "B", "aa"),)
+    assert world_warnings(records, WorldFacts("aa", True)) == [ENDED_CHANGED], "the ended-changed fact gives one line"
+    assert world_warnings(records, WorldFacts("aa", False)) == [], "an unchanged world gives no line"
+
+
+def test_T65_analyze_prints_the_three_world_lines_only_with_warnings_on(tmp_path):
+    site = site_with_state(tmp_path, FULL_ROLES, (filled_cells(FULL_ROLES, {}), PlanState.COMPLETE))
+    folder = lifecycle_dir(site.root, site.plan)
+    cell = Cell("B", "stop-server")
+    append_record(folder, Record(run_id_of(cell, 21, 1), "B", "stop-server", 21, 1, RunState.RECORDED_USABLE, {TARGET: True, COMPLETED: True}, 0.01, {TARGET: False, COMPLETED: True}, 0, "bb"))
+    inputs = AnalysisInput(site.plan, load_records(folder), read_reach(folder), False, WorldFacts("aa", True))
+    shown, hidden = analyze_plan(inputs, True).warnings, analyze_plan(inputs, False).warnings
+    wanted = (LEFT_WORLD, ENDED_CHANGED)
+    assert all(line in shown for line in wanted) and any(line.startswith("W-NOHASH: ") for line in shown), f"the three world lines must show, got {shown}. Fix: pass world_facts into analyze_plan."
+    assert hidden == (), f"warnings off must print none, got {hidden}"

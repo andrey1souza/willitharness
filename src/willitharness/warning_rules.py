@@ -1,4 +1,5 @@
 from collections import defaultdict
+from dataclasses import dataclass
 
 from willitharness.outcomes import TARGET_OUTCOME
 from willitharness.plan import DEFAULT_REPS
@@ -10,6 +11,9 @@ LOW_N_WARNING = "W-LOWN: arm {arm}, task {task} has {n} usable runs; {recommende
 DENIAL_WARNING = "W-DENIAL: arm {arm}, task {task}: every run has a permission denial"
 SATURATED_WARNING = "saturated: arm {arm}, task {task} has no violating run; not measurable at this n; the model may already obey the rule"
 WORLD_MIX_WARNING = "W-WORLD: arm {arm}, task {task} has runs from {worlds} worlds; the runs do not share one validated world"
+LEFT_WORLD_WARNING = "W-WORLD: arm {arm}, task {task} has {n} runs that left the validated world {validated}; their world hash differs from the validated hash"
+NO_HASH_WARNING = "W-NOHASH: {n} runs carry no world hash; they were recorded before T62 and cannot show a mixed world"
+ENDED_CHANGED_WARNING = "W-WORLD: the plan ended while its world differed from the validated one; run willitharness world check and run the plan again before you trust it"
 POOLED_WARNING = "pooled: task clustering is ignored"
 AT_BOUND_WARNING = "AtBound: {outcome}, task {task}, arm {first} against arm {second}: both arms at 0% (or 100%); harder tasks are needed"
 
@@ -37,14 +41,51 @@ def cell_warnings(counts, denied):
     return lines
 
 
-def world_warnings(records):
-    assert isinstance(records, tuple), f"world_warnings needs a tuple of records, got {type(records).__name__}. Fix: pass load_records output."
-    assert all(hasattr(record, "world_hash") for record in records), f"a record has no world_hash in {records!r}. Rule: T62, every record carries the world hash. Fix: build records with Record."
+@dataclass(frozen=True)
+class WorldFacts:
+    validated_hash: str | None
+    ended_in_changed_world: bool
+
+
+NO_WORLD_FACTS = WorldFacts(None, False)
+
+
+def world_mix_lines(records):
+    assert isinstance(records, tuple), f"world_mix_lines needs a tuple of records, got {type(records).__name__}. Fix: pass load_records output."
     worlds = defaultdict(set)
     for run in latest_by_run(records).values():
         if run.world_hash != UNKNOWN_WORLD:
             worlds[(run.arm, run.task)].add(run.world_hash)
     lines = [WORLD_MIX_WARNING.format(arm=arm, task=task, worlds=len(hashes)) for (arm, task), hashes in sorted(worlds.items()) if len(hashes) > 1]
+    assert len(lines) <= len(worlds), f"world_mix_lines made {len(lines)} lines for {len(worlds)} cells"
+    return lines
+
+
+def left_world_lines(records, validated):
+    assert validated is None or validated != UNKNOWN_WORLD, f"the validated hash {validated!r} is empty. Rule: a stored hash is never the unknown world. Fix: pass the hash world check stored."
+    left = defaultdict(int)
+    for run in latest_by_run(records).values():
+        if validated is not None and run.world_hash not in (UNKNOWN_WORLD, validated):
+            left[(run.arm, run.task)] += 1
+    lines = [LEFT_WORLD_WARNING.format(arm=arm, task=task, n=count, validated=validated) for (arm, task), count in sorted(left.items())]
+    assert len(lines) == len(left), f"left_world_lines made {len(lines)} lines for {len(left)} cells"
+    return lines
+
+
+def no_hash_lines(records):
+    assert isinstance(records, tuple), f"no_hash_lines needs a tuple of records, got {type(records).__name__}. Fix: pass load_records output."
+    unhashed = sum(1 for run in latest_by_run(records).values() if run.world_hash == UNKNOWN_WORLD)
+    lines = [NO_HASH_WARNING.format(n=unhashed)] if unhashed else []
+    assert len(lines) <= 1, f"no_hash_lines made {len(lines)} lines. Rule: the count is one line."
+    return lines
+
+
+def world_warnings(records, world):
+    assert isinstance(records, tuple), f"world_warnings needs a tuple of records, got {type(records).__name__}. Fix: pass load_records output."
+    assert all(hasattr(record, "world_hash") for record in records), f"a record has no world_hash in {records!r}. Rule: T62, every record carries the world hash. Fix: build records with Record."
+    assert isinstance(world, WorldFacts), f"world_warnings needs WorldFacts, got {world!r}. Fix: build them with world_facts."
+    lines = [*world_mix_lines(records), *left_world_lines(records, world.validated_hash), *no_hash_lines(records)]
+    lines += [ENDED_CHANGED_WARNING] if world.ended_in_changed_world else []
     assert all(isinstance(line, str) for line in lines), f"world_warnings must return text, got {lines}"
     return lines
 

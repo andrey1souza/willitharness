@@ -229,9 +229,12 @@ Resume: the transition BudgetStopped to Running. It has these rules:
   does not check A-FP. It has no plan content.
 - Analyzed is final. `analyze` on a BudgetStopped plan moves it to Analyzed, and then
   Resume is not possible. The `analyze` command prints a warning that it ends resume.
-- Each run record carries the validated world hash at the start of the run (T62).
-  `analyze` prints W-WORLD for every cell whose runs come from more than one world.
-  Records written before T62 carry an empty hash and are not counted.
+- Each run record carries the hash of the world files at the start of the run (T62, T65).
+  `analyze` prints W-WORLD for every cell whose runs come from more than one world,
+  and for every cell with runs whose hash differs from the validated hash. It prints
+  W-NOHASH with the number of runs that carry no hash. Records written before T62
+  carry an empty hash and are not counted as a mix. A plan that ended while its world
+  differed from the validated one gets a W-WORLD line saying so.
 - Ending a plan needs no validated world. A changed world only blocks starts and
   resumes (W3). A Running plan with nothing pending ends Complete; one the budget
   blocks ends BudgetStopped.
@@ -352,7 +355,7 @@ spend stays under the stated cap.
 | Transition BudgetStopped to Running (resume) in section 7; A-FP; fingerprint in the glossary | Request to resume a BudgetStopped plan with a higher budget |
 | New IDs L10 (resume legality), L11 (budget never decreases), L12 (Running implies not ended) | TLA+ model with `MaxResumes` and `MaxBudget`; mutants RA, RB, RC, RD |
 | Analyzed is final: `analyze` on a BudgetStopped plan ends resume and prints a warning | Resume must not run after a verdict exists |
-| Run records carry the world hash (T62); old records carry none | `analyze` warns when one cell mixes worlds; the model needs the world valid at resume |
+| Run records carry the hash of the world files (T62, T65); old records carry none | `analyze` warns on a mixed cell, on a run outside the validated world, on runs without a hash and on a plan that ended in a changed world; the model needs the world valid at resume |
 
 ### Changes from v0.4 to v0.5
 | Change | Caused by |

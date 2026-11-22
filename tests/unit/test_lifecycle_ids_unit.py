@@ -10,10 +10,12 @@ from willitharness.lifecycle import (
     conclude,
     finish_job,
     ledger_from_records,
+    read_resume,
     start_running,
 )
+from willitharness.world_facts import world_facts
 from willitharness.store import UNKNOWN_WORLD, Cell
-from willitharness.world import HASH_LENGTH
+from willitharness.world import HASH_LENGTH, claimed_world_hash, stored_hash, world_hash
 
 SMALL = SiteSpec(arm_count=1, budget_usd=1.0, run_cap_usd=0.02, reps=2, max_retries=1)
 CELL = Cell("A", "stop-server")
@@ -89,3 +91,34 @@ def test_T62_runs_of_one_unedited_world_share_one_hash(tmp_path):
     claim_next_job(context)
     hashes = {run.world_hash for run in stored_final_runs(site)}
     assert len(hashes) == 1 and "" not in hashes, f"one world must give one non-empty hash, got {hashes}"
+
+
+def test_T65_a_claim_records_the_hash_of_the_files_now_not_the_validated_hash(tmp_path):
+    site = ready_site(tmp_path, SMALL)
+    edit_world(site)
+    claimed = claimed_world_hash(site.world_dir)
+    assert claimed == world_hash(site.world_dir) and claimed != stored_hash(site.root, site.world_dir), f"got {claimed}. Rule: T65. Fix: hash the world files at the claim."
+
+
+def test_T65_the_world_facts_name_the_validated_hash_a_run_left(tmp_path):
+    site = ready_site(tmp_path, SMALL)
+    start_running(site)
+    edit_world(site)
+    begin_run(folder_of(site), Job(CELL, 1, 1), claimed_world_hash(site.world_dir))
+    facts = world_facts(site.root, site.plan)
+    left = stored_final_runs(site)[0].world_hash
+    assert facts.validated_hash == stored_hash(site.root, site.world_dir) and left != facts.validated_hash, f"got {facts} and a run in {left}"
+
+
+@pytest.mark.parametrize("edited, expected", [(True, True), (False, False)], ids=["edited", "unedited"])
+def test_T65_conclude_records_whether_the_plan_ended_in_a_changed_world(tmp_path, edited, expected):
+    site = ready_site(tmp_path, ONE_REP)
+    start_running(site)
+    context = ledgered_context(site)
+    finish_job(context, claim_next_job(context), success_transcript(0.01))
+    if edited:
+        edit_world(site)
+    ended = conclude(context)
+    assert ended is PlanState.COMPLETE, f"one rep done, nothing pending, got {ended}"
+    assert read_resume(folder_of(site)).ended_in_changed_world is expected, f"got {read_resume(folder_of(site))}. Rule: T65, a plan that ended in a changed world says so."
+    assert world_facts(site.root, site.plan).ended_in_changed_world is expected, f"world_facts must carry the stored fact {expected}, got {world_facts(site.root, site.plan)}"

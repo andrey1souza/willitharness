@@ -67,7 +67,7 @@ REMOVABLE_SITE_MODULES = ("status",)
 FORBIDDEN_ARGUMENTS = ("--force", "--force-with-lease", "--hard", "push", "update-ref")
 LEAK_FOLDERS = ("src", "tests", "features", "docs", "fixtures")
 CONTRACT_FILE = Path("docs") / "contract.md"
-CONTRACT_SENTENCES = ("Ending a plan needs no validated world.", "Each run record carries the validated world hash at the start of the run (T62).")
+CONTRACT_SENTENCES = ("Ending a plan needs no validated world.", "Each run record carries the hash of the world files at the start of the run (T62, T65).")
 
 
 def mistakes_table_errors(root):
