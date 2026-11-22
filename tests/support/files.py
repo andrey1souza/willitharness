@@ -1,3 +1,6 @@
+import shutil
+
+
 def plant(folder, name, text):
     assert name and "/" not in name, f"plant needs a plain file name, got {name!r}. Fix: use write_tree for paths."
     folder.mkdir(parents=True, exist_ok=True)
@@ -14,3 +17,10 @@ def write_tree(root, files):
         path.write_text(text)
     assert all((root / name).is_file() for name in files), f"write_tree left a file missing under {root}"
     return root
+
+
+def copy_tree(source, destination):
+    assert source.is_dir(), f"{source} is not a directory. Fix: pass an existing folder."
+    copied = shutil.copytree(source, destination)
+    assert copied.is_dir(), f"copy_tree did not create {destination}"
+    return copied
