@@ -5,6 +5,7 @@ from pathlib import Path
 
 from willitharness import claude_agent, fakeagent
 from willitharness.claude_agent import AgentUnavailable
+from willitharness.load_report import HOOK_TIMEOUT_SECONDS, LoadRefused, build_load_report, project_folder
 from willitharness.decide_plan import DecideRefused, decision_line, rule_decisions
 from willitharness.analyzed import finish_analysis
 from willitharness.agent_line import read_agent_line
@@ -44,7 +45,7 @@ EXIT_BUDGET_STOPPED = 4
 USAGE = (
     "usage: willitharness plan check <plan.json> | willitharness world check <world-dir> "
     "| willitharness probe --agent fake|claude --directory D --runs N --target-token T --control-token C [--boundary B --seed S] [--model M] [--plan P --arm A] "
-    "| willitharness run <plan.json> --agent fake|claude [--timeout-seconds S] [--model M] | willitharness abort <plan.json> | willitharness analyze <plan.json> | willitharness decide <plan.json> | willitharness report <plan-dir or plan.json>"
+    "| willitharness run <plan.json> --agent fake|claude [--timeout-seconds S] [--model M] | willitharness abort <plan.json> | willitharness analyze <plan.json> | willitharness decide <plan.json> | willitharness report <plan-dir or plan.json> | willitharness load-report [project-dir] [--run-hooks]"
 )
 EXIT_CODES = (EXIT_OK, EXIT_DOMAIN_FAILURE, EXIT_USAGE, EXIT_AGENT_MISSING, EXIT_BUDGET_STOPPED)
 FAKE_RUN_COST_USD = 0.01
@@ -305,6 +306,25 @@ def report_command(argv):
     return EXIT_OK
 
 
+def load_report_command(argv):
+    assert isinstance(argv, list), f"load_report_command needs a list of arguments, got {argv!r}. Fix: pass the arguments after load-report."
+    assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
+    parser = argparse.ArgumentParser(prog="willitharness load-report")
+    parser.add_argument("project_dir", nargs="?", default=".")
+    parser.add_argument("--run-hooks", action="store_true")
+    arguments = parser.parse_args(argv)
+    timeout = HOOK_TIMEOUT_SECONDS if arguments.run_hooks else None
+    try:
+        lines = build_load_report(project_folder(Path.cwd(), arguments.project_dir), timeout)
+    except LoadRefused as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_DOMAIN_FAILURE
+    text = "\n".join(lines)
+    print(text)
+    assert text, f"a load report prints at least one line, got {lines!r}"
+    return EXIT_OK
+
+
 def main(argv):
     assert isinstance(argv, list), f"main needs a list of arguments, got {argv!r}. Fix: pass sys.argv[1:]."
     assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
@@ -325,7 +345,9 @@ def main(argv):
         return decide_plan_command(rest)
     if command == ["report"]:
         return report_command(rest)
-    print(f"unknown command {argv!r}. Rule: v0 has plan check, world check, probe, run, abort, analyze, decide and report so far. Fix: {USAGE}", file=sys.stderr)
+    if command == ["load-report"]:
+        return load_report_command(rest)
+    print(f"unknown command {argv!r}. Rule: v0 has plan check, world check, probe, run, abort, analyze, decide, report and load-report so far. Fix: {USAGE}", file=sys.stderr)
     return EXIT_USAGE
 
 
