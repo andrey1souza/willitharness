@@ -70,5 +70,5 @@ MUTANTS = (
     ('readme-claims-not-read', SOURCE, '    files = [root / README_FILE, *sorted((root / DOCS_DIRECTORY).rglob("*.md"))]\n', '    files = sorted((root / DOCS_DIRECTORY).rglob("*.md"))\n'),
     ('nested-docs-not-read', SOURCE, '(root / DOCS_DIRECTORY).rglob("*.md")', '(root / DOCS_DIRECTORY).glob("*.md")'),
     ('docs-claim-check-not-registered', SOURCE, '    "python-claims-in-docs": python_claim_errors,\n', ''),
-    ('oldest-job-required', SOURCE, 'REQUIRED_JOBS = (\n    "unit-tests",', 'REQUIRED_JOBS = (\n    "oldest-python-linux", "unit-tests",'),
+    ('oldest-job-not-required', SOURCE, '"macos-full", "oldest-python-linux",\n)', '"macos-full",\n)'),
 )
