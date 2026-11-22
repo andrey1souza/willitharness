@@ -21,4 +21,5 @@ MUTANTS = (
     ('result-recorded-after-the-run-started', 'src/willitharness/cli.py', 'if state not in PRE_RUN_ORDER:', 'if False:'),
     ('plan-without-arm-accepted', 'src/willitharness/cli.py', 'if (arguments.plan is None) != (arguments.arm is None):', 'if False:'),
     ('run-refusal-names-no-command', 'src/willitharness/lifecycle.py', 'run: willitharness probe --plan <plan.json> --arm', 'probe the arm and record the result'),
+    ('run-summary-counts-records', 'src/willitharness/cli.py', '{len(latest_by_run(records))} runs', '{len(records)} runs'),
 )

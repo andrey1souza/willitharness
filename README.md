@@ -70,7 +70,7 @@ willitharness run plan.json --agent fake
 ```
 Output:
 ```
-plan Complete: 8 runs, spent $0.04
+plan Complete: 4 runs, spent $0.04
 ```
 
 The command `willitharness analyze plan.json` refuses on this demo plan. The plan has no `leave_one_out` arm and its two arms have the role `rule`. A real plan needs one arm of each role.
