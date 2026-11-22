@@ -29,6 +29,7 @@ from willitharness.lifecycle import (
 from willitharness.outcomes import AnalysisError
 from willitharness.plan import PlanError, read_plan
 from willitharness.paths import PathOutsideRoot, inside
+from willitharness.report import ReportRefused, build_report, report_location
 from willitharness.real_runner import check_channels, claude_runner
 from willitharness.probe import DEFAULT_LABEL, PROMPT_TEMPLATE, ProbeRefused, check_requested_runs, parse_run, probe
 from willitharness.store import latest_by_run, load_records, spent
@@ -42,7 +43,7 @@ EXIT_BUDGET_STOPPED = 4
 USAGE = (
     "usage: willitharness plan check <plan.json> | willitharness world check <world-dir> "
     "| willitharness probe --agent fake|claude --directory D --runs N --target-token T --control-token C [--boundary B --seed S] [--model M] [--plan P --arm A] "
-    "| willitharness run <plan.json> --agent fake|claude [--timeout-seconds S] [--model M] | willitharness abort <plan.json> | willitharness analyze <plan.json> | willitharness decide <plan.json>"
+    "| willitharness run <plan.json> --agent fake|claude [--timeout-seconds S] [--model M] | willitharness abort <plan.json> | willitharness analyze <plan.json> | willitharness decide <plan.json> | willitharness report <plan-dir or plan.json>"
 )
 EXIT_CODES = (EXIT_OK, EXIT_DOMAIN_FAILURE, EXIT_USAGE, EXIT_AGENT_MISSING, EXIT_BUDGET_STOPPED)
 FAKE_RUN_COST_USD = 0.01
@@ -286,6 +287,23 @@ def decide_plan_command(argv):
     return EXIT_OK
 
 
+def report_command(argv):
+    assert isinstance(argv, list), f"report_command needs a list of arguments, got {argv!r}. Fix: pass the arguments after report."
+    assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
+    parser = argparse.ArgumentParser(prog="willitharness report")
+    parser.add_argument("plan")
+    arguments = parser.parse_args(argv)
+    try:
+        root, name = report_location(Path.cwd(), arguments.plan)
+        text = build_report(root, read_plan(root, name))
+    except (PathOutsideRoot, PlanError, AnalysisError, DecideRefused, ReportRefused) as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_DOMAIN_FAILURE
+    print(text, end="")
+    assert text, "a report is never empty"
+    return EXIT_OK
+
+
 def main(argv):
     assert isinstance(argv, list), f"main needs a list of arguments, got {argv!r}. Fix: pass sys.argv[1:]."
     assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
@@ -304,7 +322,9 @@ def main(argv):
         return analyze_command(rest)
     if command == ["decide"]:
         return decide_plan_command(rest)
-    print(f"unknown command {argv!r}. Rule: v0 has plan check, world check, probe, run, abort, analyze and decide so far. Fix: {USAGE}", file=sys.stderr)
+    if command == ["report"]:
+        return report_command(rest)
+    print(f"unknown command {argv!r}. Rule: v0 has plan check, world check, probe, run, abort, analyze, decide and report so far. Fix: {USAGE}", file=sys.stderr)
     return EXIT_USAGE
 
 

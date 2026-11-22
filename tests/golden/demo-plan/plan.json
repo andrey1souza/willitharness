@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "name": "demo",
+  "world": "world",
+  "budget_usd": 1.0,
+  "run_cap_usd": 0.1,
+  "reps": 8,
+  "max_retries": 2,
+  "arms": [
+    {
+      "label": "B",
+      "role": "rule",
+      "overlay": "B.md"
+    },
+    {
+      "label": "C",
+      "role": "leave_one_out",
+      "overlay": "C.md"
+    },
+    {
+      "label": "C2",
+      "role": "noise_of:C",
+      "overlay": "C2.md"
+    }
+  ]
+}

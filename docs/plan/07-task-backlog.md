@@ -316,7 +316,7 @@ As a maintainer, I want proof that side effects cannot change a decision.
 - Given a mutant with a `side_effects` parameter, then it exits 1. The decision is the same with or without a side-effect report.
 - IDs: S2. Gate: G6.5. Deps: T09.
 
-### T47. Report generator with a golden file (M) not built (T47)
+### T47. Report generator with a golden file (M)
 As a user, I want a plain report with every answer, the warnings and the limits, so that I can read it in two minutes.
 - Given the demo plan data, when I run `willitharness report tests/golden/demo-plan | diff - tests/golden/demo-report.md`, then there is no output.
 - Given analyze not run, then the command exits 1 with `no verdicts yet; run: willitharness analyze`. Given an aborted plan, then `plan aborted; no verdict`. Given an edited golden file, then `diff` exits 1.

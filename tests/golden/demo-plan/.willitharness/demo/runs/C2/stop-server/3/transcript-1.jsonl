@@ -1,0 +1,2 @@
+{"model": "fake-model-1", "subtype": "init", "type": "system"}
+{"message": {"content": [{"input": {"command": "ls"}, "name": "Bash", "type": "tool_use"}]}, "type": "assistant"}
