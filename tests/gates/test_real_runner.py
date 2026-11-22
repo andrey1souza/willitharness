@@ -212,7 +212,7 @@ def test_the_run_command_runs_the_claude_agent_and_prints_the_spend(tmp_path, mo
     prepare_project_with_fake_agent(tmp_path, monkeypatch, TWO_RUNS, "ok")
     monkeypatch.chdir(tmp_path / "project")
     code, out, err = run_cli(capsys, ["run", "plan.json", "--agent", "claude"])
-    assert code == 0 and "plan Complete: 4 runs, spent $0.02\n" == out, f"unexpected result {code}, {out!r}, {err!r}"
+    assert code == 0 and "plan Complete: 2 runs, spent $0.02\n" == out, f"unexpected result {code}, {out!r}, {err!r}"
 
 
 def test_the_run_command_exits_one_when_an_overlay_is_missing(tmp_path, monkeypatch, capsys):
