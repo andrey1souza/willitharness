@@ -32,4 +32,11 @@ MUTANTS = (
     ('mutants-claimed-killed', SOURCE, 'f"{counts[MUTANTS_LABEL]} listed"', 'f"{counts[MUTANTS_LABEL]} killed"'),
     ('counted-rows-claim-passed', SOURCE, 'COUNTED = "counted"', 'COUNTED = "passed"'),
     ('status-command-changed', SOURCE, 'STATUS_COMMAND = "scripts/site/build.py"', 'STATUS_COMMAND = "make check"'),
+    ('code-blocks-unchecked', SOURCE, 'if f"<pre tabindex=\\"0\\"><code>{escape(block[\'text\'], quote=False)}</code></pre>" not in html', 'if False'),
+    ('code-block-check-ignores-escaping', SOURCE, '<code>{escape(block[\'text\'], quote=False)}</code></pre>" not in html', '<code>{block[\'text\']}</code></pre>" not in html'),
+    ('code-block-check-not-run', SOURCE, '        problems += code_block_problems(page, html, data)', '        problems += []'),
+    ('readme-blocks-not-expected', SOURCE, 'texts += [readme["summary"]["text"], readme["offline"]["lead"]["text"], readme["isolation"]["text"], data["project"]["license"]]', 'texts += []'),
+    ('command-cells-not-expected', SOURCE, 'for column in ("command", "does", "status")]', 'for column in ("command",)]'),
+    ('block-labels-not-expected', SOURCE, 'texts += [block["label"] for block in readme["offline"]["blocks"]] + ', 'texts += [] + '),
+    ('tag-check-after-unescape', SOURCE, 'stripped = TAG.sub("", markup)', 'stripped = unescape(TAG.sub("", markup))'),
 )

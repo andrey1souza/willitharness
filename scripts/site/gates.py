@@ -4,7 +4,7 @@ import posixpath
 import re
 import subprocess
 import sys
-from html import unescape
+from html import escape, unescape
 from pathlib import Path
 
 import brand_gates
@@ -48,9 +48,9 @@ GATE_SCRIPTS = {TRACE_LABEL: ("scripts/gates/trace_check.py", TRACE_COVERED), RE
 
 def element_text(markup):
     assert isinstance(markup, str), f"element_text needs markup text, got {type(markup).__name__}. Fix: pass the element body."
-    text = unescape(TAG.sub("", markup)).strip()
-    assert "<" not in text, f"markup left a tag in {text!r}. Fix: correct TAG."
-    return text
+    stripped = TAG.sub("", markup)
+    assert "<" not in stripped, f"markup left a tag in {stripped!r}. Fix: correct TAG."
+    return unescape(stripped).strip()
 
 
 def tag_problems(page, tag, seen):
@@ -124,10 +124,13 @@ def link_problems(files):
 
 
 def expected_texts(data):
-    assert set(data) == {"readme", "contract", "gates", "live"}, f"site data needs four parts, got {sorted(data)}. Fix: pass site_data output."
+    assert set(data) == {"readme", "project", "contract", "gates", "live"}, f"site data needs five parts, got {sorted(data)}. Fix: pass site_data output."
     contract, gates, live = data["contract"], data["gates"], data["live"]
     texts = [item["id"] for item in contract["questions"]] + [item["when"] for item in contract["decisions"]]
     texts += [item["label"] for item in gates["rows"]] + [item["result"] for item in gates["rows"]]
+    readme = data["readme"]
+    texts += [readme["summary"]["text"], readme["offline"]["lead"]["text"], readme["isolation"]["text"], data["project"]["license"]]
+    texts += [block["label"] for block in readme["offline"]["blocks"]] + [item[column] for item in readme["commands"] for column in ("command", "does", "status")]
     texts += [item["task"] for item in live["rows"]] + [item["text"] for item in live["limits"] + live["explanation"] + data["readme"]["limits"]] + [item["results"] for item in live["history"]]
     assert texts and all(isinstance(text, str) for text in texts), f"expected texts must be non-empty strings, got {texts!r}"
     return texts
@@ -141,6 +144,17 @@ def coverage_problems(page, html, data):
         f"{page} does not show {text[:KEY_CHARS * 2]!r}. Rule: every row of the data appears on the page. Fix: render it."
         for text in expected_texts(data)
         if text.replace(BACKTICK, "") not in shown
+    ]
+
+
+def code_block_problems(page, html, data):
+    assert page.endswith(".html"), f"a page name ends in .html, got {page!r}. Fix: pass the page file name."
+    blocks = data["readme"]["offline"]["blocks"]
+    assert blocks, "the data holds no code blocks. Rule: the page shows the quick start. Fix: restore them."
+    return [
+        f"{page} does not show the code block from {data['readme']['file']}:{block['line']} unchanged. Rule: commands are copied, never retyped. Fix: render it."
+        for block in blocks
+        if f"<pre tabindex=\"0\"><code>{escape(block['text'], quote=False)}</code></pre>" not in html
     ]
 
 
@@ -265,6 +279,7 @@ def site_problems(root, files, data, counts):
     for page in (name for name in files if name.endswith(".html")):
         html = files[page]
         problems += structure_problems(page, html) + coverage_problems(page, html, data) + trace_problems(root, page, html)
+        problems += code_block_problems(page, html, data)
         problems += brand_gates.hype_problems(page, html) + brand_gates.hold_back_problems(page, html, claims)
         problems += brand_gates.meta_problems(page, html) + brand_gates.rendered_number_problems(page, html, corpus)
     problems += brand_gates.typed_number_problems(render.TEMPLATE_FILE, sources[render.TEMPLATE_FILE])

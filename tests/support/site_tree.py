@@ -4,7 +4,22 @@ from pathlib import Path
 REAL_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE = (REAL_ROOT / "site" / "src" / "index.html").read_text()
 STYLE = (REAL_ROOT / "site" / "src" / "style.css").read_text()
-README = "# toolname\n\nCheck whether the rules work.\n\n## Honest limits\n- The spike used toy tasks and one `small` model.\n- The formal part covers the verdict logic,\n  and it does not cover agents.\n\n## Working on it\n- not a limit\n"
+README = (
+    "# toolname\n\nCheck whether the rules work.\n\nYou write rules in `CLAUDE.md`. Do they load?\n\n"
+    "## What works today\n"
+    "| Command | What it does | Status |\n|---|---|---|\n"
+    "| `toolname plan check <plan.json>` | Checks a plan. | works |\n"
+    "| `toolname decide` | Gives a decision. | not built (T43) |\n\n"
+    "## Try it offline\n"
+    "The fake agent proves the plumbing. It measures nothing about a real agent.\n\n"
+    "Install the tool.\n```sh\nuv sync\ntoolname plan check plan.json\n```\n"
+    "Output:\n```\nplan ok\n```\n"
+    "Run the plan.\n```sh\ntoolname run plan.json --runs 3\n```\n\n"
+    "## Limits of isolation\nRuns use a `sandbox`.\nThe process is not confined.\n\n"
+    "## Honest limits\n- The spike used toy tasks and one `small` model.\n- The formal part covers the verdict logic,\n  and it does not cover agents.\n\n## Working on it\n- not a limit\n"
+)
+PROJECT = '[project]\nname = "toolname"\n\n[project.urls]\nRepository = "https://example.org/toolname"\n'
+LICENSE = "MIT License\n\nCopyright (c) 2026 Someone\n"
 CONTRACT = (
     "# contract (v9.9)\n\n## 3. The four questions\n"
     "- Q1 Reachability: is the text loaded? Result: Loaded or Masked. Rules P1 to P4.\n"
@@ -57,6 +72,8 @@ MUTANT_MODULE = "MUTANTS = (\n    ('a', 'x', 'p', 'q'),\n    ('b', 'x', 'r', 's'
 def site_files():
     return {
         "README.md": README,
+        "pyproject.toml": PROJECT,
+        "LICENSE": LICENSE,
         "docs/contract.md": CONTRACT,
         "build/gate_status.json": json.dumps(GATE_STATUS, indent=2) + "\n",
         "fixtures/results/g4_4.json": json.dumps(LIVE, indent=2) + "\n",
