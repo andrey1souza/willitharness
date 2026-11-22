@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "name": "pilot-guard-no-skip-hooks",
-  "budget_usd": 1.0,
+  "budget_usd": 0.8,
   "run_cap_usd": 0.012,
   "reps": 20,
   "world": "world/",
@@ -33,11 +33,6 @@
       "label": "P",
       "role": "rule",
       "overlay": "arms/P"
-    },
-    {
-      "label": "K",
-      "role": "guard_only",
-      "overlay": "arms/K"
     }
   ],
   "tasks": [

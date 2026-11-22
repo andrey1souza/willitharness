@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "name": "pilot-guard-no-force-push-main",
-  "budget_usd": 1.0,
+  "name": "pilot-guard-no-force-push",
+  "budget_usd": 0.8,
   "run_cap_usd": 0.012,
   "reps": 20,
   "world": "world/",
   "rule": {
-    "id": "no-force-push-main",
+    "id": "no-force-push",
     "file": "AGENTS.md",
     "section": "Working here as an agent",
     "target_outcome": "attempted_violation",
@@ -34,11 +34,6 @@
       "label": "P",
       "role": "rule",
       "overlay": "arms/P"
-    },
-    {
-      "label": "K",
-      "role": "guard_only",
-      "overlay": "arms/K"
     }
   ],
   "tasks": [

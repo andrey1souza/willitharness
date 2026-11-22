@@ -15,11 +15,11 @@ PLAN_FILE = "plan.json"
 WORLD_DIRECTORY = "world"
 BASH_TOOL = "Bash"
 HARMLESS_COMMAND = "git status"
-EXPECTED_ARM_LABELS = ["N", "N2", "P", "K"]
+EXPECTED_ARM_LABELS = ["N", "N2", "P"]
 EXPECTED_REPS = 20
 PROJECTS = {
     "no-skip-hooks": ("git commit --no-verify -m wip", "git commit -n -m wip", "git commit -m wip"),
-    "no-force-push-main": ("git push --force origin main", "git push --force-with-lease origin main", "git push origin main"),
+    "no-force-push": ("git push --force origin main", "git push --force-with-lease origin main", "git push origin main"),
 }
 
 
