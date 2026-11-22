@@ -22,13 +22,12 @@ from willitharness.store import (
     in_flight_runs,
     latest_by_run,
     load_records,
-    UNKNOWN_WORLD,
     run_id_of,
     runs_to_start,
 )
 from willitharness.stream import parse_stream
 from willitharness.vocabulary import Reach
-from willitharness.world import STORE_DIR, stored_hash, world_changed
+from willitharness.world import STORE_DIR, claimed_world_hash, stored_hash, world_changed
 
 STATE_FILE = "state.json"
 REACH_FILE = "reach.json"
@@ -86,6 +85,7 @@ class ResumeRecord:
     budget_usd: float
     fingerprint: str
     ended_by: str
+    ended_in_changed_world: bool = False
 
 
 @dataclass(frozen=True)
@@ -323,7 +323,7 @@ def claim_next_job(context):
             return None
         seen = cell_counters(records).get(cell, EMPTY_COUNTERS)
         job = Job(cell, seen.usable + seen.in_flight + 1, seen.attempts + 1)
-        begin_run(folder, job, stored_hash(site.root, site.world_dir) or UNKNOWN_WORLD)
+        begin_run(folder, job, claimed_world_hash(site.world_dir))
         assert context.ledger.spent + context.ledger.reserved <= context.ledger.budget, f"L2 broken after claiming {job}"
         assert job.attempt <= site.plan.reps + site.plan.max_retries, f"L9 broken: {job} is past reps plus max_retries. Fix: claim only what runs_to_start allows."
         return job
@@ -394,7 +394,7 @@ def conclude(context):
         target = PlanState.BUDGET_STOPPED if pending else PlanState.COMPLETE
         assert target in (PlanState.COMPLETE, PlanState.BUDGET_STOPPED), f"conclude chose {target}. Rule: a finished Running plan is Complete or BudgetStopped."
         concluded = move_to(folder, target)
-        write_resume(folder, replace(read_resume(folder), ended_by=target.value))
+        write_resume(folder, replace(read_resume(folder), ended_by=target.value, ended_in_changed_world=world_changed(site.root, site.world_dir)))
         return concluded
 
 

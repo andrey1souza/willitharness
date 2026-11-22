@@ -10,6 +10,7 @@ from lifecycle_site import SiteSpec, TASK_NAME, edit_world, make_site, ready_sit
 from willitharness.lifecycle import Job, PlanState, begin_run, execute_plan, lifecycle_dir, record_reachability, start_running, write_state
 from willitharness.store import UNKNOWN_WORLD, Cell, latest_by_run, load_records, spent
 from willitharness.vocabulary import Reach
+from willitharness.world import world_hash
 
 TIGHT = SiteSpec(arm_count=1, budget_usd=0.05, run_cap_usd=0.02, reps=100, max_retries=0)
 ROOMY = SiteSpec(arm_count=2, budget_usd=1.0, run_cap_usd=0.02, reps=2, max_retries=0)
@@ -196,3 +197,11 @@ def test_L5_an_analyze_that_cannot_produce_a_verdict_leaves_a_finished_plan_in_i
     code, out, err = run_cli(capsys, ["analyze", "plan.json"])
     assert code == 1 and "no leave_one_out arm or no rule arm to compare" in err, f"got {code} {err!r}"
     assert state_file(site) == expected and "resume" not in err, f"analyze moved the plan to {state_file(site)}, expected {expected}; err {err!r}"
+
+
+def test_G3_4_every_run_the_run_command_records_holds_the_hash_of_the_world_files(tmp_path, monkeypatch, capsys):
+    site = ready_site(tmp_path, ROOMY)
+    monkeypatch.chdir(tmp_path)
+    code, out, err = run_cli(capsys, RUN_ARGUMENTS)
+    hashes = {run.world_hash for run in gate_final_runs(site)}
+    assert code == 0 and hashes == {world_hash(site.world_dir)}, f"exit {code}; hashes {hashes}. Rule: T65, a claim records the hash of the files now."

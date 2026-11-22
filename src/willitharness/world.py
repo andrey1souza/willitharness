@@ -221,3 +221,10 @@ def world_changed(root, world_dir):
     changed = stored is not None and stored != world_hash(world_dir)
     assert isinstance(changed, bool), f"world_changed returned {changed!r}, not a bool"
     return changed
+
+
+def claimed_world_hash(world_dir):
+    assert isinstance(world_dir, Path), f"claimed_world_hash needs a Path, got {world_dir!r}. Fix: pass pathlib.Path."
+    current = world_hash(world_dir)
+    assert current, f"the hash of {world_dir} is empty. Rule: T65, a claim records the hash of the files now."
+    return current

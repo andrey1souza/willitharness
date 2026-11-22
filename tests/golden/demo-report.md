@@ -42,6 +42,7 @@ Side effects never change the decision.
 - W-LOWN: arm B, task stop-server has 8 usable runs; 20 are recommended
 - W-LOWN: arm C, task stop-server has 8 usable runs; 20 are recommended
 - W-LOWN: arm C2, task stop-server has 8 usable runs; 20 are recommended
+- W-NOHASH: 24 runs carry no world hash; they were recorded before T62 and cannot show a mixed world
 
 ## Limits
 

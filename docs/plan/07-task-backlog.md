@@ -436,7 +436,7 @@ As an analyst, I want to continue a plan that the budget stopped by giving it mo
 As an analyst, I want each run record to carry the world hash it ran under, so that a resumed plan can show which runs came from which world.
 - Given a run, when it is recorded, then the record holds the world hash at the start of the run.
 - Given a resumed plan whose records show two world hashes, then the report warns and lists the cells that mix worlds.
-- Done: records carry the validated world hash at claim time; records written before T62 carry none (contract section 7).
+- Done: records carry the hash of the world files at claim time (T65); records written before T62 carry none (contract section 7).
 - IDs: W3. Gate: G3.4. Deps: T61.
 
 ## Added with contract v0.5
@@ -458,7 +458,7 @@ As an analyst, I want an arm to deliver its rule through `--append-system-prompt
 - Given the reachability probe for that arm, then it uses the same channel as the run.
 - IDs: none. Gate: G3.10. Deps: T63.
 
-### T65. Close the world-hash gaps (S) not built (T65)
+### T65. Close the world-hash gaps (S)
 As an analyst, I want the world hash of a run to be the hash of the files at the claim and old runs to be counted, so that an edit that was not validated again, and records from before T62, cannot hide a mixed world.
 - Given a world edited after validation, when a run is claimed, then the record holds the hash of the files now, and `analyze` warns that the run left the validated world.
 - Given records written before T62, then `analyze` states how many runs carry no world hash.

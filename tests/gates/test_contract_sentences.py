@@ -2,7 +2,7 @@ import repo_checks
 from files import write_tree
 
 
-CONTRACT_GOOD = "Ending a plan needs no validated world. A changed world only blocks starts.\nEach run record carries the validated world hash at the start of the run (T62).\n"
+CONTRACT_GOOD = "Ending a plan needs no validated world. A changed world only blocks starts.\nEach run record carries the hash of the world files at the start of the run (T62, T65).\n"
 
 
 def test_a_contract_with_both_sentences_passes(tmp_path):
