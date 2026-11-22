@@ -6,9 +6,15 @@ from pathlib import Path
 
 from willitharness.paths import PathOutsideRoot, inside
 
-ROOT_INSTRUCTION_FILES = ("AGENTS.md", "CLAUDE.md")
+AGENTS_FILE = "AGENTS.md"
+MASKING_FILES = ("CLAUDE.md", ".claude/CLAUDE.md", "CLAUDE.local.md")
+USER_LEVEL_FILE = ".claude/CLAUDE.md"
+RULES_FOLDER = Path(".claude") / "rules"
+RULE_PATHS_KEY = "paths"
+FENCES = ("```", "~~~")
+CODE_SPAN = re.compile(r"`[^`\n]*`")
 IMPORT_PATTERN = re.compile(r"(?<![\w@])@([\w./-]+)")
-MAX_IMPORT_DEPTH = 5
+MAX_IMPORT_HOPS = 4
 SKILLS_FOLDER = Path(".claude") / "skills"
 SKILL_FILE = "SKILL.md"
 FRONTMATTER_OPEN = "---\n"
@@ -17,6 +23,11 @@ SETTINGS_FILES = ("settings.json", "settings.local.json")
 SETTINGS_FOLDER = Path(".claude")
 NO_MATCHER = "(any)"
 NOT_MEASURED = "not measured"
+SKIPPED_OUTSIDE = "skipped: outside the project (Claude Code asks for approval first)"
+NOT_COUNTED = (
+    "not counted: user-level files (~/.claude), managed policy files, subdirectory CLAUDE.md files that load on demand, "
+    "auto memory, plugin skills and user-level skills"
+)
 NOTHING_LOADED = "no instruction files, skills or hooks found"
 CONTEXT_EVENTS = ("SessionStart", "UserPromptSubmit")
 HOOK_TIMEOUT_SECONDS = 10
@@ -35,6 +46,19 @@ BAD_SETTINGS = "{path} does not hold the hooks layout ({reason}). Rule: hooks si
 
 class LoadRefused(Exception):
     pass
+
+
+@dataclass(frozen=True)
+class Section:
+    lines: list
+    counted: int
+
+
+@dataclass(frozen=True)
+class InstructionScan:
+    texts: dict
+    skipped: set
+    masked: list
 
 
 @dataclass(frozen=True)
@@ -72,41 +96,108 @@ def project_folder(cwd, argument):
     return folder
 
 
+def importable_text(text):
+    assert isinstance(text, str), f"importable_text needs text, got {text!r}."
+    kept = []
+    fenced = False
+    for line in text.splitlines():
+        if line.lstrip().startswith(FENCES):
+            fenced = not fenced
+        elif not fenced:
+            kept.append(CODE_SPAN.sub("", line))
+    result = "\n".join(kept)
+    assert isinstance(result, str), f"importable_text returned {result!r}. Rule: it returns text."
+    return result
+
+
 def imported_files(root, relative, text):
     assert isinstance(root, Path) and root.is_dir(), f"imported_files needs the project folder, got {root!r}."
     assert isinstance(text, str), f"imported_files needs the text of {relative}, got {text!r}."
     found = []
-    for name in IMPORT_PATTERN.findall(text):
-        try:
-            candidate = inside(root, relative.parent / name)
-        except PathOutsideRoot:
+    outside = []
+    for name in IMPORT_PATTERN.findall(importable_text(text)):
+        if not (root / relative.parent / name).resolve().is_file():
             continue
-        if candidate.is_file():
-            found.append(candidate.relative_to(root))
+        try:
+            found.append(inside(root, relative.parent / name).relative_to(root))
+        except PathOutsideRoot:
+            outside.append(name)
     assert all((root / item).is_file() for item in found), f"an import of {relative} is not a file: {found!r}"
+    return found, outside
+
+
+def collect_instructions(root, starts, scan):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the project folder."
+    assert isinstance(scan, InstructionScan), f"collect_instructions needs an InstructionScan, got {scan!r}."
+    queue = [(start, 0) for start in starts]
+    while queue:
+        relative, depth = queue.pop(0)
+        if relative in scan.texts or depth > MAX_IMPORT_HOPS:
+            continue
+        scan.texts[relative] = read_file(root, relative)
+        found, outside = imported_files(root, relative, scan.texts[relative])
+        scan.skipped.update((name, relative) for name in outside)
+        queue.extend((item, depth + 1) for item in found)
+    assert all(isinstance(text, str) for text in scan.texts.values()), f"an instruction file has no text: {scan.texts!r}"
+    return scan
+
+
+def masking_file(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the project folder."
+    found = None
+    for folder in (root, *root.parents):
+        for name in MASKING_FILES:
+            candidate = folder / name
+            if found is None and candidate.is_file() and not (folder == Path.home() and name == USER_LEVEL_FILE):
+                found = candidate
+    assert found is None or found.is_file(), f"masking_file returned {found!r}. Rule: it returns an existing file or None."
     return found
 
 
-def instruction_texts(root):
-    assert root.is_dir(), f"{root} is not a directory. Fix: pass the project folder."
-    queue = [(Path(name), 0) for name in ROOT_INSTRUCTION_FILES if (root / name).is_file()]
-    seen = {}
-    while queue:
-        relative, depth = queue.pop(0)
-        if relative in seen or depth > MAX_IMPORT_DEPTH:
-            continue
-        seen[relative] = read_file(root, relative)
-        queue.extend((item, depth + 1) for item in imported_files(root, relative, seen[relative]))
-    assert all(isinstance(text, str) for text in seen.values()), f"an instruction file has no text: {seen!r}"
-    return seen
+def shown_path(root, path):
+    assert isinstance(path, Path), f"shown_path needs a Path, got {path!r}."
+    shown = path.relative_to(root) if path.is_relative_to(root) else path
+    assert shown.as_posix(), f"{path} has no name to show"
+    return shown.as_posix()
 
 
-def instruction_sizes(root):
+def instruction_scan(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the project folder."
-    texts = instruction_texts(root)
-    lines = sorted(f"instruction {relative.as_posix()}: {len(text)} characters" for relative, text in texts.items())
-    assert len(lines) == len(texts), f"{len(lines)} lines for {len(texts)} instruction files. Rule: each file gets one line."
-    return lines
+    scan = collect_instructions(root, [Path(name) for name in MASKING_FILES if (root / name).is_file()], InstructionScan({}, set(), []))
+    agents = Path(AGENTS_FILE)
+    masker = masking_file(root)
+    if (root / agents).is_file() and agents not in scan.texts and masker is not None:
+        scan.masked.append(f"instruction {AGENTS_FILE}: not loaded: masked by {shown_path(root, masker)}")
+    elif (root / agents).is_file():
+        collect_instructions(root, [agents], scan)
+    assert all(isinstance(path, Path) for path in scan.texts), f"scan holds a non-path key: {scan.texts!r}"
+    return scan
+
+
+def instruction_section(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the project folder."
+    scan = instruction_scan(root)
+    loaded = [f"instruction {relative.as_posix()}: {len(text)} characters" for relative, text in scan.texts.items()]
+    skipped = [f"instruction {name} (imported by {importer.as_posix()}): {SKIPPED_OUTSIDE}" for name, importer in scan.skipped]
+    lines = sorted([*loaded, *skipped, *scan.masked])
+    assert len(lines) == len(scan.texts) + len(scan.skipped) + len(scan.masked), f"{len(lines)} lines do not match the scan {scan!r}"
+    return Section(lines, sum(len(text) for text in scan.texts.values()))
+
+
+def rule_section(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the project folder."
+    files = sorted((root / RULES_FOLDER).rglob("*.md"))
+    lines = []
+    counted = 0
+    for path in files:
+        relative = path.relative_to(root)
+        text = read_file(root, relative)
+        on_demand = RULE_PATHS_KEY in split_skill(text)[0]
+        counted += 0 if on_demand else len(text)
+        suffix = "on demand, not in the always-loaded total" if on_demand else "always loaded"
+        lines.append(f"rule {relative.as_posix()}: {len(text)} characters ({suffix})")
+    assert len(lines) == len(files), f"{len(lines)} lines for {len(files)} rule files. Rule: each rule gets one line."
+    return Section(sorted(lines), counted)
 
 
 def split_skill(text):
@@ -230,6 +321,9 @@ def hook_line(root, hook, timeout_seconds):
 def build_load_report(root, timeout_seconds=None):
     assert isinstance(root, Path), f"build_load_report needs a Path, got {root!r}. Fix: pass the project folder."
     assert timeout_seconds is None or timeout_seconds > 0, f"timeout_seconds is {timeout_seconds!r}. Rule: None means do not run hooks; a number runs them with that timeout."
-    lines = [*instruction_sizes(root), *skill_lines(root), *(hook_line(root, hook, timeout_seconds) for hook in configured_hooks(root))]
+    instructions, rules = instruction_section(root), rule_section(root)
+    total = [f"always loaded instruction and rule text: {instructions.counted + rules.counted} characters"] if instructions.lines or rules.lines else []
+    hooks = [hook_line(root, hook, timeout_seconds) for hook in configured_hooks(root)]
+    lines = [*instructions.lines, *rules.lines, *total, *skill_lines(root), *hooks]
     assert all(lines), f"a report line is empty in {lines!r}. Rule: every line states a file, skill or hook."
-    return lines or [NOTHING_LOADED]
+    return [*(lines or [NOTHING_LOADED]), NOT_COUNTED]
