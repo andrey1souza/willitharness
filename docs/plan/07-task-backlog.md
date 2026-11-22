@@ -328,9 +328,9 @@ As a maintainer, I want every failure message to name the value, state the rule 
 - Given a fixture message `error`, then it exits 1.
 - IDs: none. Gate: G6.3. Deps: T47.
 
-### T49. Full-plan end-to-end test with the fake agent (M) not built (T49)
+### T49. Full-plan end-to-end test with the fake agent (M)
 As a maintainer, I want the whole flow tested without money, so that regressions show fast.
-- Given a plan and a seeded fake agent, when I run `python -m pytest tests/e2e/test_full_plan.py -q`, then the plan goes Drafted to Reported with a decision for the rule.
+- Given a plan and a seeded fake agent, when I run `uv run pytest tests/gates/test_full_plan_end_to_end.py`, then the plan goes Drafted to Analyzed and the report holds a decision for the rule.
 - Given a mutant that skips analysis, then the report command refuses and the test fails.
 - IDs: L1 to L9, T2. Gate: G6.4. Deps: T47.
 
