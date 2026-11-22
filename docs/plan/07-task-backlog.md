@@ -265,7 +265,7 @@ As a user, I want a guard that blocks a command and says what to do, so that the
 - Given a guard that allows `pkill -f`, then the test fails.
 - IDs: G1 (blockCoverage). Gate: G5.1. Deps: T20.
 
-### T39. Block-message actionability check (S) not built (T39)
+### T39. Block-message actionability check (S)
 As a maintainer, I want messages checked for a way forward, so that the spike's bad message cannot return.
 - Given the message `never use pkill or pgrep -f; record each PID you start and kill only those PIDs`, when I run `python -m willitharness.guard check-messages fixtures/rules/messages.json`, then it exits 1 with `rejected: no runnable alternative`.
 - Given the two fixed messages, then it prints `messages: 2 accepted, 0 rejected`.
