@@ -38,7 +38,7 @@ def test_live_rows_show_hits_and_runs(built):
 
 def test_limits_render_code_spans_and_source_lines(built):
     page = built["index.html"]
-    assert '<li data-source="README.md:6">The spike used toy tasks and one <code>small</code> model.</li>' in page, f"a README limit keeps its code span and its line; got {page!r}"
+    assert '<li data-source="README.md:35">The spike used toy tasks and one <code>small</code> model.</li>' in page, f"a README limit keeps its code span and its line; got {page!r}"
     assert '<li data-source="fixtures/results/g4_4.json:76">The commands are stubs.</li>' in page, f"a live limit cites the JSON line; got {page!r}"
 
 
@@ -113,3 +113,33 @@ def test_a_percent_that_disagrees_with_its_row_fails_loudly(tmp_path):
     with pytest.raises(AssertionError, match="the percent follows the row") as raised:
         render.render_site(tmp_path, extract.site_data(tmp_path))
     assert "6 of 20 runs is 30 percent" in str(raised.value), f"the failure must show the row and the percent, got {raised.value}"
+
+
+def test_the_blocks_follow_the_reading_order(built):
+    page = built["index.html"]
+    anchors = ["what", "works", "offline", "questions", "decisions", "gates", "live", "limits", "isolation"]
+    positions = [page.index(f'id="{anchor}"') for anchor in anchors]
+    assert positions == sorted(positions), f"the ids {anchors} must appear in this order, got positions {positions}"
+    assert page.index("<footer>") > positions[-1], f"the footer must come after the last id at position {positions[-1]}"
+
+
+def test_the_summary_the_commands_and_the_quick_start_come_from_the_readme(built):
+    page = built["index.html"]
+    assert "<p>You write rules in <code>CLAUDE.md</code>. Do they load?</p>" in page, f"the summary paragraph keeps its code span; got {page!r}"
+    assert '<tr data-source="README.md:10"><td><code>toolname plan check &lt;plan.json&gt;</code></td><td>Checks a plan.</td><td><span class="status keep">works</span></td></tr>' in page, f"a works row is green and cites its line; got {page!r}"
+    assert '<td><span class="status warn">not built (T43)</span></td>' in page, f"a not built row is a warn word; got {page!r}"
+    assert "<p>Install the tool.</p>\n<pre tabindex=" in page, f"a block follows its label; got {page!r}"
+    assert '<pre tabindex="0"><code>uv sync\ntoolname plan check plan.json</code></pre>' in page, f"a command block is copied unchanged; got {page!r}"
+    assert "<p>The fake agent proves the plumbing. It measures nothing about a real agent.</p>" in page, f"the offline lead is the README sentence; got {page!r}"
+    assert "<p>Runs use a <code>sandbox</code>. The process is not confined.</p>" in page, f"the isolation paragraph is the README text; got {page!r}"
+
+
+def test_the_footer_links_the_repository_and_names_the_license(built):
+    page = built["index.html"]
+    assert '<a href="https://example.org/toolname">https://example.org/toolname</a>. License: MIT License.' in page, f"the footer shows the link and the license line from the sources; got {page!r}"
+
+
+def test_a_command_block_escapes_markup(tmp_path):
+    write_tree(tmp_path, {**site_files(), "README.md": site_files()["README.md"].replace("toolname run plan.json --runs 3", "toolname run <plan.json> && echo done")})
+    page = render.render_site(tmp_path, extract.site_data(tmp_path))["index.html"]
+    assert "<code>toolname run &lt;plan.json&gt; &amp;&amp; echo done</code>" in page, f"markup in a command is escaped; got {page!r}"
