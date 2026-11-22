@@ -97,33 +97,11 @@ The `claude` process itself is not confined.
 - Other tools test parts of this (agent-skill-eval, deadrules, ruleproof, rulebench).
   See `docs/research/02-landscape-and-prior-art.md`.
 
-## For contributors
-Every section from here to the license is for contributors.
-
-## How work lands (trunk-based development)
-`main` is the trunk. Nobody commits on it. Work happens on a short-lived branch named
-`type/slug` (`feat`, `fix`, `chore`, `docs`, `test`), at most 10 commits and 24 hours
-old. `python3 scripts/guards/integrate.py` rebases the branch on `origin/main` and runs
-`make check`. It keeps the branch and never moves local `main`. The hooks enforce this:
-`scripts/guards/trunk.py`.
-
-## Contributing flow
-Remote `main` is protected. After `integrate.py` passes, run `git push origin <branch>`
-and open a pull request. Write its body with `scripts/guards/pr_text.py --base origin/main
---facts <json>` and check it with `--check <body-file>`. The owner squash-merges on GitHub.
-Then run `integrate.py --sync`. `--land-local` is not for publishing.
-
-## Security
-Report vulnerabilities privately; see `SECURITY.md`. `make security` audits the GitHub settings (needs network and an admin `gh` token; not part of `make check`).
-
 ## Data
 `.willitharness/` stores run records, transcripts, calls logs, reachability, state and approvals.
 Transcripts can hold your task text. Secret environment values are redacted from stored artifacts.
 Git ignores the folder.
 Delete everything with `rm -r .willitharness`. Delete one plan with `rm -r .willitharness/<plan>`.
-
-## Checks
-`make check` runs the tests, zanity, every mutation module, the trace gate, the repo checks, the simulation and the trace replay of the TLA+ model against the code. `make formal` runs the Lean and TLA+ gates. `make live` runs the real agent on the reachability fixtures (about a cent) and fails above $0.10.
 
 ## What is here
 | Path | What |
@@ -136,6 +114,12 @@ Delete everything with `rm -r .willitharness`. Delete one plan with `rm -r .will
 | `docs/research/` | Findings and corrections from the spike. Read `04-findings-and-corrections.md`. |
 | `docs/mistakes-to-rules.md` | Each mistake and the check that now rules out its category. |
 | `src/willitharness/` | The Python package. |
+
+## For contributors
+Every section from here to the license is for contributors.
+
+## Checks
+`make check` runs the tests, zanity, every mutation module, the trace gate, the repo checks, the simulation and the trace replay of the TLA+ model against the code. `make formal` runs the Lean and TLA+ gates. `make live` runs the real agent on the reachability fixtures (about a cent) and fails above $0.10.
 
 ## Working on it
 ```sh
