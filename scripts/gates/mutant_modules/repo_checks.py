@@ -5,9 +5,19 @@ TESTS = (
     'tests/gates/test_result_detector.py',
     'tests/gates/test_home_path_check.py',
     'tests/gates/test_ignored_fixtures.py',
+    'tests/gates/test_no_hand_counts.py',
 )
 
 MUTANTS = (
+    ('hand-count-check-not-registered', SOURCE, '    "no-hand-counts": hand_count_errors,\n', ''),
+    ('plan-readme-counts-not-read', SOURCE, '((PLAN_README, (root / PLAN_README).read_text()), ', '((PLAN_README, ""), '),
+    ('backlog-header-counts-not-read', SOURCE, '(BACKLOG_FILE, header)):', '(BACKLOG_FILE, "")):'),
+    ('backlog-body-held-to-the-header-rule', SOURCE, 'header = backlog[:backlog.index(BACKLOG_HEADER_END)]', 'header = backlog'),
+    ('noun-count-pattern-dropped', SOURCE, 'r"\\b\\d+ (?:\\w+ ){0,2}(?:scenarios?|feature files?|gates?|tasks?|IDs?)\\b"', 'r"(?!)"'),
+    ('count-row-pattern-dropped', SOURCE, 'r"^\\|\\s*(?:Contract IDs covered|Feature files|Scenarios|Backlog tasks|Gates)\\s*\\|"', 'r"(?!)"'),
+    ('last-task-pattern-dropped', SOURCE, 'r"\\(T01 to T\\d+\\)"', 'r"(?!)"'),
+    ('summary-row-pattern-dropped', SOURCE, 'r"^\\| [^|]+ \\| T\\d+(?: to T\\d+)? \\| \\d+ \\|$"', 'r"(?!)"'),
+    ('hand-count-fix-dropped', SOURCE, 'Fix: delete the count, because two open PRs would conflict on it.', 'Fix.'),
     ('home-path-check-not-registered', SOURCE, '    "no-home-paths": home_path_errors,\n', ''),
     ('home-path-folders-not-scanned', SOURCE, 'for leak in leak_check.leaks_in(present)', 'for leak in leak_check.leaks_in([])'),
     ('missing-folder-scanned', SOURCE, 'if (root / name).is_dir()]', 'if True]'),

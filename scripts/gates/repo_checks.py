@@ -71,6 +71,15 @@ REMOVABLE_SITE_MODULES = ("status",)
 FORBIDDEN_ARGUMENTS = ("--force", "--force-with-lease", "--hard", "push", "update-ref")
 LEAK_FOLDERS = ("src", "tests", "features", "docs", "fixtures")
 CONTRACT_FILE = Path("docs") / "contract.md"
+PLAN_README = PLAN_DIRECTORY / "README.md"
+BACKLOG_FILE = PLAN_DIRECTORY / "07-task-backlog.md"
+BACKLOG_HEADER_END = "\n## "
+COUNT_STATEMENTS = (
+    ("a number before a counted noun", re.compile(r"\b\d+ (?:\w+ ){0,2}(?:scenarios?|feature files?|gates?|tasks?|IDs?)\b", re.IGNORECASE)),
+    ("a count row", re.compile(r"^\|\s*(?:Contract IDs covered|Feature files|Scenarios|Backlog tasks|Gates)\s*\|", re.MULTILINE)),
+    ("the last task id", re.compile(r"\(T01 to T\d+\)")),
+    ("a summary row with a count", re.compile(r"^\| [^|]+ \| T\d+(?: to T\d+)? \| \d+ \|$", re.MULTILINE)),
+)
 CONTRACT_SENTENCES = ("Ending a plan needs no validated world.", "Each run record carries the hash of the world files at the start of the run (T62, T65).", "Each run record carries the model name (T73).", "A resume names each overlay file that changed.", "A restart of a Running plan checks the overlay files in the same way.")
 
 
@@ -385,6 +394,19 @@ def integrate_source_errors(root):
     ]
 
 
+def hand_count_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    backlog = (root / BACKLOG_FILE).read_text()
+    header = backlog[:backlog.index(BACKLOG_HEADER_END)]
+    errors = []
+    for path, text in ((PLAN_README, (root / PLAN_README).read_text()), (BACKLOG_FILE, header)):
+        for name, pattern in COUNT_STATEMENTS:
+            for line, found in docs_freshness.matches_with_lines(text, pattern):
+                errors.append(f"{path}:{line} states {name}: {found.group(0)!r}. Rule: the plan README and the backlog header hold no count that changes with a PR. Fix: delete the count, because two open PRs would conflict on it.")
+    assert all(isinstance(error, str) for error in errors), f"errors must be text, got {errors!r}"
+    return errors
+
+
 def home_path_errors(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     assert LEAK_FOLDERS, "no folders are scanned. Rule: the hygiene gate scans the shipped folders. Fix: restore LEAK_FOLDERS."
@@ -413,6 +435,7 @@ CHECKS = {
     "trace-fixtures": trace_fixtures.stale_fixture_errors,
     "contract-sentences": contract_sentence_errors,
     "docs_freshness": docs_freshness.docs_freshness_errors,
+    "no-hand-counts": hand_count_errors,
     "readme-data-statement": data_statement_errors,
     "integrate-not-for-publishing": integrate_publishing_errors,
     "integrate-source-never-forces": integrate_source_errors,
