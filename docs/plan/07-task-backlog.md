@@ -514,13 +514,13 @@ As an analyst, I want the model name stored with every run, so that runs on diff
 - Given a plan whose runs all used one model, then no new warning appears.
 - IDs: W-MODEL and W-NOMODEL. Gate: `uv run pytest tests/unit/test_warning_rules_unit.py tests/gates/test_analysis_outcomes.py`. Deps: T65.
 
-### T74. Read the placebo arm in the three-arm verdict (M) not built (T74)
+### T74. Read the placebo arm in the three-arm verdict (M)
 As an owner of a harness, I want the verdict to read the placebo arm, so that I see whether the content of a component beats the same amount of filler text.
 - Given arms C, P, N and PL, then the verdict also compares arm C with arm PL.
 - Given that arm C equals arm PL and both beat arm N, then the report says that added text helps and the content does not.
 - Given a plan without arm PL, then the verdict and the report are as before.
 - Given arm PL, then the report shows turns and cost for it.
-- IDs: none yet. New decision rows go into the contract, the golden table and the Lean proof in the same change that builds this task. Gate: new, defined with the task. Deps: T67, T69, T70.
+- IDs: PB1 to PB9. Gate: G1.11 and G6.7. Deps: T67, T69, T70.
 
 ### T75. Guard test with three block messages (S) not built (T75)
 As an owner of a harness, I want the guard test to run with three block messages, so that I see which parts of a message matter.
