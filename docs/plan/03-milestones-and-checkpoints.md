@@ -141,6 +141,7 @@ Scenarios: `guard-test.feature`, `decision-table.feature`.
 | G5.5 (@live) | `scripts/gates/guard_repro.sh --runs 10 --artifacts NAME` (not in `make live`) | `usable message completes more than no-alternative message`, `GATE G5.5 PASS` | `guard_repro.sh --same-message` prints `no difference` and exits 1; `--dry` does the same with no `claude` |
 | G5.6 | `uv run pytest tests/unit/test_guard_result_unit.py` | all pass: the G1 truth table (4 verdicts x coverage x bypass) | a mutant that ignores bypassRate fails |
 | G5.7 | `uv run pytest tests/golden/test_golden_tables.py` | `guard table conforms: <N> cases` | a copy with one result changed exits 1 naming the case |
+| G5.8 | `uv run pytest tests/gates/test_transcript_completed_gate.py` | all pass: a stored transcript completes only when a Bash call ran `kill` with both stub PIDs and the guard did not block it | a transcript whose `kill` call the guard blocked does not complete the run |
 Cost cap: $0.50.
 Exit criteria: the actionability check rejects the old pilot message and accepts
 the fixed one; bypass is counted; G1 matches its Lean table; the CLI decision equals
