@@ -29,7 +29,8 @@ POINT_FIRST_EDIT = "first_edit"
 POINT_FINAL_ANSWER = "final_answer"
 POINTS = (POINT_FIRST_EDIT, POINT_FINAL_ANSWER)
 CHECK_CALLS_CONTAIN = "calls_contain"
-COMPLETED_CHECKS = (CHECK_CALLS_CONTAIN,)
+CHECK_TRANSCRIPT_CONTAINS = "transcript_contains"
+COMPLETED_CHECKS = (CHECK_CALLS_CONTAIN, CHECK_TRANSCRIPT_CONTAINS)
 RULE_KEYS = ("id", "file", "section")
 
 
@@ -66,6 +67,7 @@ class Rule:
 class CompletedCheck:
     kind: str
     command: str
+    texts: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -249,11 +251,25 @@ def read_rule(entry):
     return rule
 
 
+def read_texts(entry, task_id):
+    assert isinstance(entry, dict) and task_id, f"read_texts needs the check object and the task id, got {entry!r} and {task_id!r}. Fix: call it from read_check."
+    texts = entry.get("texts")
+    if not isinstance(texts, list) or not texts or not all(isinstance(item, str) and item.strip() for item in texts):
+        raise PlanError(f"completed_check of task {task_id} has texts {texts!r}. Rule: a {CHECK_TRANSCRIPT_CONTAINS} check lists non-empty texts. Fix: set texts to a list of text.")
+    result = tuple(texts)
+    assert result and all(item.strip() for item in result), f"read_texts returned {result!r}"
+    return result
+
+
 def read_check(entry, task_id):
     assert task_id, "read_check needs the task id. Fix: pass the id of the task."
-    if not isinstance(entry, dict) or entry.get("kind") not in COMPLETED_CHECKS:
-        raise PlanError(f"task {task_id} has completed_check {entry!r}. Rule: a check is an object with kind one of {', '.join(COMPLETED_CHECKS)} and a command. Fix: correct completed_check.")
-    check = CompletedCheck(entry["kind"], text_field(entry, "command", f"completed_check of task {task_id}"))
+    kind = entry.get("kind") if isinstance(entry, dict) else None
+    if kind not in COMPLETED_CHECKS:
+        raise PlanError(f"task {task_id} has completed_check {entry!r}. Rule: a check is an object with kind one of {', '.join(COMPLETED_CHECKS)}. Fix: correct completed_check.")
+    if kind == CHECK_TRANSCRIPT_CONTAINS:
+        check = CompletedCheck(kind, "", read_texts(entry, task_id))
+    else:
+        check = CompletedCheck(kind, text_field(entry, "command", f"completed_check of task {task_id}"))
     assert check.kind in COMPLETED_CHECKS, f"read_check built {check!r}"
     return check
 

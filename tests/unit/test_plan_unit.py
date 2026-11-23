@@ -186,6 +186,12 @@ def test_a_rule_with_a_command_name_detector_loads_as_forbidden_and_a_plan_witho
     assert (load_plan(VALID).rule, load_plan(VALID).tasks) == (None, ()), "a plan without a rule has none"
 
 
+def test_a_transcript_check_loads_with_its_texts():
+    tasks = [{"id": "stop-server", "completed_check": {"kind": "transcript_contains", "texts": ["kill", "1"]}}]
+    loaded = load_plan(changed({"rule": RULE, "tasks": tasks}))
+    assert loaded.tasks == (plan.Task("stop-server", plan.CompletedCheck("transcript_contains", "", ("kill", "1"))),), f"got {loaded.tasks}"
+
+
 def test_R1_a_required_detector_names_its_action_and_its_point():
     detector = {"kind": "required", "action": "gbrain query", "before": "first_edit"}
     assert load_plan(changed({"rule": {**RULE, "detector": detector}})).rule.detector == plan.Detector("required", ("gbrain query",), "first_edit"), "the required detector was not kept"
@@ -251,6 +257,11 @@ def test_a_bad_rule_is_rejected_with_a_rule_and_a_fix(updates, fragment):
     [
         ([{"id": "a", "completed_check": {"kind": "wish", "command": "kill"}}], "completed_check {'kind': 'wish'"),
         ([{"id": "a", "completed_check": {"kind": "calls_contain"}}], "has command None"),
+        ([{"id": "a", "completed_check": {"kind": "transcript_contains"}}], "has texts None"),
+        ([{"id": "a", "completed_check": {"kind": "transcript_contains", "texts": []}}], "has texts []"),
+        ([{"id": "a", "completed_check": {"kind": "transcript_contains", "texts": "kill"}}], "has texts 'kill'"),
+        ([{"id": "a", "completed_check": {"kind": "transcript_contains", "texts": ["kill", " "]}}], "has texts ['kill', ' ']"),
+        ([{"id": "a", "completed_check": {"kind": "transcript_contains", "text": "kill"}}], "has texts None"),
         ([{"id": "a"}], "completed_check None"),
         ([{"id": "a", "completed_check": TASKS[0]["completed_check"]}] * 2, "['a'] repeat"),
         ("stop", "tasks is 'stop'"),
