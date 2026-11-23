@@ -537,13 +537,13 @@ As an owner of a harness, I want a completed check that reads the transcript, so
 - Given the existing check `calls_contain`, then it works as before.
 - IDs: none. The contract rows on the completed check and on a blocked call change. Gate: G5.8, `uv run pytest tests/gates/test_transcript_completed_gate.py`. Deps: T44.
 
-### T77. Let a skill arm fire in a live run (M) not built (T77)
+### T77. Let a skill arm fire in a live run (M)
 As an owner of a harness, I want a skill arm to reach the Skill tool, so that arm C does not equal arm N by construction.
 - Given a plan with an arm of channel skill, then the runner enables the `Skill` tool and does not pass `--disable-slash-commands`.
 - Given such a run, then the transcript lists only the skill of the arm, and no skill from the user or from a plugin loads.
 - Given the reachability probe of a skill arm, then it keeps the `Skill` tool enabled.
 - Given a plan with no skill arm, then the command line is unchanged.
-- IDs: none yet. The contract text on the run environment changes. Gate: new, defined with the task. Deps: T64.
+- IDs: none. The contract text on the run environment changes. Gate: `uv run pytest tests/gates/test_skill_arm.py tests/unit/test_claude_agent_unit.py`. Deps: T64.
 
 ### T78. Let build-plan write the tasks (S) not built (T78)
 As an owner of a harness, I want `build-plan` to write the tasks and their completed check, so that `analyze` works on a generated plan.
