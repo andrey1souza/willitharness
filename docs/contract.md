@@ -49,8 +49,9 @@ or delete candidate.
 
 - Resume: the transition from BudgetStopped back to Running with a higher budget.
   See section 7.
-- Fingerprint: a hash of the plan with `budget_usd` left out. The implementation
-  stores it at the first run and compares it at resume (A-FP, section 7).
+- Fingerprint: a hash of the plan with `budget_usd` left out, and of the path and bytes
+  of every overlay file. The implementation stores it at the first run and compares it
+  at resume (A-FP, section 7).
 
 Constants: MIN_RUNS = 5. DEFAULT_REPS = 20. MAX_RETRIES = 2. MIN_PROBE_RUNS = 3.
 z = 1.96.
@@ -246,9 +247,13 @@ Resume: the transition BudgetStopped to Running. It has these rules:
   world changed while the plan was BudgetStopped, validate the world again first.
 - Reachability results are kept.
 - It resets `endedBy`, so a Running plan is never marked as ended (L12).
-- Assumption A-FP: the plan is identical except `budget_usd`. The implementation
-  enforces it with a fingerprint of the plan with `budget_usd` left out. The TLA+ model
-  does not check A-FP. It has no plan content.
+- Assumption A-FP: the plan and the content of every arm overlay are identical except
+  `budget_usd`. The implementation enforces it with a fingerprint. It leaves `budget_usd`
+  out. It covers the path and the bytes of every file under each overlay path, resolved
+  from the project root. The files are sorted by path. A missing overlay has no files.
+  A resume names each overlay file that changed. A plan that started before the
+  fingerprint covered overlays cannot resume. The TLA+ model does not check A-FP. It has
+  no plan content.
 - Analyzed is final. `analyze` on a BudgetStopped plan moves it to Analyzed, and then
   Resume is not possible. The `analyze` command prints a warning that it ends resume.
 - Each run record carries the hash of the world files at the start of the run (T62, T65).
@@ -334,8 +339,8 @@ assumed fair.
   MIN_RUNS 1 or 2). Passing a bounded run is not a proof for all sizes. The
   lifecycle logic does not depend on the exact constants.
 - A-CAP (RUN_CAP is a true cap) is an assumption about the runner, not proven.
-- A-FP (the plan is identical except `budget_usd` at resume) is enforced by the
-  implementation fingerprint. TLA+ does not check it.
+- A-FP (the plan and its overlay files are identical except `budget_usd` at resume) is
+  enforced by the implementation fingerprint. TLA+ does not check it.
 
 ## 10. Checkpoint rule
 A milestone is done only when its executable gates pass: tests green, checks
@@ -407,6 +412,7 @@ spend stays under the stated cap.
 | Change | Caused by |
 |---|---|
 | Section 6a and IDs TA1 to TA8: one verdict from arms C, P and N, with `InsuranceKeep` as a policy choice and `DeleteCandidate` when C is worse than N | A component must be compared with its own text as a prompt and with nothing (backlog T67) |
+| The fingerprint covers the path and bytes of every overlay file; a resume names each changed file; a plan that stored its fingerprint before this change cannot resume | An edit of a rule after the plan existed changed nothing in the fingerprint (backlog T72) |
 
 ## 12. Evidence this contract rests on
 See `docs/research/04-findings-and-corrections.md` (F1 to F19) and
