@@ -104,9 +104,9 @@ As a maintainer, I want the effect mapping to match the proven table.
 - Given one effect result changed in a copy, then it exits 1 and names the case.
 - IDs: E1, V6. Gate: G1.9. Deps: T10, the Lean fork's JSON.
 
-### T14. Traceability gate over 56 IDs (S)
+### T14. Traceability gate over 57 IDs (S)
 As a maintainer, I want every contract ID covered, so that nothing is unplanned.
-- Given the contract, features, tests and formal folders, when I run `python scripts/gates/trace_check.py`, then it prints `trace-check: all 56 IDs covered`.
+- Given the contract, features, tests and formal folders, when I run `python scripts/gates/trace_check.py`, then it prints `trace-check: all 57 IDs covered`.
 - Given S2 removed from the features copy, then it exits 1 with `trace-check: missing S2 in features`.
 - IDs: all. Gate: G1.6. Deps: T03.
 
@@ -481,8 +481,8 @@ As an owner of a harness, I want one verdict from three results, so that I know 
 - Given the results of arm C (the real component), arm P (the same text as a prompt) and arm N (nothing), then the verdict is one of: keep the component when C beats P, replace with a prompt when C equals P and beats N, delete candidate when C equals N, and inconclusive when the intervals do not decide.
 - Given that arm N already shows almost no violations, then the verdict is `insurance, keep`. The report says this is a policy choice and not a measurement.
 - Given the same three results twice, then the verdict is the same.
-- Given the verdict of arm P against arm C or of arm N against arm C has too few runs, then the verdict is inconclusive. Inputs that this task does not name (C worse than P, or C equal to P and worse than N) give inconclusive.
-- IDs: TA1 to TA7. Gate: G1.10. Deps: T43, T64.
+- Given the verdict of arm P against arm C or of arm N against arm C has too few runs, then the verdict is inconclusive. Given C is worse than N, then the verdict is delete candidate. Given C is worse than P alone, then the verdict is inconclusive.
+- IDs: TA1 to TA8. Gate: G1.10. Deps: T43, T64.
 
 ### T69. Plan builder for a component under test (M) not built (T69)
 As an owner of a harness, I want a plan built from a skill or a hook, so that I do not write the three arms by hand.

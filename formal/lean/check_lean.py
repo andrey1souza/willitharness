@@ -131,6 +131,8 @@ def contract_arms(prompt_vs_component, nothing_vs_component, nothing_clean):
         result = "Inconclusive"
     elif nothing_clean:
         result = "InsuranceKeep"
+    elif nothing_vs_component == "FirstLower":
+        result = "DeleteCandidate"
     elif prompt_vs_component == "FirstHigher":
         result = "KeepComponent"
     elif prompt_vs_component == "Inconclusive" and nothing_vs_component == "FirstHigher":

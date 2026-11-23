@@ -9,7 +9,7 @@ in progress). The naming convention for formal items is the ID as a name prefix,
 for example `L9_...` or `P2_...`. Gate G1.6 checks it.
 
 Legend: F = feature file. n/a = not the right tool for this ID. Contract section 8
-decides which tool covers which group. 56 IDs in total.
+decides which tool covers which group. 57 IDs in total.
 
 ## Verdict properties and assumptions
 | ID | Feature scenarios | Python tests | TLA+ | Lean | Gate |
@@ -58,7 +58,8 @@ decides which tool covers which group. 56 IDs in total.
 | TA4 | F three-arm-verdict: "A component that beats its own text as a prompt is kept" | `test_TA4_...` | n/a | `TA4_...` | G1.10 |
 | TA5 | F three-arm-verdict: "A component equal to its prompt and better than nothing is replaced" | `test_TA5_...` | n/a | `TA5_...` | G1.10 |
 | TA6 | F three-arm-verdict: "A component equal to nothing is a delete candidate" | `test_TA6_...` | n/a | `TA6_...` | G1.10 |
-| TA7 | F three-arm-verdict: "An input the backlog does not name gives Inconclusive" | `test_TA7_...` | n/a | `TA7_...` | G1.10 |
+| TA7 | F three-arm-verdict: "A component worse than its prompt alone gives Inconclusive" | `test_TA7_...` | n/a | `TA7_...` | G1.10 |
+| TA8 | F three-arm-verdict: "A component worse than nothing is a delete candidate" | `test_TA8_...` | n/a | `TA8_...` | G1.10 |
 
 ## Side effects and world
 | ID | Feature scenarios | Python tests | TLA+ | Lean | Gate |
@@ -102,6 +103,6 @@ decides which tool covers which group. 56 IDs in total.
 | Abort records in-flight runs unusable and charges RUN_CAP | `budget-and-resume.feature` | `test_abort.py` | G3.11 |
 
 ## Coverage check
-Gate G1.6 reads the 56 contract IDs from the contract and fails if one is missing
+Gate G1.6 reads the 57 contract IDs from the contract and fails if one is missing
 from the features or the tests, or (for V, E, P, G, D, DI) from the Lean files, or
 (for L and T) from the TLA+ files. Remove an ID and the gate must fail.

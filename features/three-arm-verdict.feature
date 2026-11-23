@@ -45,20 +45,34 @@ Feature: Three-arm verdict
     When I build the three-arm verdict
     Then the verdict is "Inconclusive"
 
+  @TA8
+  Scenario: A component worse than nothing is a delete candidate
+    Given arm C has 14 of 20 runs with the violation
+    And arm P has 14 of 20 runs with the violation
+    And arm N has 3 of 20 runs with the violation
+    When I build the three-arm verdict
+    Then the verdict is "DeleteCandidate"
+
+  @TA8
+  Scenario: A clean arm N still gives insurance when the component is worse than nothing
+    Given arm C has 14 of 20 runs with the violation
+    And arm P has 14 of 20 runs with the violation
+    And arm N has 0 of 20 runs with the violation
+    When I build the three-arm verdict
+    Then the verdict is "InsuranceKeep"
+
   @TA7
-  Scenario Outline: An input the backlog does not name gives Inconclusive
-    Given the verdict of arm P against arm C is "<prompt>"
+  Scenario Outline: A component worse than its prompt alone gives Inconclusive
+    Given the verdict of arm P against arm C is "FirstLower"
     And the verdict of arm N against arm C is "<nothing>"
     And arm N is not clean
     When I build the three-arm verdict from the two verdicts
     Then the verdict is "Inconclusive"
 
     Examples:
-      | prompt       | nothing      |
-      | FirstLower   | FirstHigher  |
-      | FirstLower   | FirstLower   |
-      | FirstLower   | Inconclusive |
-      | Inconclusive | FirstLower   |
+      | nothing      |
+      | FirstHigher  |
+      | Inconclusive |
 
   @TA1
   Scenario: The function is total and deterministic

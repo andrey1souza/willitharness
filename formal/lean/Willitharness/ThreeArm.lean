@@ -21,11 +21,11 @@ def threeArmVerdict : Verdict → Verdict → Bool → ArmVerdict
   | .inconclusiveSmallN, _, _ => .inconclusive
   | _, .inconclusiveSmallN, _ => .inconclusive
   | _, _, true => .insuranceKeep
+  | _, .firstLower, false => .deleteCandidate
   | .firstHigher, _, false => .keepComponent
   | .firstLower, _, false => .inconclusive
   | .inconclusive, .firstHigher, false => .replaceWithPrompt
   | .inconclusive, .inconclusive, false => .deleteCandidate
-  | .inconclusive, .firstLower, false => .inconclusive
 
 def allArmInputs : List (Verdict × Verdict × Bool) :=
   allVerdict.flatMap fun p => allVerdict.flatMap fun n => [false, true].map fun clean => (p, n, clean)
@@ -55,10 +55,11 @@ theorem TA3_insurance_iff (p n : Verdict) (clean : Bool) :
 
 theorem TA4_keep_only_when_component_beats_prompt (p n : Verdict) (clean : Bool)
     (h : threeArmVerdict p n clean = .keepComponent) :
-    p = .firstHigher ∧ n ≠ .inconclusiveSmallN ∧ clean = false := by
+    p = .firstHigher ∧ n ≠ .inconclusiveSmallN ∧ n ≠ .firstLower ∧ clean = false := by
   cases p <;> cases n <;> cases clean <;> simp_all [threeArmVerdict]
 
-theorem TA4_keep_when_component_beats_prompt (n : Verdict) (h : n ≠ .inconclusiveSmallN) :
+theorem TA4_keep_when_component_beats_prompt (n : Verdict) (h : n ≠ .inconclusiveSmallN)
+    (h2 : n ≠ .firstLower) :
     threeArmVerdict .firstHigher n false = .keepComponent := by
   cases n <;> simp_all [threeArmVerdict]
 
@@ -75,16 +76,32 @@ theorem TA6_delete_when_equal_to_nothing :
 
 theorem TA6_delete_only_then (p n : Verdict) (clean : Bool)
     (h : threeArmVerdict p n clean = .deleteCandidate) :
-    p = .inconclusive ∧ n = .inconclusive ∧ clean = false := by
+    p ≠ .inconclusiveSmallN ∧ (n = .inconclusive ∨ n = .firstLower) ∧ clean = false := by
   cases p <;> cases n <;> cases clean <;> simp_all [threeArmVerdict]
 
-theorem TA7_component_worse_than_prompt_inconclusive (n : Verdict) (clean : Bool) :
+theorem TA7_component_worse_than_prompt_alone_inconclusive (n : Verdict) (clean : Bool)
+    (h : n ≠ .firstLower) :
+    threeArmVerdict .firstLower n clean = .inconclusive ∨
+      threeArmVerdict .firstLower n clean = .insuranceKeep := by
+  cases n <;> cases clean <;> simp_all [threeArmVerdict]
+
+theorem TA7_component_worse_than_prompt_alone_not_decided (n : Verdict) (clean : Bool)
+    (h : n ≠ .firstLower) :
     threeArmVerdict .firstLower n clean ≠ .keepComponent ∧
       threeArmVerdict .firstLower n clean ≠ .replaceWithPrompt ∧
       threeArmVerdict .firstLower n clean ≠ .deleteCandidate := by
-  cases n <;> cases clean <;> simp [threeArmVerdict]
+  cases n <;> cases clean <;> simp_all [threeArmVerdict]
 
-theorem TA7_component_worse_than_nothing_inconclusive :
-    threeArmVerdict .inconclusive .firstLower false = .inconclusive := rfl
+theorem TA7_worse_than_prompt_alone_without_insurance (n : Verdict) (h : n ≠ .firstLower) :
+    threeArmVerdict .firstLower n false = .inconclusive := by
+  cases n <;> simp_all [threeArmVerdict]
+
+theorem TA8_worse_than_nothing_delete_candidate (p : Verdict) (h : p ≠ .inconclusiveSmallN) :
+    threeArmVerdict p .firstLower false = .deleteCandidate := by
+  cases p <;> simp_all [threeArmVerdict]
+
+theorem TA8_insurance_and_small_n_come_first (p : Verdict) :
+    threeArmVerdict p .firstLower true ≠ .deleteCandidate := by
+  cases p <;> simp [threeArmVerdict]
 
 end Willitharness

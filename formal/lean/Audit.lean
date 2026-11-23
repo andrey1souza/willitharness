@@ -78,8 +78,11 @@ open Willitharness
 #print axioms TA5_replace_only_then
 #print axioms TA6_delete_when_equal_to_nothing
 #print axioms TA6_delete_only_then
-#print axioms TA7_component_worse_than_prompt_inconclusive
-#print axioms TA7_component_worse_than_nothing_inconclusive
+#print axioms TA7_component_worse_than_prompt_alone_inconclusive
+#print axioms TA7_component_worse_than_prompt_alone_not_decided
+#print axioms TA7_worse_than_prompt_alone_without_insurance
+#print axioms TA8_worse_than_nothing_delete_candidate
+#print axioms TA8_insurance_and_small_n_come_first
 #print axioms Verdict.flip_involutive
 #print axioms diffOracle_nonvacuous
 #print axioms neg_pos_iff

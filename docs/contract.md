@@ -219,11 +219,11 @@ Values: KeepComponent, ReplaceWithPrompt, DeleteCandidate, Inconclusive, Insuran
 Rule, first match wins:
 - TA2 pc or nc is InconclusiveSmallN gives Inconclusive.
 - TA3 clean gives InsuranceKeep. The report says this is a policy choice, not a measurement.
-- TA4 pc = FirstHigher gives KeepComponent.
+- TA8 nc = FirstLower (C is worse than N) gives DeleteCandidate.
+- TA4 pc = FirstHigher and nc is not FirstLower gives KeepComponent.
 - TA5 pc = Inconclusive and nc = FirstHigher gives ReplaceWithPrompt.
 - TA6 pc = Inconclusive and nc = Inconclusive gives DeleteCandidate.
-- TA7 every other input gives Inconclusive: C is worse than P, or pc = Inconclusive and
-  C is worse than N. The backlog names no verdict for these inputs.
+- TA7 pc = FirstLower and nc is not FirstLower gives Inconclusive: C is worse than P alone.
 
 ## 7. Run lifecycle (state machine)
 Plan states: Drafted, WorldValidated, ReachabilityChecked, Running, Complete,
@@ -307,7 +307,7 @@ assumed fair.
 | P1 to P4 | BDD features, property tests, Lean classification theorems |
 | G1 | BDD features, property tests, Lean definition and theorems |
 | D1 to D12 | BDD decision-table scenarios, Lean theorems |
-| TA1 to TA7 | BDD three-arm-verdict scenarios, tests, Lean theorems |
+| TA1 to TA8 | BDD three-arm-verdict scenarios, tests, Lean theorems |
 | S1, S2, W1 to W5 | BDD features, tests (S2 also by type: decision takes no side-effect input) |
 | R1 | BDD features, tests |
 | L1 to L9, T1, T2, T2a | BDD lifecycle scenarios, TLA+ invariants and properties |
@@ -396,7 +396,7 @@ spend stays under the stated cap.
 ### Changes from v0.5 to v0.6
 | Change | Caused by |
 |---|---|
-| Section 6a and IDs TA1 to TA7: one verdict from arms C, P and N, with `InsuranceKeep` as a policy choice | A component must be compared with its own text as a prompt and with nothing (backlog T67) |
+| Section 6a and IDs TA1 to TA8: one verdict from arms C, P and N, with `InsuranceKeep` as a policy choice and `DeleteCandidate` when C is worse than N | A component must be compared with its own text as a prompt and with nothing (backlog T67) |
 
 ## 12. Evidence this contract rests on
 See `docs/research/04-findings-and-corrections.md` (F1 to F19) and

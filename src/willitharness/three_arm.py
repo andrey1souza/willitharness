@@ -21,19 +21,24 @@ def arm_verdict_from(prompt_vs_component: Verdict, nothing_vs_component: Verdict
         result = ArmVerdict.INCONCLUSIVE
     elif nothing_clean:
         result = ArmVerdict.INSURANCE_KEEP
+    elif nothing_vs_component is Verdict.FIRST_LOWER:
+        result = ArmVerdict.DELETE_CANDIDATE
     elif prompt_vs_component is Verdict.FIRST_HIGHER:
         result = ArmVerdict.KEEP_COMPONENT
     elif prompt_vs_component is Verdict.FIRST_LOWER:
         result = ArmVerdict.INCONCLUSIVE
     elif nothing_vs_component is Verdict.FIRST_HIGHER:
         result = ArmVerdict.REPLACE_WITH_PROMPT
-    elif nothing_vs_component is Verdict.INCONCLUSIVE:
-        result = ArmVerdict.DELETE_CANDIDATE
     else:
-        result = ArmVerdict.INCONCLUSIVE
+        result = ArmVerdict.DELETE_CANDIDATE
     assert not small or result is ArmVerdict.INCONCLUSIVE, f"TA2 broken: small n gave {result}"
     assert result is not ArmVerdict.INSURANCE_KEEP or nothing_clean, f"TA3 broken: insurance without a clean arm N, got {result}"
-    assert result is not ArmVerdict.KEEP_COMPONENT or prompt_vs_component is Verdict.FIRST_HIGHER, f"TA4 broken: keep without C beating P, got {result}"
+    assert result is not ArmVerdict.KEEP_COMPONENT or (
+        prompt_vs_component is Verdict.FIRST_HIGHER and nothing_vs_component is not Verdict.FIRST_LOWER
+    ), f"TA4 broken: keep without C beating P, or with C worse than N, got {result}"
+    assert nothing_vs_component is not Verdict.FIRST_LOWER or small or nothing_clean or result is ArmVerdict.DELETE_CANDIDATE, (
+        f"TA8 broken: C worse than N gave {result}"
+    )
     return result
 
 
