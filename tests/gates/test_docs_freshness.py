@@ -4,7 +4,7 @@ import docs_freshness
 from files import write_tree
 
 CONTRACT = "# willitharness: domain contract (v0.5)\n\nplan CI-01 settled it. W1 to W3 was the old range.\n\n## 8. Traceability\n| ID group | Where it must appear |\n|---|---|\n| V1 to V2, W1 to W2 | BDD features, tests |\n\n## 9. Out of scope\n"
-BACKLOG = "3 tasks in dependency order (contract v0.5).\n\nSummary:\n| Milestone | Tasks | Count |\n|---|---|---|\n| M0 skeleton | T01 to T02 | 2 |\n| M1 more | T03 | 1 |\n\n## M0. Skeleton\n### T01. a\n### T02. b\n## M1. More\n### T03. c\n"
+BACKLOG = "Tasks in dependency order (contract v0.5).\n\n## M0. Skeleton\n### T01. a\n### T02. b\n## M1. More\n### T03. c\n"
 MILESTONES = "| G0.1 | cmd | out | bad |\n| G0.2 (@live) | cmd | out | bad |\n"
 ISSUES = "| ID | Gap |\n|---|---|\n| CI-01 | gap |\n| CI-02 | gap |\n"
 CLI = 'USAGE = (\n    "usage: willitharness plan check <plan.json> "\n    "| willitharness probe --agent fake|claude --runs N"\n)\n'
@@ -151,14 +151,14 @@ def test_a_not_built_marker_exempts_its_row_and_its_task_section(tmp_path):
     row = "| G0.3 | `not built (T02)` run `scripts/gates/later.sh` | out | bad |\n"
     files = {"docs/plan/07-task-backlog.md": backlog, "docs/plan/03-milestones-and-checkpoints.md": MILESTONES + row}
     assert errors_for(tmp_path, files) == [], "a marked row and a marked task section may name what does not exist"
-    assert docs_freshness.planned_lines(backlog) == {11: "T02", 13: "T03", 14: "T03"}, "the marked headings and the lines under them are planned"
+    assert docs_freshness.planned_lines(backlog) == {5: "T02", 7: "T03", 8: "T03"}, "the marked headings and the lines under them are planned"
 
 
 def test_text_after_an_unmarked_heading_is_checked(tmp_path):
     backlog = BACKLOG.replace("### T03. c", "### T03. c not built (T03)") + "## M2. Next\n- run `scripts/gates/later.sh`\n"
     errors = errors_for(tmp_path, {"docs/plan/07-task-backlog.md": backlog})
     assert len(errors) == 1 and "points at scripts/gates/later.sh" in errors[0], f"a new heading ends the planned section, got {errors}"
-    assert errors[0].startswith("docs/plan/07-task-backlog.md:15"), f"got {errors[0]}"
+    assert errors[0].startswith("docs/plan/07-task-backlog.md:9"), f"got {errors[0]}"
 
 
 def test_a_marker_without_a_task_id_or_with_an_unknown_one_is_reported(tmp_path):
@@ -171,19 +171,6 @@ def test_a_marker_without_a_task_id_or_with_an_unknown_one_is_reported(tmp_path)
 def test_a_reference_beside_the_document_and_a_glob_pass(tmp_path):
     errors = errors_for(tmp_path, {"docs/plan/README.md": "see `../contract.md`, `docs/contract.md` and `docs/*.md`\n"})
     assert errors == [], f"a relative file and a glob must pass, got {errors}"
-
-
-def test_a_summary_row_with_the_wrong_count_is_reported(tmp_path):
-    errors = errors_for(tmp_path, {"docs/plan/07-task-backlog.md": BACKLOG.replace("T01 to T02 | 2", "T01 to T02 | 3")})
-    assert any("spans 2" in error for error in errors), f"got {errors}"
-    assert any("add up to 4 tasks" in error for error in errors), f"got {errors}"
-
-
-def test_a_header_count_that_differs_from_the_headings_fails_loudly(tmp_path):
-    with pytest.raises(AssertionError, match="holds 3 task headings") as raised:
-        errors_for(tmp_path, {"docs/plan/07-task-backlog.md": BACKLOG.replace("3 tasks in", "9 tasks in")})
-    assert "says 9 tasks" in str(raised.value), f"the failure must quote the header, got {raised.value}"
-    assert raised.type is AssertionError, f"expected an assertion failure, got {raised.type}"
 
 
 @pytest.mark.parametrize("path", ["docs/research/old.md", "docs/contract-v0.1.md"])

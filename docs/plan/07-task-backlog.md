@@ -1,22 +1,9 @@
 # 07. Task backlog
 
-78 tasks in dependency order (contract v0.6). Each is a BDD story with Given, When,
+Tasks in dependency order (contract v0.6). Each is a BDD story with Given, When,
 Then acceptance, the contract IDs it covers, a gate from file 03, a size and its
 dependencies. Sizes: S under half a day, M about a day, L two or three days. A task
 is done when its gate passes with its bad input rejected.
-
-Summary:
-| Milestone | Tasks | Count |
-|---|---|---|
-| M0 skeleton | T01 to T03 | 3 |
-| M1 pure logic and formal link | T04 to T14 | 11 |
-| M2 reachability | T15 to T19 | 5 |
-| M3 runner, world, store, lifecycle | T20 to T31 | 12 |
-| M4 effect, noise, outcomes, warnings | T32 to T37 | 6 |
-| M5 guard and decision | T38 to T44 | 7 |
-| M6 side effects and report | T45 to T49 | 5 |
-| M7 formal gates | T50 | 1 |
-| Added after M7 | T51 to T78 | 28 |
 
 Golden tables referenced by name (Lean fork, not final): `decision_table.json`,
 `effect_table.json`, `probe_table.json`, `guard_table.json` in `../../formal/lean/`.
@@ -564,6 +551,13 @@ As an owner of a harness, I want `build-plan` to write the tasks and their compl
 - Given no task, then `build-plan` exits 1 with a rule and a fix, and writes nothing.
 - Given a built plan, then `plan check` and `analyze` accept it with no hand edit.
 - IDs: none. Gate: new, defined with the task. Deps: T69, T76.
+
+### T79. Stop keeping counts by hand in the plan docs (S)
+As a maintainer, I want the plan docs to hold no count that changes with every PR, so that two open PRs never conflict on a number.
+- Given the plan README, then it states no count of scenarios, feature files, gates, tasks or contract IDs.
+- Given the backlog, then its header and summary table state no task count.
+- Given a doc that still states a count, then the docs gate fails when the count is wrong.
+- IDs: none. Gate: `uv run pytest tests/gates/test_docs_freshness.py tests/gates/test_no_hand_counts.py`. Deps: none.
 
 ### T68. The probe command records its result for a plan arm (S)
 As an analyst, I want `probe` to record its result for an arm of my plan, so that `run` can start with the CLI alone.

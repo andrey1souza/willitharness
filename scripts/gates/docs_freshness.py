@@ -30,12 +30,10 @@ UNBUILT_HEADING_ID = re.compile(r"^### (T\d+)\..*not built \(\1\)", re.MULTILINE
 SOURCE_REASON = "the contract is the source of the facts, so it cannot be checked against them"
 WORLD_PREFIX = "W"
 TASK_HEADING = re.compile(r"^### T\d+\.", re.MULTILINE)
-TASK_HEADER = re.compile(r"^(\d+) tasks in dependency order", re.MULTILINE)
 MILESTONE_HEADING = re.compile(r"^## M\d+\.", re.MULTILINE)
 GATE_ROW = re.compile(r"^\| (G\d+\.\d+)( \(@live\))? \|", re.MULTILINE)
 SCENARIO_LINE = re.compile(r"^\s*Scenario(?: Outline)?:", re.MULTILINE)
 CONTRACT_VERSION = re.compile(r"^# .*\(v(\d+\.\d+)\)")
-SUMMARY_ROW = re.compile(r"^\| [^|]+ \| T(\d+)(?: to T(\d+))? \| (\d+) \|$", re.MULTILINE)
 ISSUE_NUMBER = re.compile(r"CI-(\d+)")
 ISSUE_TABLE_ROW = re.compile(r"^\| CI-(\d+) \|", re.MULTILINE)
 MAKE_TARGET = re.compile(r"^([\w-]+):", re.MULTILINE)
@@ -150,14 +148,11 @@ def contract_facts(contract_text):
 def count_facts(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     backlog = (root / BACKLOG_FILE).read_text()
-    header = TASK_HEADER.search(backlog)
-    assert header, f"{BACKLOG_FILE} has no 'N tasks in dependency order' header. Rule: the header states the task count. Fix: restore it."
     gates = GATE_ROW.findall((root / MILESTONES_FILE).read_text())
     features = sorted((root / FEATURES_DIRECTORY).glob("*.feature"))
     issue_rows = ISSUE_TABLE_ROW.findall((root / ISSUES_FILE).read_text())
-    return {
-        "task_count": int(header.group(1)),
-        "task_heading_count": len(TASK_HEADING.findall(backlog)),
+    counts = {
+        "task_count": len(TASK_HEADING.findall(backlog)),
         "milestone_count": len(MILESTONE_HEADING.findall(backlog)),
         "gate_count": len(gates),
         "live_gate_count": sum(1 for _, live in gates if live),
@@ -166,6 +161,8 @@ def count_facts(root):
         "mutant_module_count": len(list((root / MUTANT_DIRECTORY).glob("*.py"))),
         "issue_count": max(int(number) for number in issue_rows),
     }
+    assert counts["task_count"] > 0, f"{BACKLOG_FILE} holds no task headings. Rule: the task count comes from the '### Tn.' headings. Fix: restore them."
+    return counts
 
 
 def tool_facts(root):
@@ -186,10 +183,7 @@ def tool_facts(root):
 def read_facts(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     facts = {**contract_facts((root / CONTRACT_FILE).read_text()), **count_facts(root), **tool_facts(root)}
-    assert facts["task_count"] == facts["task_heading_count"], (
-        f"{BACKLOG_FILE} says {facts['task_count']} tasks but holds {facts['task_heading_count']} task headings. "
-        "Rule: the header count equals the headings. Fix: correct the header."
-    )
+    assert facts["id_count"] > 0, f"{CONTRACT_FILE} lists no contract IDs. Rule: the ID count comes from the traceability table. Fix: restore the table."
     return facts
 
 
@@ -378,25 +372,10 @@ def text_without_planned(text):
     return "\n".join(kept)
 
 
-def summary_errors(backlog_text, facts):
-    assert isinstance(backlog_text, str), f"summary_errors needs text, got {type(backlog_text).__name__}. Fix: pass the backlog."
-    assert "task_count" in facts, f"facts lack the task count, got {sorted(facts)}. Fix: pass read_facts output."
-    rows = SUMMARY_ROW.findall(backlog_text)
-    errors = []
-    for first, last, count in rows:
-        expected = int(last or first) - int(first) + 1
-        if int(count) != expected:
-            errors.append(f"{BACKLOG_FILE}: the summary row T{first} to T{last or first} says {count} tasks but spans {expected}. Rule: a row count equals its task range. Fix: correct the count.")
-    total = sum(int(count) for _, _, count in rows)
-    if total != facts["task_count"]:
-        errors.append(f"{BACKLOG_FILE}: the summary rows add up to {total} tasks but the header says {facts['task_count']}. Rule: the summary covers every task. Fix: add the missing row.")
-    return errors
-
-
 def docs_freshness_errors(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     facts = read_facts(root)
-    errors = summary_errors((root / BACKLOG_FILE).read_text(), facts)
+    errors = []
     for path in checked_documents(root):
         text = (root / path).read_text()
         errors += simple_errors(path, text, facts)
