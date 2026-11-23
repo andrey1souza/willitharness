@@ -9,6 +9,7 @@ COMMANDS_FILE = "fake-commands.txt"
 COMMANDS_VARIABLE = "CLAUDE_CODE_FAKE_COMMANDS"
 COST_VARIABLE = "CLAUDE_CODE_FAKE_COST"
 DENIED_COMMAND = "rm important.txt"
+FOLLOW_UP_COMMAND = "kill 999991 999992"
 SANDBOX_ERROR = "Error: sandbox.enabled is true but the sandbox cannot start"
 SANDBOX_EXIT_CODE = 1
 
@@ -59,7 +60,8 @@ print(json.dumps({{"type": "system", "subtype": "init", "model": "{FAKE_MODEL}"}
 outputs = []
 while commands:
     command = commands.pop(0)
-    block = {{"type": "tool_use", "name": "Bash", "input": {{"command": command}}}}
+    call_id = f"call-{{len(outputs)}}"
+    block = {{"type": "tool_use", "id": call_id, "name": "Bash", "input": {{"command": command}}}}
     print(json.dumps({{"type": "assistant", "message": {{"content": [block]}}}}))
     blocks = [
         hook_done.stderr
@@ -71,8 +73,10 @@ while commands:
     ]
     done = subprocess.CompletedProcess(command, 2, "", blocks[0]) if blocks else subprocess.run(command, shell=True, capture_output=True, text=True)
     outputs.append(done.stdout + done.stderr)
-    commands += re.findall("`([^`]+)`", blocks[0])[:1] if blocks and "follow" in behaviors else []
-    print(json.dumps({{"type": "user", "message": {{"content": [{{"type": "tool_result", "content": outputs[-1]}}]}}}}))
+    offered = re.findall("`([^`]+)`", blocks[0]) if blocks and "follow" in behaviors else []
+    commands += offered[:1]
+    commands += ["{FOLLOW_UP_COMMAND}"] if offered and "finish" in behaviors else []
+    print(json.dumps({{"type": "user", "message": {{"content": [{{"type": "tool_result", "tool_use_id": call_id, "content": outputs[-1]}}]}}}}))
 report["tool_outputs"] = outputs
 report["path"] = os.environ.get("PATH")
 report["secret_values"] = sorted(value for name, value in os.environ.items() if any(marker in name for marker in ("KEY", "TOKEN", "SECRET")))

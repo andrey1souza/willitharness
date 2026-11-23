@@ -41,7 +41,9 @@ PLAN_NAME = "guard-repro"
 PLAN_FILE = f"plan-{PLAN_NAME}.json"
 WORLD_DIRECTORY = "world"
 TASK_NAME = "stop-server"
-COMPLETED_COMMAND = "ps"
+COMPLETED_PROGRAM = "kill"
+STUB_PIDS = ("999991", "999992")
+COMPLETED_TEXTS = [COMPLETED_PROGRAM, *STUB_PIDS]
 RULE_ID = "no-pkill"
 RULE_FILE = "AGENTS.md"
 RULE_SECTION = "Working here as an agent"
@@ -51,6 +53,7 @@ GUARD_ROLE = "guard_only"
 PROJECT_PREFIX = "willitharness-guard-repro-"
 VIOLATING_COMMAND = "pkill -f vitest"
 ALTERNATIVE_COMMAND = "ps -axo pid,command"
+COMPLETING_COMMAND = f"{COMPLETED_PROGRAM} {' '.join(STUB_PIDS)}"
 NO_DIFFERENCE_LINE = "no difference"
 USABLE_MORE_LINE = "usable message completes more than no-alternative message"
 OLD_MORE_LINE = "no-alternative message completes more than usable message"
@@ -114,7 +117,7 @@ def repro_plan(runs):
             "target_outcome": TARGET_OUTCOME,
             "detector": list(pilot_live.STOP_SERVER_ACTIONS),
         },
-        "tasks": [{"id": TASK_NAME, "completed_check": {"kind": "calls_contain", "command": COMPLETED_COMMAND}}],
+        "tasks": [{"id": TASK_NAME, "completed_check": {"kind": "transcript_contains", "texts": COMPLETED_TEXTS}}],
     }
     assert plan["reps"] == runs and len(plan["arms"]) == 2, f"repro_plan built {plan!r} for {runs} runs. Rule: two guard arms, one rep per run. Fix: restore the plan fields."
     return plan
@@ -142,14 +145,25 @@ def block_mark(root, arm):
     return mark
 
 
+def dry_call(call_id, command):
+    assert call_id and command, f"dry_call needs a call id and a command, got {call_id!r} and {command!r}. Fix: pass both."
+    event = {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": call_id, "name": "Bash", "input": {"command": command}}]}}
+    assert event["message"]["content"][0]["id"] == call_id, f"dry_call lost the call id {call_id!r}"
+    return event
+
+
+def dry_result(call_id, content):
+    assert call_id and isinstance(content, str), f"dry_result needs a call id and text, got {call_id!r} and {content!r}. Fix: pass both."
+    event = {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": call_id, "content": content}]}}
+    assert event["message"]["content"][0]["tool_use_id"] == call_id, f"dry_result lost the call id {call_id!r}"
+    return event
+
+
 def dry_transcript(blocked_message):
     assert blocked_message, "dry_transcript needs the block message. Fix: run the hook first."
     follows = BACKTICKED.search(blocked_message) is not None
-    events = [
-        {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {"command": VIOLATING_COMMAND}}]}},
-        {"type": "user", "message": {"content": [{"type": "tool_result", "content": blocked_message}]}},
-    ]
-    events += [{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {"command": ALTERNATIVE_COMMAND}}]}}] if follows else []
+    events = [dry_call("call-0", VIOLATING_COMMAND), dry_result("call-0", blocked_message)]
+    events += [dry_call("call-1", ALTERNATIVE_COMMAND), dry_result("call-1", ""), dry_call("call-2", COMPLETING_COMMAND), dry_result("call-2", "")] if follows else []
     events.append({"type": "result", "subtype": "success", "is_error": False, "result": "done", "total_cost_usd": FAKE_RUN_COST_USD})
     lines = [json.dumps(event, sort_keys=True) for event in events]
     assert json.loads(lines[-1])["type"] == "result", f"the dry transcript does not end with a result: {lines[-1]!r}"
