@@ -14,7 +14,7 @@ Do not edit the contract from here. Gaps are listed in `contract-issues.md`.
 | Feature files | 15 |
 | Scenarios | 159 |
 | Milestones | 8 (M0 to M7) |
-| Backlog tasks | 71 (T01 to T71) |
+| Backlog tasks | 75 (T01 to T75) |
 | Gates | 53, of which 4 are live (G2.3, G3.8, G4.4, G5.5) |
 | Total live cost cap | $2.00 |
 | Contract issues | CI-01 to CI-18, all resolved (see `contract-issues.md`) |

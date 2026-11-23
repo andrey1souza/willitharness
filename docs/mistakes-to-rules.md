@@ -42,6 +42,7 @@ test that does not exist.
 | The `run` summary counted records, and each run has a started record and a final record, so it printed twice the number of runs. | A count of the wrong thing | `src/willitharness/cli.py`, function `run_report` | `tests/gates/test_probe_command.py::test_every_arm_probed_through_the_cli_lets_run_start` |
 | A command that reports on a harness could run its hooks, which are arbitrary code, by default. | A command that runs arbitrary code by default | `src/willitharness/load_report.py`, function `hook_line`, which runs a hook only when `--run-hooks` is passed | `tests/gates/test_load_report.py::test_G7_1_a_hook_is_not_measured_and_never_runs_by_default` |
 | A golden fixture sat in a git-ignored folder. It existed on disk and not in the commit, so every local gate passed and CI failed with six red checks. Found on PR 39. | A file that exists locally and not in CI | `no-ignored-fixtures` in `scripts/gates/repo_checks.py` | `tests/gates/test_ignored_fixtures.py::test_an_ignored_fixture_file_is_reported_with_its_path_a_rule_and_a_fix` |
+| A README row kept its not-built marker for task T70 after T70 was built. The marker check only tested that the task existed. Found while preparing the T69 change. | A doc claim that went stale when a task landed | `docs_freshness` fails a marker whose backlog entry has no marker, in `scripts/gates/docs_freshness.py` | `tests/gates/test_docs_freshness.py::test_a_marker_for_a_task_the_backlog_no_longer_marks_is_reported` |
 
 ## Mistakes with no rule yet
 

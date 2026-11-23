@@ -26,6 +26,7 @@ PLANNED_MARKER = re.compile(r"not built \((T\d+)\)")
 MALFORMED_MARKER = re.compile(r"not built(?! \(T\d+\))")
 PLANNED_HEADING = re.compile(r"^#{2,3} ")
 TASK_HEADING_ID = re.compile(r"^### (T\d+)\.", re.MULTILINE)
+UNBUILT_HEADING_ID = re.compile(r"^### (T\d+)\..*not built \(\1\)", re.MULTILINE)
 SOURCE_REASON = "the contract is the source of the facts, so it cannot be checked against them"
 WORLD_PREFIX = "W"
 TASK_HEADING = re.compile(r"^### T\d+\.", re.MULTILINE)
@@ -178,6 +179,7 @@ def tool_facts(root):
         "commands": usage_commands(usage_text((root / CLI_FILE).read_text())),
         "has_code": any((root / PACKAGE_DIRECTORY).glob("*.py")),
         "task_ids": set(TASK_HEADING_ID.findall((root / BACKLOG_FILE).read_text())),
+        "unbuilt_task_ids": set(UNBUILT_HEADING_ID.findall((root / BACKLOG_FILE).read_text())),
     }
 
 
@@ -359,7 +361,13 @@ def planned_errors(path, text, facts):
     assert "task_ids" in facts, f"facts lack the task ids, got {sorted(facts)}. Fix: pass read_facts output."
     malformed = [f"{path}:{line} says 'not built' without a task id. Rule: a planned row reads 'not built (Tnn)'. Fix: name the task." for line, _ in matches_with_lines(text, MALFORMED_MARKER)]
     unknown = [f"{path}:{line} marks a row not built for {task}, which the backlog does not hold. Rule: the marker names a real task. Fix: correct the id." for line, task in sorted(planned_lines(text).items()) if task not in facts["task_ids"] and PLANNED_MARKER.search(text.splitlines()[line - 1])]
-    return malformed + unknown
+    lines = text.splitlines()
+    stale = [
+        f"{path}:{line} marks a row not built for {task}, but the backlog entry of {task} has no 'not built ({task})' marker. Rule: a row stays marked only while its task is unbuilt. Fix: remove the marker, or mark the task in the backlog."
+        for line, task in sorted(planned_lines(text).items())
+        if PLANNED_MARKER.search(lines[line - 1]) and task in facts["task_ids"] and task not in facts["unbuilt_task_ids"]
+    ]
+    return malformed + unknown + stale
 
 
 def text_without_planned(text):

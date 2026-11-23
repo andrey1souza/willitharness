@@ -336,17 +336,27 @@ def context_text(output):
     return text
 
 
-def measured_context(root, hook, timeout_seconds):
-    assert isinstance(hook, Hook) and timeout_seconds > 0, f"measured_context needs a Hook and a positive timeout, got {hook!r} and {timeout_seconds!r}."
+def hook_output(root, hook, timeout_seconds):
+    assert isinstance(hook, Hook) and timeout_seconds > 0, f"hook_output needs a Hook and a positive timeout, got {hook!r} and {timeout_seconds!r}."
     if hook.event not in CONTEXT_EVENTS:
-        return NOT_MEASURED
+        return None
     try:
         finished = subprocess.run(hook.command, shell=True, input=sample_event(root, hook.event), capture_output=True, text=True, timeout=timeout_seconds, cwd=root, check=False)
     except (OSError, subprocess.TimeoutExpired, UnicodeDecodeError):
-        return NOT_MEASURED
+        return None
     if finished.returncode != SUCCESS_CODE:
+        return None
+    text = context_text(finished.stdout)
+    assert isinstance(text, str), f"hook_output returned {text!r}. Rule: it returns text or None."
+    return text
+
+
+def measured_context(root, hook, timeout_seconds):
+    assert isinstance(hook, Hook) and timeout_seconds > 0, f"measured_context needs a Hook and a positive timeout, got {hook!r} and {timeout_seconds!r}."
+    text = hook_output(root, hook, timeout_seconds)
+    if text is None:
         return NOT_MEASURED
-    size = f"{len(context_text(finished.stdout))} characters"
+    size = f"{len(text)} characters"
     assert size.endswith("characters"), f"measured_context returned {size!r}. Rule: a size ends with characters."
     return size
 

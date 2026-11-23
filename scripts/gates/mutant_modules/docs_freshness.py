@@ -46,4 +46,8 @@ MUTANTS = (
     ('suffixed-file-reported-twice', SOURCE, ' and not KNOWN_FILE_SUFFIX.search(token)', ''),
     ('claim-without-a-slash-collected', SOURCE, 'if "/" in token and not NOT_A_PATH', 'if not NOT_A_PATH'),
     ('runtime-folder-not-exempt-from-path-claims', SOURCE, '        if token.split("/")[0] in RUNTIME_PATHS:', '        if False:'),
+    ('stale-marker-allowed', SOURCE, 'and task not in facts["unbuilt_task_ids"]', 'and False'),
+    ('stale-marker-needs-no-task', SOURCE, 'if PLANNED_MARKER.search(lines[line - 1]) and task in facts["task_ids"]', 'if PLANNED_MARKER.search(lines[line - 1]) and False'),
+    ('unbuilt-heading-never-found', SOURCE, '"unbuilt_task_ids": set(UNBUILT_HEADING_ID.findall((root / BACKLOG_FILE).read_text())),', '"unbuilt_task_ids": set(),'),
+    ('stale-marker-rule-dropped', SOURCE, "Rule: a row stays marked only while its task is unbuilt. Fix:", "Fix:"),
 )

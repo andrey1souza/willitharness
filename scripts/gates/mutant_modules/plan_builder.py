@@ -1,0 +1,50 @@
+TESTS = (
+    'tests/gates/test_plan_builder.py',
+    'tests/gates/test_load_report.py',
+)
+
+BUILDER = 'src/willitharness/plan_builder.py'
+CLI = 'src/willitharness/cli.py'
+LOAD = 'src/willitharness/load_report.py'
+ARMS = 'src/willitharness/component_arms.py'
+
+MUTANTS = (
+    ('builder-noise-repeats-the-component', BUILDER, 'arm_entry(ARM_NOISE, f"{NOISE_ROLE_PREFIX}{ARM_NOTHING}", CHANNEL_FILE, ARM_NOTHING)', 'arm_entry(ARM_NOISE, f"{NOISE_ROLE_PREFIX}{ARM_COMPONENT}", CHANNEL_FILE, ARM_NOTHING)'),
+    ('builder-noise-has-its-own-overlay', BUILDER, 'CHANNEL_FILE, ARM_NOTHING)', 'CHANNEL_FILE)'),
+    ('builder-nothing-is-not-leave-one-out', BUILDER, 'arm_entry(ARM_NOTHING, ROLE_LEAVE_ONE_OUT, CHANNEL_FILE)', 'arm_entry(ARM_NOTHING, ROLE_RULE, CHANNEL_FILE)'),
+    ('builder-prompt-uses-the-file-channel', BUILDER, 'arm_entry(ARM_PROMPT, ROLE_RULE, CHANNEL_SYSTEM_PROMPT)', 'arm_entry(ARM_PROMPT, ROLE_RULE, CHANNEL_FILE)'),
+    ('builder-component-uses-the-prompt-channel', BUILDER, 'arm_entry(ARM_COMPONENT, ROLE_RULE, component.channel)', 'arm_entry(ARM_COMPONENT, ROLE_RULE, CHANNEL_SYSTEM_PROMPT)'),
+    ('builder-component-is-not-a-rule-arm', BUILDER, 'arm_entry(ARM_COMPONENT, ROLE_RULE, component.channel)', 'arm_entry(ARM_COMPONENT, ROLE_LEAVE_ONE_OUT, component.channel)'),
+    ('builder-placebo-always-added', BUILDER, '    if placebo:\n        entries.append', '    if True:\n        entries.append'),
+    ('builder-placebo-never-added', BUILDER, '    if placebo:\n        entries.append', '    if False:\n        entries.append'),
+    ('builder-placebo-uses-the-file-channel', BUILDER, 'arm_entry(ARM_PLACEBO, ROLE_RULE, CHANNEL_SYSTEM_PROMPT)', 'arm_entry(ARM_PLACEBO, ROLE_RULE, CHANNEL_FILE)'),
+    ('builder-filler-one-short', BUILDER, '[:length]', '[:length - 1]'),
+    ('builder-filler-too-long', BUILDER, '(length // len(FILLER_SENTENCE) + 1))[:length]', '(length // len(FILLER_SENTENCE) + 2))[:length + 1]'),
+    ('builder-filler-copies-the-text', BUILDER, 'ARM_PLACEBO: filler_text(len(component.text))}', 'ARM_PLACEBO: component.text}'),
+    ('builder-placebo-length-of-the-name', BUILDER, 'filler_text(len(component.text))', 'filler_text(len(component.name))'),
+    ('builder-prompt-gets-the-filler', BUILDER, 'texts = {ARM_PROMPT: component.text, ARM_PLACEBO: filler_text(len(component.text))}', 'texts = {ARM_PROMPT: filler_text(len(component.text)), ARM_PLACEBO: filler_text(len(component.text))}'),
+    ('builder-prompt-text-not-written', BUILDER, 'if label in texts:', 'if label in texts and label != ARM_PROMPT:'),
+    ('builder-component-overlay-not-installed', BUILDER, '        if label == ARM_COMPONENT:\n            component.install(overlay)', '        if label == ARM_COMPONENT:\n            pass'),
+    ('builder-detector-left-out-of-the-rule', BUILDER, 'DETECTOR_KEY: options.detector}', 'DETECTOR_KEY: []}'),
+    ('builder-missing-detector-accepted', BUILDER, '    if path is None:\n        raise BuildRefused(MISSING_DETECTOR)', '    if path is None:\n        return []'),
+    ('builder-bad-plan-written-anyway', BUILDER, '    try:\n        load_plan(data)\n    except PlanError as error:\n        raise BuildRefused(str(error)) from error\n', ''),
+    ('builder-overwrites-a-plan', BUILDER, '    if plan_path.exists():', '    if False:'),
+    ('builder-empty-text-accepted', BUILDER, '    if not component.text.strip():', '    if False:'),
+    ('builder-hook-runs-without-asking', BUILDER, '    if not run_hook:\n        raise BuildRefused(HOOK_NEEDS_RUN.format(event=event))', '    if False:\n        raise BuildRefused(HOOK_NEEDS_RUN.format(event=event))'),
+    ('builder-hook-takes-the-first-of-many', BUILDER, '    if len(matching) != 1:', '    if not matching:'),
+    ('builder-hook-failure-accepted', BUILDER, '    if text is None:\n        raise BuildRefused(HOOK_NO_TEXT', '    text = text or ""\n    if False:\n        raise BuildRefused(HOOK_NO_TEXT'),
+    ('builder-hook-settings-lose-the-command', BUILDER, 'group = {"hooks": [{"type": HOOK_TYPE, "command": hook.command}]}', 'group = {"hooks": [{"type": HOOK_TYPE, "command": ""}]}'),
+    ('builder-hook-matcher-dropped', BUILDER, '    if hook.matcher != NO_MATCHER:', '    if False:'),
+    ('builder-skill-body-includes-the-frontmatter', BUILDER, 'body = split_skill(read_file(project, folder / SKILL_FILE))[1]', 'body = read_file(project, folder / SKILL_FILE)'),
+    ('builder-unknown-skill-accepted', BUILDER, '    if not (project / folder / SKILL_FILE).is_file():', '    if False:'),
+    ('builder-skill-not-copied-whole', BUILDER, 'shutil.copytree(project / folder, overlay / folder)', '(overlay / folder).mkdir(parents=True)'),
+    ('builder-plan-name-ignores-the-option', BUILDER, 'options.plan_name or f"component-{component.name}"', 'f"component-{component.name}"'),
+    ('builder-budget-swapped', BUILDER, 'BUDGET_KEY: options.budget_usd,\n        "run_cap_usd": options.run_cap_usd,', 'BUDGET_KEY: options.run_cap_usd,\n        "run_cap_usd": options.budget_usd,'),
+    ('cli-skips-the-build-command', CLI, '    if command == ["build-plan"]:\n        return build_plan_command(rest)', '    if command == ["build-plan"]:\n        return EXIT_OK'),
+    ('cli-builds-a-hook-without-the-flag', CLI, 'hook_component(project, arguments.hook, arguments.run_hook)', 'hook_component(project, arguments.hook, True)'),
+    ('cli-ignores-the-placebo-option', CLI, 'arguments.run_cap_usd, arguments.placebo, arguments.name)', 'arguments.run_cap_usd, False, arguments.name)'),
+    ('cli-hides-a-refusal', CLI, '    except (BuildRefused, LoadRefused) as error:\n        print(str(error), file=sys.stderr)\n        return EXIT_DOMAIN_FAILURE', '    except (BuildRefused, LoadRefused):\n        return EXIT_OK'),
+    ('load-hook-output-keeps-a-failed-hook', LOAD, '    if finished.returncode != SUCCESS_CODE:\n        return None\n    text', '    text'),
+    ('load-hook-output-reads-other-events', LOAD, '    if hook.event not in CONTEXT_EVENTS:\n        return None\n    try:\n        finished', '    try:\n        finished'),
+    ('arms-noise-label-is-the-component', ARMS, 'ARM_NOISE = "N2"', 'ARM_NOISE = "C2"'),
+)
