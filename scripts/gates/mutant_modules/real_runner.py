@@ -7,7 +7,7 @@ MUTANTS = (
     ("rule-arm-gets-a-hook", SOURCE, "    if arm.role != ROLE_GUARD_ONLY:\n", "    if False:\n"),
     ("guard-arm-treated-as-rule-arm", SOURCE, "    if arm.role != ROLE_GUARD_ONLY:\n", "    if True:\n"),
     ("guard-rules-not-loaded-at-start", SOURCE, "        load_rules(path.parent, path.name)\n", "        pass\n"),
-    ("guard-rules-not-checked-at-start", SOURCE, "        guard_rules_file(site, arm)\n    assert all(inside", "    assert all(inside"),
+    ("guard-rules-not-checked-at-start", SOURCE, "        guard_rules_file(site, arm)\n        skill_names(site, arm)\n", "        skill_names(site, arm)\n"),
     ("guard-rules-file-of-another-name", SOURCE, "path = inside(site.root, arm.overlay) / GUARD_RULES_NAME", 'path = inside(site.root, arm.overlay) / "rules.json"'),
     ("guard-rules-not-installed-in-the-run-folder", SOURCE, "    shutil.copyfile(rules_source, installed)\n", "    installed.write_text(\"[]\")\n"),
     ("hook-names-the-source-rules", SOURCE, "    result = guard_hook_settings(installed)\n", "    result = guard_hook_settings(rules_source)\n"),
