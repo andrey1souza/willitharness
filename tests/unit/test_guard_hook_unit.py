@@ -8,7 +8,7 @@ from guard_site import RULES_FILE
 from hook_calls import PKILL_MESSAGE_START, bash_call
 
 from willitharness.guard import load_rules
-from willitharness.guard_hook import ALLOW_EXIT_CODE, BLOCK_EXIT_CODE, HOOK_TIMEOUT_SECONDS, hook_command, hook_settings, judge_call, main
+from willitharness.guard_hook import ALLOW_EXIT_CODE, BLOCK_EXIT_CODE, HOOK_TIMEOUT_SECONDS, hook_command, guard_hook_settings, judge_call, main
 
 def rules():
     return load_rules(RULES_FILE.parent, RULES_FILE.name)
@@ -65,7 +65,7 @@ def test_judge_call_agrees_with_the_exit_code_of_the_hook():
 
 def test_the_settings_hold_one_pre_tool_use_hook_for_bash_with_a_timeout(tmp_path):
     path = tmp_path / "rules.json"
-    document = json.loads(hook_settings(path, "/venv/bin/python"))
+    document = json.loads(guard_hook_settings(path, "/venv/bin/python"))
     assert document == {
         "hooks": {
             "PreToolUse": [

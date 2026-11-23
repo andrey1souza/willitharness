@@ -10,7 +10,7 @@ MUTANTS = (
     ("guard-rules-not-checked-at-start", SOURCE, "        guard_rules_file(site, arm)\n    assert all(inside", "    assert all(inside"),
     ("guard-rules-file-of-another-name", SOURCE, "path = inside(site.root, arm.overlay) / GUARD_RULES_NAME", 'path = inside(site.root, arm.overlay) / "rules.json"'),
     ("guard-rules-not-installed-in-the-run-folder", SOURCE, "    shutil.copyfile(rules_source, installed)\n", "    installed.write_text(\"[]\")\n"),
-    ("hook-names-the-source-rules", SOURCE, "    result = hook_settings(installed)\n", "    result = hook_settings(rules_source)\n"),
+    ("hook-names-the-source-rules", SOURCE, "    result = guard_hook_settings(installed)\n", "    result = guard_hook_settings(rules_source)\n"),
     ("hook-and-sandbox-settings-both-allowed", SOURCE, "    assert not (rules_source and settings), f\"a guard run got", "    assert True, f\"a guard run got"),
     ("hook-replaces-effect-settings", SOURCE, "    if rules_source is None:\n        return settings\n", "    if False:\n        return settings\n"),
     ("timeout-ignored", SOURCE, "while time.monotonic() < deadline and read_state(folder) is PlanState.RUNNING:", "while read_state(folder) is PlanState.RUNNING:"),

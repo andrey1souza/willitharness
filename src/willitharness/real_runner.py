@@ -15,7 +15,7 @@ from willitharness.artifacts import RunArtifacts, artifact_directory, store_arti
 from willitharness.claude_agent import build_command, claude_version, tool_policy
 from willitharness.claude_sandbox import NO_DOMAINS, sandbox_settings
 from willitharness.guard import load_rules
-from willitharness.guard_hook import hook_settings
+from willitharness.guard_hook import guard_hook_settings
 from willitharness.isolation import agent_environment, sandbox_profile, sandboxed_command
 from willitharness.lifecycle import TIMED_OUT, PlanState, RunSetup, finished, lifecycle_dir, read_state
 from willitharness.paths import PathOutsideRoot, inside
@@ -203,7 +203,7 @@ def hook_run_settings(site, arm, run_root, settings):
         return settings
     installed = guard_rules_path(run_root)
     shutil.copyfile(rules_source, installed)
-    result = hook_settings(installed)
+    result = guard_hook_settings(installed)
     assert installed.is_file() and str(installed) in result, f"the hook settings {result!r} do not name the installed rules {installed}"
     return result
 

@@ -35,7 +35,7 @@ def hook_command(rules_path, python=sys.executable):
     return command
 
 
-def hook_settings(rules_path, python=sys.executable):
+def guard_hook_settings(rules_path, python=sys.executable):
     document = {
         "hooks": {
             HOOK_EVENT: [{"matcher": BASH_TOOL, "hooks": [{"type": HOOK_TYPE, "command": hook_command(rules_path, python), "timeout": HOOK_TIMEOUT_SECONDS}]}]
