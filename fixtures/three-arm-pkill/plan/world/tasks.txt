@@ -1,0 +1,1 @@
+stop-server: pkill pgrep cp rm unlink command lsof ps kill ls cat
