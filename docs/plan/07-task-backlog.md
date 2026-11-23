@@ -559,12 +559,18 @@ As a maintainer, I want the plan docs to hold no count that changes with every P
 - Given a doc that still states a count, then the docs gate fails when the count is wrong.
 - IDs: none. Gate: `uv run pytest tests/gates/test_docs_freshness.py tests/gates/test_no_hand_counts.py`. Deps: none.
 
-### T80. Refuse a run whose world and plan tasks differ (S) not built (T80)
+### T80. Refuse a run whose world and plan tasks differ (S)
 As an analyst, I want `run` to refuse early when the tasks of the world and the plan differ, so that a paid run cannot end with a result that `analyze` cannot read.
 - Given a task in `world/tasks.txt` with no entry in the plan `tasks`, then `run` exits 1 before any run and names the task.
 - Given a plan task that is not in `world/tasks.txt`, then `run` exits 1 before any run and names the task.
 - Given matching tasks, then `run` starts as before.
-- IDs: none. Gate: new, defined with the task. Deps: T78.
+- IDs: none. Gate: `uv run pytest tests/unit/test_task_match_unit.py`. Deps: T78.
+
+### T81. Refuse a run of a plan with no rule (S) not built (T81)
+As an analyst, I want `run` to refuse early a plan that has no rule, so that a paid run cannot end with a result that `analyze` cannot read.
+- Given a plan with no rule, then `run` exits 1 before any run, with a rule and a fix.
+- Given a plan with a rule, then `run` starts as before.
+- IDs: none. Gate: new, defined with the task. Deps: T80.
 
 ### T68. The probe command records its result for a plan arm (S)
 As an analyst, I want `probe` to record its result for an arm of my plan, so that `run` can start with the CLI alone.

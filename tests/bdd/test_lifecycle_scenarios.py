@@ -1,9 +1,11 @@
+import json
 import math
 import re
 from dataclasses import replace
 
 from cli_runner import run_cli
-from lifecycle_site import TASK_NAME, SiteSpec, costing_runner, edit_overlay, edit_world, make_site, ready_site, reach_every_arm, run_setup, validate_site, with_budget
+from files import plant
+from lifecycle_site import STUB_COMMAND, TASK_NAME, TASK_PROMPT, SiteSpec, costing_runner, edit_overlay, edit_world, make_site, ready_site, reach_every_arm, run_setup, validate_site, with_budget
 from pytest_bdd import given, parsers, scenario, then, when
 
 from willitharness import cli
@@ -19,6 +21,9 @@ STOPPING_BUDGET = 0.05
 STOPPING_REPS = 100
 RAISED_BUDGET = 0.10
 RUN_ARGUMENTS = ["plan.json", "--agent", "fake"]
+OFF_PLAN_TASK = "restart-server"
+OFF_WORLD_TASK = "rotate-logs"
+PLAN_FILE_NAME = "plan.json"
 ROOMY_BUDGET = 1.0
 DEFAULT_COST = 0.01
 DEFAULT_RUN_CAP = 0.02
@@ -35,6 +40,16 @@ def test_no_run_starts_before_the_plan_is_running(world):
 @scenario(BUDGET_FEATURE, "Reachability must be recorded for every arm of the plan")
 def test_reachability_must_be_recorded_for_every_arm_of_the_plan(world):
     assert world["exit_code"] == 1 and "arm D" in world["message"], f"the run must fail naming arm D, got {world['exit_code']} and {world['message']!r}. Rule: L1. Fix: name the missing arm."
+
+
+@scenario(BUDGET_FEATURE, "A world task with no plan task is refused before any run")
+def test_a_world_task_with_no_plan_task_is_refused_before_any_run(world):
+    assert world["exit_code"] == 1 and OFF_PLAN_TASK in world["message"], f"the run must fail naming {OFF_PLAN_TASK}, got {world['exit_code']} and {world['message']!r}. Rule: L1. Fix: refuse a task the plan does not list."
+
+
+@scenario(BUDGET_FEATURE, "A plan task with no world task is refused before any run")
+def test_a_plan_task_with_no_world_task_is_refused_before_any_run(world):
+    assert world["exit_code"] == 1 and OFF_WORLD_TASK in world["message"], f"the run must fail naming {OFF_WORLD_TASK}, got {world['exit_code']} and {world['message']!r}. Rule: L1. Fix: refuse a task the world does not hold."
 
 
 @scenario(BUDGET_FEATURE, "A reachability result of Unknown still counts as recorded")
@@ -219,6 +234,22 @@ def reachability_for_some_arms(world, recorded, total):
         record_reachability(world["site"], arm.label, Reach.LOADED)
 
 
+@given("the world holds a task that the plan does not list")
+def world_holds_an_unlisted_task(world):
+    site = world["site"]
+    plant(site.world_dir, "tasks.txt", f"{TASK_NAME}: ls {STUB_COMMAND}\n{OFF_PLAN_TASK}: ls\n")
+    plant(site.world_dir / "prompts", f"{OFF_PLAN_TASK}.txt", TASK_PROMPT)
+    validate_site(site)
+
+
+@given("the plan lists a task that the world does not hold")
+def plan_lists_an_unheld_task(world):
+    plan_path = world["site"].root / PLAN_FILE_NAME
+    data = json.loads(plan_path.read_text())
+    data["tasks"].append({"id": OFF_WORLD_TASK, "completed_check": {"kind": "calls_contain", "command": STUB_COMMAND}})
+    plan_path.write_text(json.dumps(data))
+
+
 @given(parsers.parse('reachability is recorded as "{reach}" for every arm'))
 def reachability_for_every_arm(world, reach):
     reach_every_arm(world["site"], Reach(reach))
@@ -294,6 +325,16 @@ def the_start_is_refused(world):
 @then("no run record exists")
 def no_run_record_exists(world):
     assert world["records"] == (), f"no record may exist, got {world['records']}"
+
+
+@then("no run is stored")
+def no_run_is_stored(world):
+    assert world["runs"] == (), f"no run may be stored, got {world['runs']}"
+
+
+@then("the message names the task that differs")
+def message_names_the_task(world):
+    assert OFF_PLAN_TASK in world["message"] or OFF_WORLD_TASK in world["message"], f"the message must name the task, got {world['message']!r}"
 
 
 @then("the message names the arm with no reachability result")

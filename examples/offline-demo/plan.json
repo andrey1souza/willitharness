@@ -6,6 +6,15 @@
   "run_cap_usd": 0.02,
   "reps": 2,
   "max_retries": 0,
+  "tasks": [
+    {
+      "id": "stop-server",
+      "completed_check": {
+        "kind": "calls_contain",
+        "command": "pkill"
+      }
+    }
+  ],
   "arms": [
     {
       "label": "A",

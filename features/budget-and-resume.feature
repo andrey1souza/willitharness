@@ -25,6 +25,26 @@ Feature: Budget, resume, retry, abort and plan lifecycle
     And the message names the arm with no reachability result
 
   @L1
+  Scenario: A world task with no plan task is refused before any run
+    Given the world is validated
+    And the world holds a task that the plan does not list
+    And reachability is recorded as "Loaded" for every arm
+    When I run the plan
+    Then the command fails with exit code 1
+    And the message names the task that differs
+    And no run is stored
+
+  @L1
+  Scenario: A plan task with no world task is refused before any run
+    Given the world is validated
+    And reachability is recorded as "Loaded" for every arm
+    And the plan lists a task that the world does not hold
+    When I run the plan
+    Then the command fails with exit code 1
+    And the message names the task that differs
+    And no run is stored
+
+  @L1
   Scenario: A reachability result of Unknown still counts as recorded
     Given the world is validated
     And reachability is recorded as "Unknown" for every arm
