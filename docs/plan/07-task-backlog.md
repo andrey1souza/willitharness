@@ -486,7 +486,7 @@ As an owner of a harness, I want one verdict from three results, so that I know 
 - Given the verdict of arm P against arm C or of arm N against arm C has too few runs, then the verdict is inconclusive. Given C is worse than N, then the verdict is delete candidate. Given C is worse than P alone, then the verdict is inconclusive.
 - IDs: TA1 to TA8. Gate: G1.10. Deps: T43, T64.
 
-### T69. Plan builder for a component under test (M) not built (T69)
+### T69. Plan builder for a component under test (M)
 As an owner of a harness, I want a plan built from a skill or a hook, so that I do not write the three arms by hand.
 - Given a skill, then the plan has arm N with nothing, arm P with the body text of the skill as a rule through the `system_prompt` channel, arm C with the real skill, and a noise pair N2 that repeats arm N. Noise on arm C is not measured separately.
 - Given a hook that injects context, then arm P has the text the hook returns for a fixed sample event, and the other arms are the same.
