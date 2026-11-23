@@ -4,7 +4,7 @@ from pathlib import Path
 from willitharness.agent_line import read_agent_line
 from willitharness.analysis import Analysis, AnalysisInput, analyze_plan
 from willitharness.artifacts import RUNS_DIR, TRANSCRIPT_NAME
-from willitharness.decide_plan import RuleDecision, decision_line, rule_decisions
+from willitharness.decide_plan import RuleDecision, decidable_folder, decision_line, rule_decisions
 from willitharness.detectors import calls_of
 from willitharness.lifecycle import ANALYZE_AFTER_ABORT, FINAL_STATES, PlanState, lifecycle_dir, read_reach, read_state
 from willitharness.world_facts import world_facts
@@ -13,6 +13,7 @@ from willitharness.paths import inside
 from willitharness.plan import Plan
 from willitharness.side_effects import MIN_ARMS, side_effect_report_lines
 from willitharness.store import RunState, latest_by_run, load_records, spent
+from willitharness.three_arm_report import is_three_arm, three_arm_sections
 from willitharness.vocabulary import Decision, EffectResult, GuardResult, NoiseStatus
 from willitharness.warning_rules import SATURATED_WARNING
 
@@ -227,10 +228,25 @@ def report_input(root, plan):
     return data
 
 
+def three_arm_report_text(root, plan):
+    assert isinstance(root, Path), f"three_arm_report_text needs a Path root, got {root!r}. Fix: pass the project directory."
+    assert is_three_arm(plan), f"three_arm_report_text needs a three-arm plan, got {plan!r}. Fix: check is_three_arm first."
+    folder = lifecycle_dir(root, plan)
+    check_reportable(folder)
+    decidable_folder(root, plan)
+    records = load_records(folder)
+    summary = [f"# Report for plan {plan.name}", "", read_agent_line(root, plan), f"Total cost: ${spent(records):.2f}.", COUNTS_MEANING]
+    runs = ["## Usable runs per cell", "", *(f"{BULLET}arm {cell.arm}, task {cell.task}: {counts.runs}" for cell, counts in sorted(cell_counts(records, TARGET_OUTCOME).items()))]
+    sections = (summary, runs, *three_arm_sections(folder, plan, records), limit_lines())
+    text = "\n\n".join("\n".join(section) for section in sections) + "\n"
+    assert text.count("\n## ") >= len(sections) - 1, f"three_arm_report_text lost a section: {text!r}"
+    return text
+
+
 def build_report(root, plan):
     assert isinstance(root, Path), f"build_report needs a Path root, got {root!r}. Fix: pass the project directory."
     assert isinstance(plan, Plan), f"build_report needs a Plan, got {plan!r}. Fix: load the plan."
-    text = report_text(report_input(root, plan))
+    text = three_arm_report_text(root, plan) if is_three_arm(plan) else report_text(report_input(root, plan))
     assert text.endswith("\n") and text.startswith("# Report"), f"build_report built {text!r}"
     return text
 

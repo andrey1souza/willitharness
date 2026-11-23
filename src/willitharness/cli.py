@@ -31,6 +31,7 @@ from willitharness.lifecycle import (
 from willitharness.outcomes import AnalysisError
 from willitharness.plan import PlanError, read_plan
 from willitharness.paths import PathOutsideRoot, inside
+from willitharness.three_arm_report import is_three_arm, three_arm_decision_lines
 from willitharness.report import ReportRefused, build_report, report_location
 from willitharness.real_runner import claude_runner, system_prompt_file
 from willitharness.probe import DEFAULT_LABEL, PROMPT_TEMPLATE, ProbeRefused, check_requested_runs, parse_run, probe
@@ -294,7 +295,8 @@ def decide_plan_command(argv):
     arguments = parser.parse_args(argv)
     root = Path.cwd()
     try:
-        lines = [decision_line(item) for item in rule_decisions(root, read_plan(root, arguments.plan))]
+        plan = read_plan(root, arguments.plan)
+        lines = list(three_arm_decision_lines(root, plan)) if is_three_arm(plan) else [decision_line(item) for item in rule_decisions(root, plan)]
     except (PathOutsideRoot, PlanError, LifecycleRefused, AnalysisError, DecideRefused) as error:
         print(str(error), file=sys.stderr)
         return EXIT_DOMAIN_FAILURE

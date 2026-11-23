@@ -39,15 +39,23 @@ def rule_decision_of(row, reach):
     return RuleDecision(row.task, row.second, reach, row.effect, decide(reach, row.effect, GuardResult.GUARD_UNTESTED))
 
 
-def rule_decisions(root, plan):
-    assert isinstance(root, Path), f"rule_decisions needs a Path root, got {root!r}. Fix: pass the project directory."
-    assert isinstance(plan, Plan), f"rule_decisions needs a Plan, got {plan!r}. Fix: load the plan."
+def decidable_folder(root, plan):
+    assert isinstance(root, Path), f"decidable_folder needs a Path root, got {root!r}. Fix: pass the project directory."
+    assert isinstance(plan, Plan), f"decidable_folder needs a Plan, got {plan!r}. Fix: load the plan."
     folder = lifecycle_dir(root, plan)
     state = read_state(folder)
     if state not in ANALYZABLE:
         raise DecideRefused(STATE_REFUSAL.format(name=plan.name, state=state))
     if has_guard_arm(plan):
         raise DecideRefused(GUARD_ARM_REFUSAL.format(name=plan.name))
+    assert state in ANALYZABLE and not has_guard_arm(plan), f"decidable_folder let plan {plan.name} pass in state {state}"
+    return folder
+
+
+def rule_decisions(root, plan):
+    assert isinstance(root, Path), f"rule_decisions needs a Path root, got {root!r}. Fix: pass the project directory."
+    assert isinstance(plan, Plan), f"rule_decisions needs a Plan, got {plan!r}. Fix: load the plan."
+    folder = decidable_folder(root, plan)
     reach = read_reach(folder)
     analysis = analyze_plan(AnalysisInput(plan, load_records(folder), reach, False), False)
     rows = [row for row in analysis.rows if row.outcome == TARGET_OUTCOME]
