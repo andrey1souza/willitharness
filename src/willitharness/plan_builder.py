@@ -42,6 +42,7 @@ HOOK_TYPE = "command"
 FILLER_SENTENCE = "This sentence is filler text and holds no instruction. "
 JSON_INDENT = 2
 DETECTOR_KEY = "detector"
+TASKS_KEY = "tasks"
 RULE_KEYS_ORDER = ("id", "file", "section", "target_outcome", DETECTOR_KEY)
 
 MISSING_DETECTOR = (
@@ -49,6 +50,12 @@ MISSING_DETECTOR = (
     "Fix: pass --detector with a JSON file that holds a command name, a list of command names or an object with kind and actions."
 )
 UNREADABLE_DETECTOR = "detector file {path} is not valid JSON ({reason}). Rule: the detector file holds one JSON value. Fix: write a command name, a list of command names or an object with kind and actions."
+MISSING_TASKS = (
+    "no task file given. Rule: the plan holds the tasks and their completed check, because analyze reads the check of each task. "
+    "Fix: pass --task-file with a JSON list of tasks, each with an id and a completed_check."
+)
+UNREADABLE_TASKS = "task file {path} is not valid JSON ({reason}). Rule: the task file holds one JSON list of tasks. Fix: write a list of objects with id and completed_check."
+EMPTY_TASKS = "task file {path} holds no task. Rule: a plan needs at least one task, and the plan has no tasks without one. Fix: add a task with an id and a completed_check."
 EXISTING_PLAN = "{path} exists. Rule: a build never overwrites a plan, because runs may depend on it. Fix: pass a new --out folder."
 EMPTY_TEXT = "{owner} has no text. Rule: arm P delivers the component text through {name}, and an empty file is refused. Fix: give the component text to inject."
 HOOK_NEEDS_RUN = (
@@ -85,6 +92,7 @@ class BuildOptions:
     project: Path
     out: Path
     detector: object
+    tasks: list
     budget_usd: float
     run_cap_usd: float
     placebo: bool = False
@@ -110,6 +118,22 @@ def read_detector_file(path):
         raise BuildRefused(str(error)) from error
     assert detector is not None, f"detector file {path} holds null. Rule: a detector is a command name, a list or an object."
     return detector
+
+
+def read_task_file(path):
+    assert isinstance(path, (Path, type(None))), f"read_task_file needs a Path or None, got {path!r}. Fix: pass the --task-file value as a Path."
+    if path is None:
+        raise BuildRefused(MISSING_TASKS)
+    try:
+        tasks = json.loads(read_file(path.resolve().parent, Path(path.name)))
+    except json.JSONDecodeError as error:
+        raise BuildRefused(UNREADABLE_TASKS.format(path=path, reason=type(error).__name__)) from error
+    except LoadRefused as error:
+        raise BuildRefused(str(error)) from error
+    if not tasks:
+        raise BuildRefused(EMPTY_TASKS.format(path=path))
+    assert tasks, f"read_task_file returned {tasks!r}. Rule: a plan needs at least one task."
+    return tasks
 
 
 def skill_component(project, name):
@@ -194,6 +218,7 @@ def arm_entries(component, placebo):
 
 def component_plan_data(component, options):
     assert isinstance(options, BuildOptions), f"component_plan_data needs BuildOptions, got {options!r}. Fix: build them in the command."
+    assert options.tasks, "component_plan_data needs tasks. Rule: the plan holds the tasks and their completed check."
     rule = {"id": component.name, "file": component.file, "section": component.section, "target_outcome": TARGET_OUTCOME, DETECTOR_KEY: options.detector}
     data = {
         "schema": SCHEMA_VERSION,
@@ -203,6 +228,7 @@ def component_plan_data(component, options):
         "world": WORLD_FOLDER,
         "rule": rule,
         "arms": arm_entries(component, options.placebo),
+        TASKS_KEY: options.tasks,
     }
     assert tuple(rule) == RULE_KEYS_ORDER, f"component_plan_data built the rule {rule!r}. Rule: the rule holds the detector from the first run."
     return data
