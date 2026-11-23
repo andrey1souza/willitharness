@@ -2,7 +2,7 @@
 
 Goal: every behavior has a test that can fail, and every check is proven to fail on
 a bad input. Formal artifacts are checked against the code where it is cheap.
-Contract: v0.5.
+Contract: v0.6.
 
 ## Layers
 | Layer | What it tests | Tool | Runs offline | Gate |

@@ -1,4 +1,4 @@
-# 05. Traceability matrix (contract v0.5)
+# 05. Traceability matrix (contract v0.6)
 
 Every contract ID maps to features, tests, a TLA+ item, a Lean item and a gate.
 All cells are `planned`. Owners: features and tests belong to the plan fork's
@@ -9,7 +9,7 @@ in progress). The naming convention for formal items is the ID as a name prefix,
 for example `L9_...` or `P2_...`. Gate G1.6 checks it.
 
 Legend: F = feature file. n/a = not the right tool for this ID. Contract section 8
-decides which tool covers which group. 49 IDs in total.
+decides which tool covers which group. 56 IDs in total.
 
 ## Verdict properties and assumptions
 | ID | Feature scenarios | Python tests | TLA+ | Lean | Gate |
@@ -48,6 +48,17 @@ decides which tool covers which group. 49 IDs in total.
 | D10 | F decision-table: "ReplaceWithGuard has strict preconditions" | `test_d10` | n/a | `D10_...` | G1.4, G1.5 |
 | D11 | F decision-table: "A rule that lowers violations is never a delete candidate" | `test_d11` | n/a | `D11_...` | G1.4, G1.5 |
 | D12 | F decision-table: "A masked rule gets no verdict on its content" | `test_d12` | n/a | `D12_...` | G1.4, G1.5 |
+
+## Three-arm verdict
+| ID | Feature scenarios | Python tests | TLA+ | Lean | Gate |
+|---|---|---|---|---|---|
+| TA1 | F three-arm-verdict: "The function is total and deterministic" | `test_three_arm_unit.py::test_TA1_...`, `test_golden_tables.py::test_TA1_arms_table_conforms` | n/a | `TA1_...` totality and `arms_table.json` | G1.10 |
+| TA2 | F three-arm-verdict: "An arm with too few runs gives no verdict" | `test_TA2_...` | n/a | `TA2_...` | G1.10 |
+| TA3 | F three-arm-verdict: "Almost no violations in arm N gives insurance, as a policy choice" | `test_TA3_...` | n/a | `TA3_...` | G1.10 |
+| TA4 | F three-arm-verdict: "A component that beats its own text as a prompt is kept" | `test_TA4_...` | n/a | `TA4_...` | G1.10 |
+| TA5 | F three-arm-verdict: "A component equal to its prompt and better than nothing is replaced" | `test_TA5_...` | n/a | `TA5_...` | G1.10 |
+| TA6 | F three-arm-verdict: "A component equal to nothing is a delete candidate" | `test_TA6_...` | n/a | `TA6_...` | G1.10 |
+| TA7 | F three-arm-verdict: "An input the backlog does not name gives Inconclusive" | `test_TA7_...` | n/a | `TA7_...` | G1.10 |
 
 ## Side effects and world
 | ID | Feature scenarios | Python tests | TLA+ | Lean | Gate |
@@ -91,6 +102,6 @@ decides which tool covers which group. 49 IDs in total.
 | Abort records in-flight runs unusable and charges RUN_CAP | `budget-and-resume.feature` | `test_abort.py` | G3.11 |
 
 ## Coverage check
-Gate G1.6 reads the 49 contract IDs from the contract and fails if one is missing
+Gate G1.6 reads the 56 contract IDs from the contract and fails if one is missing
 from the features or the tests, or (for V, E, P, G, D, DI) from the Lean files, or
 (for L and T) from the TLA+ files. Remove an ID and the gate must fail.

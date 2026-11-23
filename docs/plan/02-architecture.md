@@ -2,7 +2,7 @@
 
 Language: Python 3.12 or later. The core uses the standard library only (A5).
 Dev tools: `pytest`, `hypothesis`, `behave` (or `pytest-bdd`). Formal tools:
-Java with TLC, and Lean 4 with `lake`. Contract: v0.5.
+Java with TLC, and Lean 4 with `lake`. Contract: v0.6.
 
 ## Constants (contract section 2)
 | Name | Value | Used by |
