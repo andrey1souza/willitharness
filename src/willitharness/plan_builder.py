@@ -164,7 +164,7 @@ def hook_component(project, event, run_hook):
         target = overlay / SETTINGS_FOLDER / hook.source
         target.parent.mkdir(parents=True)
         target.write_text(json.dumps(hook_settings(hook), indent=JSON_INDENT, sort_keys=True) + "\n")
-        assert hook.command in target.read_text(), f"the install of hook {event} lost its command in {target}"
+        assert json.loads(target.read_text())["hooks"][event][0]["hooks"][0]["command"] == hook.command, f"the install of hook {event} lost its command in {target}"
 
     component = Component(event, (Path(SETTINGS_FOLDER) / hook.source).as_posix(), event, CHANNEL_HOOK, text, install)
     assert component.text == text, f"hook_component changed the text of {event}"
