@@ -4,6 +4,7 @@ TESTS = (
     'tests/gates/test_data_statement.py',
     'tests/gates/test_result_detector.py',
     'tests/gates/test_home_path_check.py',
+    'tests/gates/test_ignored_fixtures.py',
 )
 
 MUTANTS = (
@@ -23,4 +24,12 @@ MUTANTS = (
     ('result-detector-not-compared', SOURCE, 'errors = [] if recorded == used else', 'errors = [] if True else'),
     ('result-detector-compared-as-a-set', SOURCE, 'errors = [] if recorded == used else', 'errors = [] if set(recorded or ()) <= set(used) else'),
     ('result-detector-check-not-registered', SOURCE, '    "result-detector": result_detector_errors,\n', ''),
+    ('ignored-fixtures-not-registered', SOURCE, '    "no-ignored-fixtures": ignored_fixture_errors,\n', ''),
+    ('ignored-fixture-folders-narrowed', SOURCE, 'FIXTURE_FOLDERS = ("tests", "fixtures", "features")', 'FIXTURE_FOLDERS = ("tests",)'),
+    ('ignored-fixture-everything-allowed', SOURCE, 'if not any(part in TOOL_CACHES for part in Path(name).parts)', 'if False'),
+    ('ignored-fixture-caches-reported', SOURCE, 'if not any(part in TOOL_CACHES for part in Path(name).parts)', 'if True'),
+    ('ignored-fixture-bytecode-cache-not-allowed', SOURCE, 'TOOL_CACHES = ("__pycache__", ".pytest_cache")', 'TOOL_CACHES = (".pytest_cache",)'),
+    ('ignored-fixtures-not-listed', SOURCE, '"--others", "--ignored", "--exclude-standard"', '"--others", "--exclude-standard"'),
+    ('ignored-fixture-rule-dropped', SOURCE, 'Rule: a file under', 'A file under'),
+    ('ignored-fixture-fix-dropped', SOURCE, 'Fix: git add -f it, or delete it.', 'Delete it.'),
 )
