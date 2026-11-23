@@ -8,7 +8,7 @@ from cli_runner import run_cli
 from lifecycle_site import SiteSpec, TASK_NAME, edit_world, make_site, ready_site, reach_every_arm, run_setup, success_transcript, validate_site
 
 from willitharness.lifecycle import Job, PlanState, begin_run, execute_plan, lifecycle_dir, record_reachability, start_running, write_state
-from willitharness.store import UNKNOWN_WORLD, Cell, latest_by_run, load_records, spent
+from willitharness.store import UNKNOWN_MODEL, UNKNOWN_WORLD, Cell, latest_by_run, load_records, spent
 from willitharness.vocabulary import Reach
 from willitharness.world import world_hash
 
@@ -97,7 +97,7 @@ def test_G3_11_the_abort_command_charges_run_cap_for_each_run_in_flight(tmp_path
     site = ready_site(tmp_path, ROOMY)
     start_running(site)
     for rep in (1, 2, 3):
-        begin_run(lifecycle_dir(site.root, site.plan), Job(Cell("A", TASK_NAME), rep, rep), UNKNOWN_WORLD)
+        begin_run(lifecycle_dir(site.root, site.plan), Job(Cell("A", TASK_NAME), rep, rep), UNKNOWN_WORLD, UNKNOWN_MODEL)
     monkeypatch.chdir(tmp_path)
     code, out, err = run_cli(capsys, ["abort", "plan.json"])
     assert code == 0, f"got {code} {err!r}"
@@ -205,3 +205,11 @@ def test_G3_4_every_run_the_run_command_records_holds_the_hash_of_the_world_file
     code, out, err = run_cli(capsys, RUN_ARGUMENTS)
     hashes = {run.world_hash for run in gate_final_runs(site)}
     assert code == 0 and hashes == {world_hash(site.world_dir)}, f"exit {code}; hashes {hashes}. Rule: T65, a claim records the hash of the files now."
+
+
+def test_T73_every_run_the_run_command_records_holds_the_model_name(tmp_path, monkeypatch, capsys):
+    site = ready_site(tmp_path, ROOMY)
+    monkeypatch.chdir(tmp_path)
+    code, out, err = run_cli(capsys, RUN_ARGUMENTS)
+    models = {run.model for run in gate_final_runs(site)}
+    assert code == 0 and models == {"fake"}, f"exit {code}; models {models}. Rule: T73, a claim records the model. Fix: pass the model name through RunSetup."

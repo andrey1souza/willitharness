@@ -1,6 +1,9 @@
+from dataclasses import replace
+
 import pytest
 from lifecycle_site import SiteSpec, costing_runner, edit_world, ready_site, run_setup, stored_final_runs, folder_of, success_transcript, validate_site
 
+from willitharness.budget import ledger_from_records
 from willitharness.lifecycle import (
     Job,
     PlanState,
@@ -9,12 +12,11 @@ from willitharness.lifecycle import (
     claim_next_job,
     conclude,
     finish_job,
-    ledger_from_records,
     read_resume,
     start_running,
 )
 from willitharness.world_facts import world_facts
-from willitharness.store import UNKNOWN_WORLD, Cell
+from willitharness.store import UNKNOWN_MODEL, UNKNOWN_WORLD, Cell, record_from_line
 from willitharness.world import HASH_LENGTH, claimed_world_hash, stored_hash, world_hash
 
 SMALL = SiteSpec(arm_count=1, budget_usd=1.0, run_cap_usd=0.02, reps=2, max_retries=1)
@@ -41,9 +43,9 @@ def concluded_after_world_edit(tmp_path, spec):
 def test_L3_a_run_id_is_never_started_twice(tmp_path):
     site = ready_site(tmp_path, SMALL)
     start_running(site)
-    begin_run(folder_of(site), Job(CELL, 1, 1), UNKNOWN_WORLD)
+    begin_run(folder_of(site), Job(CELL, 1, 1), UNKNOWN_WORLD, UNKNOWN_MODEL)
     with pytest.raises(AssertionError) as raised:
-        begin_run(folder_of(site), Job(CELL, 1, 1), UNKNOWN_WORLD)
+        begin_run(folder_of(site), Job(CELL, 1, 1), UNKNOWN_WORLD, UNKNOWN_MODEL)
     assert "run id A/stop-server/1#1 is already stored" in str(raised.value), f"got {raised.value}"
     assert "Fix: claim the next attempt with claim_next_job" in str(raised.value), f"the message must name the fix, got {raised.value}"
     assert [run.run_id for run in stored_final_runs(site)] == ["A/stop-server/1#1"], "the refused start must store nothing"
@@ -104,7 +106,7 @@ def test_T65_the_world_facts_name_the_validated_hash_a_run_left(tmp_path):
     site = ready_site(tmp_path, SMALL)
     start_running(site)
     edit_world(site)
-    begin_run(folder_of(site), Job(CELL, 1, 1), claimed_world_hash(site.world_dir))
+    begin_run(folder_of(site), Job(CELL, 1, 1), claimed_world_hash(site.world_dir), UNKNOWN_MODEL)
     facts = world_facts(site.root, site.plan)
     left = stored_final_runs(site)[0].world_hash
     assert facts.validated_hash == stored_hash(site.root, site.world_dir) and left != facts.validated_hash, f"got {facts} and a run in {left}"
@@ -122,3 +124,17 @@ def test_T65_conclude_records_whether_the_plan_ended_in_a_changed_world(tmp_path
     assert ended is PlanState.COMPLETE, f"one rep done, nothing pending, got {ended}"
     assert read_resume(folder_of(site)).ended_in_changed_world is expected, f"got {read_resume(folder_of(site))}. Rule: T65, a plan that ended in a changed world says so."
     assert world_facts(site.root, site.plan).ended_in_changed_world is expected, f"world_facts must carry the stored fact {expected}, got {world_facts(site.root, site.plan)}"
+
+
+def test_T73_a_claim_stores_the_model_of_the_run_setup(tmp_path):
+    site = ready_site(tmp_path, SMALL)
+    start_running(site)
+    context = ledgered_context(site)
+    claim_next_job(RunContext(replace(context.setup, model="sonnet"), context.runner, context.ledger))
+    models = {run.model for run in stored_final_runs(site)}
+    assert models == {"sonnet"}, f"got {models}. Rule: T73, a claim stores the model. Fix: pass setup.model to begin_run."
+
+
+def test_T73_a_record_written_before_T73_loads_with_no_model():
+    old_line = '{"arm": "B", "attempt": 1, "cost_usd": 0.0, "denials": 0, "outcome": {}, "rep": 1, "run_id": "B/t/1#1", "state": "Started", "task": "t", "usable": {}, "world_hash": "aa"}'
+    assert record_from_line(old_line).model == UNKNOWN_MODEL, "an old line has no model and still loads"

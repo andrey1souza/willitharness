@@ -220,6 +220,13 @@ def run_report(site, state):
     return codes.get(state, EXIT_DOMAIN_FAILURE)
 
 
+def run_model(arguments, setup_runners):
+    assert arguments.agent, f"run_model needs the parsed run arguments, got {arguments!r}. Fix: parse them first."
+    model = arguments.model if arguments.agent in setup_runners else arguments.agent
+    assert model, f"run_model found no model for agent {arguments.agent!r}. Rule: T73, every run records a model name. Fix: pass --model with a name."
+    return model
+
+
 def run_plan_command(argv, runners, setup_runners):
     assert isinstance(argv, list), f"run_plan_command needs a list of arguments, got {argv!r}. Fix: pass the arguments after run."
     assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
@@ -234,7 +241,7 @@ def run_plan_command(argv, runners, setup_runners):
         tasks = tuple(sorted(task_commands(site.world_dir)))
         if not tasks:
             raise WorldError(NO_TASKS)
-        setup = RunSetup(site, tasks, arguments.timeout_seconds)
+        setup = RunSetup(site, tasks, arguments.timeout_seconds, run_model(arguments, setup_runners))
         runner = runners[arguments.agent] if arguments.agent in runners else setup_runners[arguments.agent](setup, arguments.model)
         resume_if_stopped(site)
         state = execute_plan(setup, runner)

@@ -168,7 +168,7 @@ def test_the_runner_records_the_claude_version_in_the_plan_folder(tmp_path, monk
     site = prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok")
     claude_runner(run_setup(site), "haiku")
     record = json.loads((site.root / ".willitharness" / "demo" / "agent.json").read_text())
-    assert record == {"claude_version": FAKE_VERSION}, f"the version record is {record}"
+    assert record == {"claude_version": FAKE_VERSION, "model": "haiku"}, f"the agent record is {record}. Rule: T73, agent.json holds the model next to the version. Fix: pass the model to record_agent_version."
 
 
 def test_run_exits_three_with_a_fix_and_no_run_record_when_claude_is_not_on_path(tmp_path, monkeypatch, capsys):

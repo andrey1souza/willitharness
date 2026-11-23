@@ -5,6 +5,7 @@ from hypothesis import strategies as st
 from lifecycle_site import SiteSpec, costing_runner, make_site, run_setup, success_transcript, validate_site
 
 from files import plant
+from willitharness.budget import ledger_from_records
 from willitharness.lifecycle import (
     TIMED_OUT,
     LifecycleRefused,
@@ -16,7 +17,6 @@ from willitharness.lifecycle import (
     analyze_gate,
     finish_job,
     finished,
-    ledger_from_records,
     lifecycle_dir,
     read_resume,
     read_state,

@@ -1,11 +1,10 @@
 import json
 import threading
 from dataclasses import asdict, dataclass, replace
-from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
 
-from willitharness.budget import Ledger, abort_records, budget_allows_start, capped_record, timed_out_record, to_money
+from willitharness.budget import Ledger, abort_records, budget_allows_start, capped_record, ledger_from_records, timed_out_record, to_money
 from willitharness.claude_agent import transcript_cost
 from willitharness.detectors import Evidence, judge
 from willitharness.outcomes import COMPLETED_OUTCOME, TARGET_OUTCOME
@@ -13,6 +12,7 @@ from willitharness.paths import inside
 from willitharness.plan import Plan, plan_fingerprint
 from willitharness.store import (
     EMPTY_COUNTERS,
+    UNKNOWN_MODEL,
     Cell,
     Record,
     RunState,
@@ -100,6 +100,7 @@ class RunSetup:
     site: PlanSite
     tasks: tuple[str, ...]
     timeout_seconds: float
+    model: str = UNKNOWN_MODEL
 
 
 @dataclass(frozen=True)
@@ -269,19 +270,19 @@ def start_running(site):
     return running
 
 
-def started_record(job, world_hash):
+def started_record(job, world_hash, model):
     assert isinstance(job, Job), f"started_record needs a Job, got {job!r}. Fix: build the job with Job(cell, rep, attempt)."
-    record = Record(run_id_of(job.cell, job.rep, job.attempt), job.cell.arm, job.cell.task, job.rep, job.attempt, RunState.STARTED, {}, 0.0, world_hash=world_hash)
+    record = Record(run_id_of(job.cell, job.rep, job.attempt), job.cell.arm, job.cell.task, job.rep, job.attempt, RunState.STARTED, {}, 0.0, world_hash=world_hash, model=model)
     assert record.state is RunState.STARTED, f"a new run is {record.state}. Rule: a run begins Started."
     return record
 
 
-def begin_run(folder, job, world_hash):
+def begin_run(folder, job, world_hash, model):
     state = read_state(folder)
     if state is not PlanState.RUNNING:
         raise LifecycleRefused(f"plan is {state}; a run starts only while the plan is Running. Rule: L1. Fix: run willitharness run first.")
     assert isinstance(folder, Path), f"begin_run needs the plan folder as a Path, got {folder!r}. Fix: use lifecycle_dir."
-    record = started_record(job, world_hash)
+    record = started_record(job, world_hash, model)
     already = latest_by_run(load_records(folder)).get(record.run_id)
     assert already is None, f"run id {record.run_id} is already stored as {already!r}. Rule: L3 and L9, a (cell, rep, attempt) id is recorded once as Started. Fix: claim the next attempt with claim_next_job."
     append_record(folder, record)
@@ -289,23 +290,6 @@ def begin_run(folder, job, world_hash):
     assert stored == record, f"{record.run_id} is stored as {stored!r}, expected {record!r}. Rule: a Started run is stored as written."
     assert stored.state is RunState.STARTED, f"{record.run_id} is stored as {stored.state}. Rule: a new run begins Started."
     return record
-
-
-def money_spent(records):
-    assert isinstance(records, tuple), f"money_spent needs a tuple of records, got {type(records).__name__}. Fix: pass load_records output."
-    total = sum((to_money(run.cost_usd) for run in latest_by_run(records).values() if run.state is not RunState.STARTED), Decimal(0))
-    assert total >= 0, f"money_spent is {total}. Rule: a cost is never negative."
-    return total
-
-
-def ledger_from_records(plan, records):
-    assert isinstance(plan, Plan), f"ledger_from_records needs a Plan, got {plan!r}. Fix: load the plan."
-    assert isinstance(records, tuple), f"ledger_from_records needs a tuple of records, got {type(records).__name__}. Fix: pass load_records output."
-    ledger = Ledger(plan.budget_usd, plan.run_cap_usd)
-    ledger.spent = money_spent(records)
-    ledger.reserved = ledger.run_cap * len(in_flight_runs(records))
-    assert ledger.spent + ledger.reserved >= 0, f"the ledger holds {ledger.spent} spent and {ledger.reserved} reserved. Rule: amounts are never negative."
-    return ledger
 
 
 def claim_next_job(context):
@@ -323,7 +307,7 @@ def claim_next_job(context):
             return None
         seen = cell_counters(records).get(cell, EMPTY_COUNTERS)
         job = Job(cell, seen.usable + seen.in_flight + 1, seen.attempts + 1)
-        begin_run(folder, job, claimed_world_hash(site.world_dir))
+        begin_run(folder, job, claimed_world_hash(site.world_dir), context.setup.model)
         assert context.ledger.spent + context.ledger.reserved <= context.ledger.budget, f"L2 broken after claiming {job}"
         assert job.attempt <= site.plan.reps + site.plan.max_retries, f"L9 broken: {job} is past reps plus max_retries. Fix: claim only what runs_to_start allows."
         return job

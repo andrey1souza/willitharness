@@ -12,6 +12,7 @@ APPEND_MODE = "a"
 RUNS_FILE_NAME = "runs.jsonl"
 EMPTY_LINE = ""
 UNKNOWN_WORLD = ""
+UNKNOWN_MODEL = ""
 
 
 class StoreError(Exception):
@@ -42,6 +43,7 @@ class Record:
     outcome: dict = field(default_factory=dict)
     denials: int = 0
     world_hash: str = UNKNOWN_WORLD
+    model: str = UNKNOWN_MODEL
 
 
 @dataclass(frozen=True)

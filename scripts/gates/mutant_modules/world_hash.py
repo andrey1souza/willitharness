@@ -14,9 +14,9 @@ WORLD = 'src/willitharness/world.py'
 FACTS = 'src/willitharness/world_facts.py'
 
 MUTANTS = (
-    ('claim-stores-no-world-hash', SOURCE, 'begin_run(folder, job, claimed_world_hash(site.world_dir))', 'begin_run(folder, job, UNKNOWN_WORLD)'),
+    ('claim-stores-no-world-hash', SOURCE, 'begin_run(folder, job, claimed_world_hash(site.world_dir), context.setup.model)', 'begin_run(folder, job, UNKNOWN_WORLD, context.setup.model)'),
     ('claim-stores-the-validated-hash-not-the-files', WORLD, '    current = world_hash(world_dir)', '    current = stored_hash(world_dir.parent, world_dir)'),
-    ('begin-run-drops-the-world-hash', SOURCE, 'RunState.STARTED, {}, 0.0, world_hash=world_hash)', 'RunState.STARTED, {}, 0.0)'),
+    ('begin-run-drops-the-world-hash', SOURCE, 'RunState.STARTED, {}, 0.0, world_hash=world_hash, model=model)', 'RunState.STARTED, {}, 0.0, model=model)'),
     ('world-warning-needs-three-worlds', WARNINGS, 'if len(hashes) > 1]', 'if len(hashes) > 2]'),
     ('world-warning-counts-unknown-worlds', WARNINGS, '        if run.world_hash != UNKNOWN_WORLD:\n', '        if True:\n'),
     ('world-warning-pools-all-cells', WARNINGS, 'worlds[(run.arm, run.task)].add(run.world_hash)', 'worlds[("", "")].add(run.world_hash)'),
