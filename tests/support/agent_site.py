@@ -3,6 +3,7 @@ from dataclasses import replace
 
 from fake_claude import ESCAPE_TARGET_FILE, SECRET_VARIABLE, install_fake_claude
 from files import write_tree
+from guard_site import RULES_FILE
 from lifecycle_site import SiteSpec, TASK_NAME, ready_site, run_setup
 
 from willitharness.lifecycle import start_running
@@ -14,6 +15,7 @@ TWO_RUNS = SiteSpec(arm_count=1, budget_usd=1.0, run_cap_usd=0.02, reps=2, max_r
 CELL = Cell("A", TASK_NAME)
 OVERLAY_NAME = "A.md"
 SECRET_MARKERS = ("KEY", "TOKEN", "SECRET")
+GUARD_RULES_NAME = "guard-rules.json"
 
 
 def install_fake_agent_environment(tmp_path, monkeypatch):
@@ -50,7 +52,14 @@ def add_overlay_file(site, name, text):
     return site
 
 
+def add_guard_rules(site):
+    add_overlay_file(site, GUARD_RULES_NAME, RULES_FILE.read_text())
+    assert (site.root / OVERLAY_NAME / GUARD_RULES_NAME).stat().st_size > 0, "the guard rules file is empty"
+    return site
+
+
 def guard_site(site):
+    add_guard_rules(site)
     guard = replace(site.plan.arms[0], role="guard_only")
     guarded = replace(site, plan=replace(site.plan, arms=(guard,)))
     assert guarded.plan.arms[0].role == "guard_only", f"the arm is {guarded.plan.arms[0].role}, not guard_only"

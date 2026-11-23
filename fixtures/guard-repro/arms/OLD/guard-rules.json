@@ -1,0 +1,19 @@
+[
+  {
+    "name": "pkill",
+    "message": "Blocked by guard (pkill): never use pkill or pgrep -f; record each PID you start and kill only those PIDs",
+    "offered_alternatives": [],
+    "blocked": [
+      {
+        "program": "pkill",
+        "equivalent_markers": [
+          "os.kill"
+        ]
+      },
+      {
+        "program": "pgrep",
+        "flag_pattern": "-[a-zA-Z]*f[a-zA-Z]*|--full"
+      }
+    ]
+  }
+]

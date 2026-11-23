@@ -296,10 +296,12 @@ As a user, I want one command that prints the decision, so that I act on it.
 - Given a finished plan, when I run `willitharness decide plan.json`, then it prints one decision line for each task and rule.
 - IDs: D1 to D12. Gate: G5.4. Deps: T09, T34, T40.
 
-### T44. Live reproduction of the guard message effect (M) not built (T44)
+### T44. Live reproduction of the guard message effect (M)
 As a user, I want the tool to reproduce the guard-message finding, so that Q3 is trusted.
 - Given the `pkill` task and two message versions, when I run `scripts/gates/guard_repro.sh` with 10 runs per version, then the usable message completes more runs, at a cost of $0.50 or less.
 - Given the same message in both arms, then it prints `no difference` and exits 1.
+- Given an arm with role `guard_only`, then the runner passes a `PreToolUse` hook for Bash through `--settings`. The hook blocks with the message of `guard-rules.json` in the overlay. The file never enters the workspace.
+- Given `--dry`, then the script runs the same hook with a scripted agent, starts no `claude` and prints no gate line.
 - IDs: G1. Gate: G5.5 (@live). Deps: T37, T39, T40, T41.
 
 ## M6. Side effects and report

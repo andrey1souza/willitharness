@@ -1,0 +1,35 @@
+PLATFORM = "darwin"
+TESTS = ("tests/gates/test_guard_repro_dry.py", "tests/gates/test_guard_repro_live_path.py",)
+SOURCE = "scripts/gates/guard_repro.py"
+
+MUTANTS = (
+    ("cost-cap-raised", SOURCE, "COST_CAP_USD = 0.50", "COST_CAP_USD = 0.60"),
+    ("run-cap-raised", SOURCE, "RUN_CAP_USD = 0.02", "RUN_CAP_USD = 0.03"),
+    ("default-runs-changed", SOURCE, "DEFAULT_RUNS = 10", "DEFAULT_RUNS = 5"),
+    ("refusal-code-changed", SOURCE, "EXIT_REFUSED = 2", "EXIT_REFUSED = 1"),
+    ("zero-runs-accepted", SOURCE, "    if runs < 1:\n", "    if runs < 0:\n"),
+    ("retries-allowed", SOURCE, '"max_retries": 0,', '"max_retries": 1,'),
+    ("arms-are-rule-arms", SOURCE, 'GUARD_ROLE = "guard_only"', 'GUARD_ROLE = "rule"'),
+    ("completed-check-is-kill", SOURCE, 'COMPLETED_COMMAND = "ps"', 'COMPLETED_COMMAND = "kill"'),
+    ("same-message-not-copied", SOURCE, "    if same_message:\n        shutil.copyfile", "    if False:\n        shutil.copyfile"),
+    ("hook-proof-dropped", SOURCE, "if blocked[label] == 0]", "if blocked[label] == -1]"),
+    ("verdict-arms-swapped", SOURCE, "verdict = verdict_of(usable, old)", "verdict = verdict_of(old, usable)"),
+    ("same-message-may-pass", SOURCE, "and cost <= COST_CAP_USD and not same_message", "and cost <= COST_CAP_USD"),
+    ("cost-cap-ignored", SOURCE, "and hook_proven and cost <= COST_CAP_USD", "and hook_proven"),
+    ("unproven-hook-may-pass", SOURCE, "line == USABLE_MORE_LINE and hook_proven and", "line == USABLE_MORE_LINE and"),
+    ("no-difference-may-pass", SOURCE, "reproduced = line == USABLE_MORE_LINE and", "reproduced = line != OLD_MORE_LINE and"),
+    ("same-message-difference-hidden", SOURCE, "line = SAME_MESSAGE_DIFFERS_LINE if decisive else NO_DIFFERENCE_LINE", "line = NO_DIFFERENCE_LINE"),
+    ("block-mark-is-the-whole-message", SOURCE, 'mark = message.split(":", 1)[0]', "mark = message"),
+    ("blocks-not-counted", SOURCE, "tally[cell.arm] += any(marks[cell.arm] in line for line in result.transcript)", "tally[cell.arm] += 0"),
+    ("blocks-counted-in-every-run", SOURCE, "tally[cell.arm] += any(marks[cell.arm] in line for line in result.transcript)", "tally[cell.arm] += 1"),
+    ("reachability-not-recorded", SOURCE, "        record_reachability(site, label, Reach.LOADED)\n", "        pass\n"),
+    ("artifacts-not-kept", SOURCE, "if destination is not None else None", "if False else None"),
+    ("dry-agent-always-follows", SOURCE, "follows = BACKTICKED.search(blocked_message) is not None", "follows = True"),
+    ("dry-agent-never-follows", SOURCE, "follows = BACKTICKED.search(blocked_message) is not None", "follows = False"),
+    ("dry-agent-attempts-an-allowed-command", SOURCE, 'VIOLATING_COMMAND = "pkill -f vitest"', 'VIOLATING_COMMAND = "ls"'),
+    ("dry-flag-ignored", SOURCE, "factory = dry_runner if arguments.dry else runner_factory", "factory = runner_factory"),
+    ("pass-line-in-a-dry-run", SOURCE, "    if arguments.dry:\n        print(DRY_LINE)\n        return code\n", ""),
+    ("pass-line-on-failure", SOURCE, "print(PASS_LINE if code == EXIT_PASSED else NOT_PROVEN_LINE)", "print(PASS_LINE)"),
+    ("budget-above-the-worst-case", SOURCE, '"budget_usd": pilot_live.worst_case_usd(2, runs, RUN_CAP_USD),', '"budget_usd": 1.0,'),
+    ("plan-reps-ignore-runs", SOURCE, '"reps": runs,', '"reps": 5,'),
+)

@@ -6,7 +6,7 @@ from dataclasses import replace
 
 import pytest
 
-from agent_site import CELL, ONE_RUN, OVERLAY_NAME, add_overlay_file, guard_site, install_fake_agent_environment, prepare_project_with_fake_agent, run_one
+from agent_site import CELL, ONE_RUN, OVERLAY_NAME, add_guard_rules, add_overlay_file, guard_site, install_fake_agent_environment, prepare_project_with_fake_agent, run_one
 from cli_runner import run_cli
 from fake_claude import DENIED_COMMAND, FAKE_VERSION, report_of
 from files import write_tree
@@ -63,7 +63,7 @@ def test_an_effect_run_keeps_every_isolation_flag(tmp_path, monkeypatch):
 
 
 def test_a_guard_only_arm_gives_its_own_run_bash_write_and_edit(tmp_path, monkeypatch):
-    site = prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok")
+    site = add_guard_rules(prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok"))
     guard = replace(site.plan.arms[0], role="guard_only")
     arguments = report_of(run_one(replace(site, plan=replace(site.plan, arms=(guard,)))).transcript)["arguments"]
     assert flag_value(arguments, "--tools") == "Bash,Write,Edit", f"a guard run must have Bash, Write and Edit, got {arguments}"
@@ -71,7 +71,7 @@ def test_a_guard_only_arm_gives_its_own_run_bash_write_and_edit(tmp_path, monkey
 
 
 def test_a_plan_with_a_guard_arm_gives_every_arm_the_guard_tools(tmp_path, monkeypatch):
-    site = prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok")
+    site = add_guard_rules(prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok"))
     guard = replace(site.plan.arms[0], label="B", role="guard_only")
     plan = replace(site.plan, arms=(site.plan.arms[0], guard))
     two_arms = replace(site, plan=plan)
@@ -249,6 +249,7 @@ def test_the_agent_sees_no_scaffolding_in_its_working_directory(tmp_path, monkey
 def test_a_guard_run_cannot_write_into_the_wrapper_folder_or_beside_the_calls_log(tmp_path, monkeypatch):
     attacks = f'echo x >> "{WRAPPER_FOLDER}/pkill"; echo status=$?\necho x > "{WRAPPER_FOLDER}/planted"; echo status=$?\necho x > "{WRAPPER_FOLDER}/../planted"; echo status=$?\npkill\n'
     site = guard_site(prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "tools"))
+    add_overlay_file(site, "guard-rules.json", json.dumps([{"name": "rm", "message": "Blocked by guard (rm): use `unlink PATH`", "blocked": [{"program": "rm"}]}]))
     add_overlay_file(site, "fake-commands.txt", attacks)
     result = run_one(site)
     outputs = report_of(result.transcript)["tool_outputs"]

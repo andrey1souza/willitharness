@@ -114,6 +114,34 @@ Feature: Guard test
       | pkill is not allowed; list the processes with `ps -axo pid,command`, then run `kill PID...` | accepted |
       | bare cp and rm are aliased; use `command cp -f SOURCE TARGET` and `unlink PATH`             | accepted |
 
+  @G1 @Q3
+  Scenario: A guard arm blocks a violating command through a hook and the agent reads the message
+    Given a guard-only arm whose rules block "pkill"
+    When the hook judges the command "pkill -f vitest"
+    Then the hook exits with code 2
+    And the hook message starts with "Blocked by guard (pkill)"
+
+  @G1 @Q3
+  Scenario: A hook lets an allowed command through without a word
+    Given a guard-only arm whose rules block "pkill"
+    When the hook judges the command "ls -la"
+    Then the hook exits with code 0
+    And the hook message is empty
+
+  @G1 @Q3
+  Scenario: A hook that cannot read its tool call blocks it
+    Given a guard-only arm whose rules block "pkill"
+    When the hook reads the text "not json"
+    Then the hook exits with code 2
+    And the hook message states a rule and a fix
+
+  @G1 @Q3
+  Scenario: Two guard arms with the same message print no difference
+    Given two guard-only arms that carry the same block message
+    When I run the guard repro in dry mode
+    Then the output has the line "no difference"
+    And the exit code is 1
+
   @G1 @Q3 @live
   Scenario: The message fix reproduces on haiku
     Given the pilot "pkill" task and a guard-only arm
