@@ -3,7 +3,7 @@
 `willitharness` checks whether the rules you write for a coding agent work.
 This folder holds the plan to build v0.
 
-Source of truth: `../contract.md` (v0.6). Version v0.1 is kept as
+Source of truth: `../contract.md` (v0.7). Version v0.1 is kept as
 `../contract-v0.1.md`. Every ID in this plan comes from the contract.
 Do not edit the contract from here. Gaps are listed in `contract-issues.md`.
 

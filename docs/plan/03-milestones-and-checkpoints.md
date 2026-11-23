@@ -2,7 +2,7 @@
 
 Eight milestones in dependency order: M0 to M7. Every milestone has a goal, the
 scenarios it turns green, executable gates, a cost cap and exit criteria.
-Contract: v0.6 (57 IDs).
+Contract: v0.7 (66 IDs).
 
 ## How a gate works
 - A gate is a command with an expected output.
@@ -48,7 +48,7 @@ session data.
 
 ## M1. Pure logic: verdict, effect, decision, constants, formal link
 Goal: the pure functions, proven by tests and linked to the TLA+ and Lean artifacts.
-Scenarios: `verdict-engine.feature`, `decision-table.feature`, `three-arm-verdict.feature`.
+Scenarios: `verdict-engine.feature`, `decision-table.feature`, `three-arm-verdict.feature`, `placebo-verdict.feature`.
 
 | Gate | Command | Expected output | Bad input |
 |---|---|---|---|
@@ -57,17 +57,18 @@ Scenarios: `verdict-engine.feature`, `decision-table.feature`, `three-arm-verdic
 | G1.3 | `uv run python scripts/gates/mutants.py all` | `mutants killed: 8/8` | with the tests directory emptied the script prints `mutants killed: 0/8` and exits 1 |
 | G1.4 | `uv run pytest tests/unit/test_decision_unit.py` | all pass: 45 combinations, D1 to D12 | a table with D1 broken (Masked and RuleLowersViolations gives Keep) fails |
 | G1.5 | `uv run pytest tests/golden/test_golden_tables.py` | `decision table conforms: 45 cases` | a JSON copy with one decision changed exits 1 with `mismatch for (Masked, Invalid, GuardWorse): lean=FixLoading python=Keep` |
-| G1.6 | `uv run python scripts/gates/trace_check.py` | `trace-check: all 57 IDs covered` | a features copy with S2 removed exits 1 with `trace-check: missing S2 in features` |
+| G1.6 | `uv run python scripts/gates/trace_check.py` | `trace-check: all 66 IDs covered` | a features copy with S2 removed exits 1 with `trace-check: missing S2 in features` |
 | G1.7 | `uv run pytest tests/unit/test_effect_unit.py tests/unit/test_noise_unit.py` | all pass: E1 over 3 noise statuses x 4 verdicts (12 cases); only NoiseOk gives an effect other than Invalid; NoiseStatus rules (V6) | a mutant that maps NoiseFloorTooHigh and FirstHigher to RuleLowersViolations fails |
 | G1.8 | `uv run pytest tests/unit/test_plan_unit.py` and `uv run willitharness plan check fixtures/plans/bad-noise-pair.json` | tests pass: DEFAULT_REPS 20, MAX_RETRIES 2, MIN_PROBE_RUNS 3; the plan check rejects a noise repeat of a non-LOO arm | the bad plan exits 1 with `noise pair must repeat the LOO arm C; B2 repeats B` (this is the proof the gate can fail) |
 | G1.9 | `uv run pytest tests/golden/test_golden_tables.py` | `effect table conforms: <N> cases` | a copy with one effect result changed exits 1 naming the case |
 | G1.10 | `uv run pytest tests/unit/test_three_arm_unit.py tests/golden/test_golden_tables.py` | all pass: TA1 to TA8 over 32 inputs; `arms table conforms: 32 cases` | a mutant in `scripts/gates/mutant_modules/three_arm.py` that never gives insurance fails |
+| G1.11 | `uv run pytest tests/unit/test_placebo_unit.py tests/golden/test_golden_tables.py` | all pass: PB1 to PB8 over 128 inputs; `placebo table conforms: 128 cases` | a mutant in `scripts/gates/mutant_modules/placebo.py` that never gives no room fails |
 
 DI-1 and DI-2 are assumptions on the difference interval. G1.1 tests them on the
 implementation: `lo <= hi`, and the swap negates and reverses the interval within
 1e-9.
-Exit criteria: features green; G1.1 to G1.10 pass with their bad inputs rejected; the
-57 contract IDs appear in features and tests; the TLA+ and Lean artifacts exist
+Exit criteria: features green; G1.1 to G1.11 pass with their bad inputs rejected; the
+66 contract IDs appear in features and tests; the TLA+ and Lean artifacts exist
 (owned by their forks).
 
 ## M2. Reachability
@@ -149,7 +150,7 @@ the table for all 45 inputs.
 
 ## M6. Side effects and report
 Goal: Q4 (S1, S2) and the deterministic report.
-Scenarios: `side-effects.feature`, `report.feature`, `three-arm-report.feature`.
+Scenarios: `side-effects.feature`, `report.feature`, `three-arm-report.feature`, `placebo-verdict.feature`.
 
 | Gate | Command | Expected output | Bad input |
 |---|---|---|---|
@@ -159,6 +160,7 @@ Scenarios: `side-effects.feature`, `report.feature`, `three-arm-report.feature`.
 | G6.4 | `uv run pytest tests/gates/test_full_plan_end_to_end.py` | the fake-agent plan goes from Drafted to Analyzed and the report holds the decision for the rule | a mutant that skips analysis makes the report command refuse (exit 1) and the test fail |
 | G6.5 | `uv run python scripts/gates/s2_type_check.py` | `decision parameters are exactly: reach, effect, guard` | a mutant of `decide` with a `side_effects` parameter exits 1 |
 | G6.6 | `uv run pytest tests/gates/test_three_arm_report.py` | all pass: the report of `tests/golden/demo-three-arm-plan` equals `tests/golden/demo-three-arm-report.md`; `remove candidate` prints only with 20 runs in each arm | a mutant in `scripts/gates/mutant_modules/three_arm_report.py` that lowers the run minimum fails |
+| G6.7 | `uv run pytest tests/gates/test_placebo_report.py` | all pass: the report of `tests/golden/demo-placebo-plan` equals `tests/golden/demo-placebo-report.md`; a plan without arm PL gets no content section | a mutant in `scripts/gates/mutant_modules/placebo_report.py` that always shows the content section fails |
 Cost cap: $0.20 (optional live smoke).
 Exit criteria: the report is deterministic, lists every question, shows the
 warnings, and has a limits section; the decision cannot depend on side effects.

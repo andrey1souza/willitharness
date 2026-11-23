@@ -1,6 +1,6 @@
 # 07. Task backlog
 
-Tasks in dependency order (contract v0.6). Each is a BDD story with Given, When,
+Tasks in dependency order (contract v0.7). Each is a BDD story with Given, When,
 Then acceptance, the contract IDs it covers, a gate from file 03, a size and its
 dependencies. Sizes: S under half a day, M about a day, L two or three days. A task
 is done when its gate passes with its bad input rejected.
@@ -91,9 +91,9 @@ As a maintainer, I want the effect mapping to match the proven table.
 - Given one effect result changed in a copy, then it exits 1 and names the case.
 - IDs: E1, V6. Gate: G1.9. Deps: T10, the Lean fork's JSON.
 
-### T14. Traceability gate over 57 IDs (S)
+### T14. Traceability gate over 66 IDs (S)
 As a maintainer, I want every contract ID covered, so that nothing is unplanned.
-- Given the contract, features, tests and formal folders, when I run `python scripts/gates/trace_check.py`, then it prints `trace-check: all 57 IDs covered`.
+- Given the contract, features, tests and formal folders, when I run `python scripts/gates/trace_check.py`, then it prints `trace-check: all 66 IDs covered`.
 - Given S2 removed from the features copy, then it exits 1 with `trace-check: missing S2 in features`.
 - IDs: all. Gate: G1.6. Deps: T03.
 

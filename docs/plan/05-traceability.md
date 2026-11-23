@@ -1,4 +1,4 @@
-# 05. Traceability matrix (contract v0.6)
+# 05. Traceability matrix (contract v0.7)
 
 Every contract ID maps to features, tests, a TLA+ item, a Lean item and a gate.
 All cells are `planned`. Owners: features and tests belong to the plan fork's
@@ -9,7 +9,7 @@ in progress). The naming convention for formal items is the ID as a name prefix,
 for example `L9_...` or `P2_...`. Gate G1.6 checks it.
 
 Legend: F = feature file. n/a = not the right tool for this ID. Contract section 8
-decides which tool covers which group. 57 IDs in total.
+decides which tool covers which group. 66 IDs in total.
 
 ## Verdict properties and assumptions
 | ID | Feature scenarios | Python tests | TLA+ | Lean | Gate |
@@ -61,6 +61,19 @@ decides which tool covers which group. 57 IDs in total.
 | TA7 | F three-arm-verdict: "A component worse than its prompt alone gives Inconclusive" | `test_TA7_...` | n/a | `TA7_...` | G1.10 |
 | TA8 | F three-arm-verdict: "A component worse than nothing is a delete candidate" | `test_TA8_...` | n/a | `TA8_...` | G1.10 |
 
+## Content against filler
+| ID | Feature scenarios | Python tests | TLA+ | Lean | Gate |
+|---|---|---|---|---|---|
+| PB1 | F placebo-verdict: "The function is total and deterministic" | `test_placebo_unit.py::test_PB1_...`, `test_golden_tables.py::test_PB1_placebo_table_conforms` | n/a | `PB1_...` totality and `placebo_table.json` | G1.11 |
+| PB2 | F placebo-verdict: "An arm with too few runs gives no content verdict" | `test_PB2_...` | n/a | `PB2_...` | G1.11 |
+| PB3 | F placebo-verdict: "Almost no violations in arm N leaves no room to help, as a policy choice" | `test_PB3_...` | n/a | `PB3_...` | G1.11, G6.7 |
+| PB4 | F placebo-verdict: "A component that beats the filler text has content that helps" | `test_PB4_...` | n/a | `PB4_...` | G1.11, G6.7 |
+| PB5 | F placebo-verdict: "Filler text that beats the component is reported" | `test_PB5_...` | n/a | `PB5_...` | G1.11, G6.7 |
+| PB6 | F placebo-verdict: "A component equal to the filler text, and both better than nothing, shows that added text helps"; "The report shows turns and cost for arm PL"; "Decide prints the content verdict after the three-arm verdict" | `test_PB6_...` | n/a | `PB6_...` | G1.11, G6.7 |
+| PB7 | F placebo-verdict: "A component equal to the filler text and equal to nothing shows that nothing helps" | `test_PB7_...` | n/a | `PB7_...` | G1.11, G6.7 |
+| PB8 | F placebo-verdict: "A component equal to the filler text, with only one of them better than nothing, is unclear" | `test_PB8_...` | n/a | `PB8_...` | G1.11, G6.7 |
+| PB9 | F placebo-verdict: "A plan without arm PL is reported as before" | `test_placebo_report.py::test_PB9_...` | n/a | n/a | G6.7 |
+
 ## Side effects and world
 | ID | Feature scenarios | Python tests | TLA+ | Lean | Gate |
 |---|---|---|---|---|---|
@@ -106,6 +119,6 @@ decides which tool covers which group. 57 IDs in total.
 | Abort records in-flight runs unusable and charges RUN_CAP | `budget-and-resume.feature` | `test_abort.py` | G3.11 |
 
 ## Coverage check
-Gate G1.6 reads the 57 contract IDs from the contract and fails if one is missing
+Gate G1.6 reads the 66 contract IDs from the contract and fails if one is missing
 from the features or the tests, or (for V, E, P, G, D, DI) from the Lean files, or
 (for L and T) from the TLA+ files. Remove an ID and the gate must fail.
