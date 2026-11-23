@@ -245,5 +245,6 @@ def test_the_fingerprint_covers_the_detector(tmp_path, cli):
     plan = read_plan(tmp_path / "out", "plan.json")
     other_detector = replace(plan.rule.detector, actions=("git push -f",))
     changed = replace(plan, rule=replace(plan.rule, detector=other_detector))
-    assert plan_fingerprint(changed) != plan_fingerprint(plan), f"a changed detector gave the same fingerprint {plan_fingerprint(changed)} for {plan.name}"
-    assert plan_fingerprint(replace(plan, budget_usd=plan.budget_usd + 1)) == plan_fingerprint(plan), "a budget change moved the fingerprint"
+    root = tmp_path / "out"
+    assert plan_fingerprint(changed, root) != plan_fingerprint(plan, root), f"a changed detector gave the same fingerprint {plan_fingerprint(changed, root)} for {plan.name}"
+    assert plan_fingerprint(replace(plan, budget_usd=plan.budget_usd + 1), root) == plan_fingerprint(plan, root), "a budget change moved the fingerprint"
