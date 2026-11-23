@@ -32,6 +32,7 @@ from willitharness.outcomes import AnalysisError
 from willitharness.plan import PlanError, read_plan
 from willitharness.paths import PathOutsideRoot, inside
 from willitharness.three_arm_report import is_three_arm, three_arm_decision_lines
+from willitharness.plan_builder import BuildOptions, BuildRefused, build_component_plan, hook_component, read_detector_file, skill_component
 from willitharness.report import ReportRefused, build_report, report_location
 from willitharness.real_runner import claude_runner, system_prompt_file
 from willitharness.probe import DEFAULT_LABEL, PROMPT_TEMPLATE, ProbeRefused, check_requested_runs, parse_run, probe
@@ -46,7 +47,7 @@ EXIT_BUDGET_STOPPED = 4
 USAGE = (
     "usage: willitharness plan check <plan.json> | willitharness world check <world-dir> "
     "| willitharness probe --agent fake|claude --directory D --runs N --target-token T --control-token C [--boundary B --seed S] [--model M] [--plan P --arm A] "
-    "| willitharness run <plan.json> --agent fake|claude [--timeout-seconds S] [--model M] | willitharness abort <plan.json> | willitharness analyze <plan.json> | willitharness decide <plan.json> | willitharness report <plan-dir or plan.json> | willitharness load-report [project-dir] [--run-hooks]"
+    "| willitharness run <plan.json> --agent fake|claude [--timeout-seconds S] [--model M] | willitharness abort <plan.json> | willitharness analyze <plan.json> | willitharness decide <plan.json> | willitharness report <plan-dir or plan.json> | willitharness load-report [project-dir] [--run-hooks] | willitharness build-plan --skill NAME or --hook EVENT --run-hook --detector FILE --out DIR --budget-usd B --run-cap-usd R [--project DIR --name N --placebo]"
 )
 EXIT_CODES = (EXIT_OK, EXIT_DOMAIN_FAILURE, EXIT_USAGE, EXIT_AGENT_MISSING, EXIT_BUDGET_STOPPED)
 FAKE_RUN_COST_USD = 0.01
@@ -341,6 +342,36 @@ def load_report_command(argv):
     return EXIT_OK
 
 
+def build_plan_command(argv):
+    assert isinstance(argv, list), f"build_plan_command needs a list of arguments, got {argv!r}. Fix: pass the arguments after build-plan."
+    assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
+    parser = argparse.ArgumentParser(prog="willitharness build-plan")
+    component = parser.add_mutually_exclusive_group(required=True)
+    component.add_argument("--skill")
+    component.add_argument("--hook")
+    parser.add_argument("--run-hook", action="store_true")
+    parser.add_argument("--detector", type=Path)
+    parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--budget-usd", type=float, required=True)
+    parser.add_argument("--run-cap-usd", type=float, required=True)
+    parser.add_argument("--project", default=".")
+    parser.add_argument("--name", default="")
+    parser.add_argument("--placebo", action="store_true")
+    arguments = parser.parse_args(argv)
+    try:
+        project = project_folder(Path.cwd(), arguments.project)
+        detector = read_detector_file(arguments.detector)
+        found = skill_component(project, arguments.skill) if arguments.skill else hook_component(project, arguments.hook, arguments.run_hook)
+        options = BuildOptions(project, arguments.out, detector, arguments.budget_usd, arguments.run_cap_usd, arguments.placebo, arguments.name)
+        path = build_component_plan(found, options)
+    except (BuildRefused, LoadRefused) as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_DOMAIN_FAILURE
+    print(f"plan written: {path}")
+    assert path.is_file(), f"build_component_plan reported {path}, which is not a file"
+    return EXIT_OK
+
+
 def main(argv):
     assert isinstance(argv, list), f"main needs a list of arguments, got {argv!r}. Fix: pass sys.argv[1:]."
     assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
@@ -363,7 +394,9 @@ def main(argv):
         return report_command(rest)
     if command == ["load-report"]:
         return load_report_command(rest)
-    print(f"unknown command {argv!r}. Rule: v0 has plan check, world check, probe, run, abort, analyze, decide, report and load-report so far. Fix: {USAGE}", file=sys.stderr)
+    if command == ["build-plan"]:
+        return build_plan_command(rest)
+    print(f"unknown command {argv!r}. Rule: v0 has plan check, world check, probe, run, abort, analyze, decide, report, load-report and build-plan so far. Fix: {USAGE}", file=sys.stderr)
     return EXIT_USAGE
 
 
