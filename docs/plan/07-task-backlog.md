@@ -1,6 +1,6 @@
 # 07. Task backlog
 
-68 tasks in dependency order (contract v0.5). Each is a BDD story with Given, When,
+71 tasks in dependency order (contract v0.5). Each is a BDD story with Given, When,
 Then acceptance, the contract IDs it covers, a gate from file 03, a size and its
 dependencies. Sizes: S under half a day, M about a day, L two or three days. A task
 is done when its gate passes with its bad input rejected.
@@ -16,7 +16,7 @@ Summary:
 | M5 guard and decision | T38 to T44 | 7 |
 | M6 side effects and report | T45 to T49 | 5 |
 | M7 formal gates | T50 | 1 |
-| Added after M7 | T51 to T68 | 18 |
+| Added after M7 | T51 to T71 | 21 |
 
 Golden tables referenced by name (Lean fork, not final): `decision_table.json`,
 `effect_table.json`, `probe_table.json`, `guard_table.json` in `../../formal/lean/`.
@@ -476,18 +476,34 @@ As an owner of a harness, I want a list of the text the agent loads at the start
 - Given a size, then the report counts characters. A token estimate is out of scope.
 - IDs: none yet. The contract gets new IDs in the same change that builds this task. Gate: new, defined with the task. Deps: T19.
 
-### T67. Three-arm test: a component against its own text as a plain prompt (L) not built (T67)
-As an owner of a harness, I want to compare a skill or hook with its own text given as a plain prompt, so that I know whether the component beats a prompt.
-- Given a skill, then the plan has three arms and a noise pair. Arm N has nothing. Arm P has the body text of the skill as a rule through the `system_prompt` channel. Arm C has the real skill. The noise pair repeats arm C.
+### T67. Three-arm verdict: one decision from component, prompt and nothing (M) not built (T67)
+As an owner of a harness, I want one verdict from three results, so that I know whether a component beats its own text as a plain prompt.
+- Given the results of arm C (the real component), arm P (the same text as a prompt) and arm N (nothing), then the verdict is one of: keep the component when C beats P, replace with a prompt when C equals P and beats N, delete candidate when C equals N, and inconclusive when the intervals do not decide.
+- Given that arm N already shows almost no violations, then the verdict is `insurance, keep`. The report says this is a policy choice and not a measurement.
+- Given the same three results twice, then the verdict is the same.
+- IDs: none yet. New decision rows go into the contract, the golden table and the Lean proof in the same change that builds this task. Gate: new, defined with the task. Deps: T43, T64.
+
+### T69. Plan builder for a component under test (M) not built (T69)
+As an owner of a harness, I want a plan built from a skill or a hook, so that I do not write the three arms by hand.
+- Given a skill, then the plan has arm N with nothing, arm P with the body text of the skill as a rule through the `system_prompt` channel, arm C with the real skill, and a noise pair that repeats arm C.
 - Given a hook that injects context, then arm P has the text the hook returns for a fixed sample event, and the other arms are the same.
 - Given the option `--placebo`, then the plan adds an arm with filler text of the same character count as the component text. The extra arm separates the effect of added text from the effect of its content.
 - Given any arm, then a detector declared in the plan before the first run judges every run. The plan fingerprint covers the detector.
+- IDs: none. Gate: new, defined with the task. Deps: T67, T66.
+
+### T70. Report and decide for the three arms (M) not built (T70)
+As an owner of a harness, I want the report and `decide` to read the three arms, so that the verdict and its cost are in one place.
 - Given a skill, then the report shows the trigger rate of arm C and the effect when the skill fires, as two separate numbers.
-- Given the three results, then the report gives one verdict: keep the component when C beats P, replace with a prompt when C equals P and beats N, and delete candidate when C equals N. It gives inconclusive when the intervals do not decide.
-- Given that arm N already shows almost no violations, then the verdict is `insurance, keep`. The report says this is a policy choice and not a measurement.
-- Given the owner rule "no benefit shown after N runs means remove", then `decide` prints remove candidate only when each arm has at least N runs. The report states the smallest change those runs could detect.
 - Given each arm, then the report shows turns and cost per arm.
-- IDs: none yet. New decision rows go into the contract, the golden table and the Lean proof in the same change that builds this task. Gate: new, defined with the task. Deps: T43, T64, T66.
+- Given the owner rule "no benefit shown after N runs means remove", then `decide` prints remove candidate only when each arm has at least N runs. The report states the smallest change those runs could detect.
+- IDs: none. Gate: new, defined with the task. Deps: T67.
+
+### T71. Live reference run of the three arms (S) not built (T71)
+As an owner of a harness, I want one real run of the three arms, so that the verdict has a first measured case.
+- Given the `pkill` case from the earlier pilot, then the plan has arms N, P and C and runs live.
+- Given the plan, then the owner sets the cost cap before the run and approves it.
+- Given the finished run, then `decide` and `report` print the verdict for the case.
+- IDs: none. Gate: live, defined with the task. Deps: T69, T70.
 
 ### T68. The probe command records its result for a plan arm (S)
 As an analyst, I want `probe` to record its result for an arm of my plan, so that `run` can start with the CLI alone.
