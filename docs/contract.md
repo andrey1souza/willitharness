@@ -257,6 +257,11 @@ Resume: the transition BudgetStopped to Running. It has these rules:
   W-NOHASH with the number of runs that carry no hash. Records written before T62
   carry an empty hash and are not counted as a mix. A plan that ended while its world
   differed from the validated one gets a W-WORLD line saying so.
+- Each run record carries the model name (T73). `agent.json` holds it next to the
+  claude version. `analyze` prints W-MODEL when the records of one plan name more than
+  one model. It names each model and the number of runs it has. It prints W-NOMODEL
+  with the number of runs that carry no model name. Records written before T73 carry
+  an empty model name and are not counted as a second model.
 - Ending a plan needs no validated world. A changed world only blocks starts and
   resumes (W3). A Running plan with nothing pending ends Complete; one the budget
   blocks ends BudgetStopped.

@@ -1,9 +1,9 @@
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 
 from willitharness.outcomes import TARGET_OUTCOME
 from willitharness.plan import DEFAULT_REPS
-from willitharness.store import UNKNOWN_WORLD, latest_by_run
+from willitharness.store import UNKNOWN_MODEL, UNKNOWN_WORLD, latest_by_run
 from willitharness.verdict import MIN_RUNS
 from willitharness.vocabulary import Verdict
 
@@ -13,6 +13,8 @@ SATURATED_WARNING = "saturated: arm {arm}, task {task} has no violating run; not
 WORLD_MIX_WARNING = "W-WORLD: arm {arm}, task {task} has runs from {worlds} worlds; the runs do not share one validated world"
 LEFT_WORLD_WARNING = "W-WORLD: arm {arm}, task {task} has {n} runs that left the validated world {validated}; their world hash differs from the validated hash"
 NO_HASH_WARNING = "W-NOHASH: {n} runs carry no world hash; they were recorded before T62 and cannot show a mixed world"
+MODEL_MIX_WARNING = "W-MODEL: the plan has runs on {n} models: {models}; runs on different models are not one result"
+NO_MODEL_WARNING = "W-NOMODEL: {n} runs carry no model name; they were recorded before T73 and may use another model"
 ENDED_CHANGED_WARNING = "W-WORLD: the plan ended while its world differed from the validated one; run willitharness world check and run the plan again before you trust it"
 POOLED_WARNING = "pooled: task clustering is ignored"
 AT_BOUND_WARNING = "AtBound: {outcome}, task {task}, arm {first} against arm {second}: both arms at 0% (or 100%); harder tasks are needed"
@@ -87,6 +89,20 @@ def world_warnings(records, world):
     lines = [*world_mix_lines(records), *left_world_lines(records, world.validated_hash), *no_hash_lines(records)]
     lines += [ENDED_CHANGED_WARNING] if world.ended_in_changed_world else []
     assert all(isinstance(line, str) for line in lines), f"world_warnings must return text, got {lines}"
+    return lines
+
+
+def model_warnings(records):
+    assert isinstance(records, tuple), f"model_warnings needs a tuple of records, got {type(records).__name__}. Fix: pass load_records output."
+    assert all(hasattr(record, "model") for record in records), f"a record has no model in {records!r}. Rule: T73, every record carries the model name. Fix: build records with Record."
+    runs = Counter(run.model for run in latest_by_run(records).values())
+    unnamed = runs.pop(UNKNOWN_MODEL, 0)
+    lines = []
+    if len(runs) > 1:
+        lines.append(MODEL_MIX_WARNING.format(n=len(runs), models=", ".join(f"{model} {count} runs" for model, count in sorted(runs.items()))))
+    if unnamed:
+        lines.append(NO_MODEL_WARNING.format(n=unnamed))
+    assert len(lines) <= 2, f"model_warnings made {len(lines)} lines. Rule: one mix line and one count line."
     return lines
 
 

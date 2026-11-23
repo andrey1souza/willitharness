@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 from analysis_site import COMPLETED, FULL_ROLES, TARGET, analyze_site, filled_cells, site_with_state
 
@@ -6,7 +8,7 @@ from willitharness.counts import Counts
 from willitharness.lifecycle import PlanState, lifecycle_dir, read_reach
 from willitharness.store import Cell, Record, RunState, append_record, load_records, run_id_of
 from willitharness.vocabulary import EffectResult, NoiseStatus, Verdict
-from willitharness.warning_rules import NO_WORLD_FACTS, WorldFacts, at_bound, cell_warnings, row_warnings, world_mix_lines, world_warnings
+from willitharness.warning_rules import NO_WORLD_FACTS, WorldFacts, at_bound, cell_warnings, model_warnings, row_warnings, world_mix_lines, world_warnings
 
 
 def row(outcome, first, second, verdict):
@@ -111,4 +113,46 @@ def test_T65_analyze_prints_the_three_world_lines_only_with_warnings_on(tmp_path
     shown, hidden = analyze_plan(inputs, True).warnings, analyze_plan(inputs, False).warnings
     wanted = (LEFT_WORLD, ENDED_CHANGED)
     assert all(line in shown for line in wanted) and any(line.startswith("W-NOHASH: ") for line in shown), f"the three world lines must show, got {shown}. Fix: pass world_facts into analyze_plan."
+    assert hidden == (), f"warnings off must print none, got {hidden}"
+
+
+def started_on(run_id, arm, model):
+    return Record(run_id, arm, "stop-server", 1, 1, RunState.STARTED, {}, 0.0, model=model)
+
+
+MODEL_MIX = "W-MODEL: the plan has runs on 2 models: haiku 2 runs, sonnet 1 runs; runs on different models are not one result"
+NO_MODEL = "W-NOMODEL: {n} runs carry no model name; they were recorded before T73 and may use another model"
+
+
+def test_T73_records_on_two_models_give_one_line_naming_each_model_and_its_runs():
+    records = (started_on("B/stop-server/1#1", "B", "sonnet"), started_on("B/stop-server/2#1", "B", "haiku"), started_on("C/stop-server/1#1", "C", "haiku"))
+    assert model_warnings(records) == [MODEL_MIX], f"got {model_warnings(records)}. Rule: T73, name the models and the runs of each."
+
+
+def test_T73_one_model_gives_no_line_and_a_plan_without_records_gives_none():
+    records = (started_on("B/stop-server/1#1", "B", "haiku"), started_on("C/stop-server/1#1", "C", "haiku"))
+    assert model_warnings(records) == [] and model_warnings(()) == [], f"got {model_warnings(records)} and {model_warnings(())}. Rule: T73, one model is not a mix."
+
+
+def test_T73_runs_without_a_model_are_counted_and_do_not_make_a_mix():
+    records = (started_on("B/stop-server/1#1", "B", ""), started_on("C/stop-server/1#1", "C", ""), started_on("C/stop-server/2#1", "C", "haiku"))
+    assert model_warnings(records) == [NO_MODEL.format(n=2)], f"got {model_warnings(records)}. Rule: T73, an unnamed run is counted, never a second model."
+    assert model_warnings(records[2:]) == [], "no unnamed run, no count line"
+
+
+def test_T73_a_retried_run_counts_once_under_its_latest_record():
+    started = started_on("B/stop-server/1#1", "B", "haiku")
+    records = (started, replace(started, state=RunState.RECORDED_USABLE), started_on("B/stop-server/2#1", "B", "sonnet"))
+    assert model_warnings(records) == ["W-MODEL: the plan has runs on 2 models: haiku 1 runs, sonnet 1 runs; runs on different models are not one result"], f"got {model_warnings(records)}"
+
+
+def test_T73_analyze_prints_the_model_lines_only_with_warnings_on(tmp_path):
+    site = site_with_state(tmp_path, FULL_ROLES, (filled_cells(FULL_ROLES, {}), PlanState.COMPLETE))
+    folder = lifecycle_dir(site.root, site.plan)
+    cell = Cell("B", "stop-server")
+    append_record(folder, Record(run_id_of(cell, 21, 1), "B", "stop-server", 21, 1, RunState.RECORDED_USABLE, {TARGET: True, COMPLETED: True}, 0.01, {TARGET: False, COMPLETED: True}, 0, "", "haiku"))
+    append_record(folder, Record(run_id_of(cell, 22, 1), "B", "stop-server", 22, 1, RunState.RECORDED_USABLE, {TARGET: True, COMPLETED: True}, 0.01, {TARGET: False, COMPLETED: True}, 0, "", "sonnet"))
+    inputs = AnalysisInput(site.plan, load_records(folder), read_reach(folder), False, NO_WORLD_FACTS)
+    shown, hidden = analyze_plan(inputs, True).warnings, analyze_plan(inputs, False).warnings
+    assert any(line.startswith("W-MODEL: the plan has runs on 2 models: haiku 1 runs, sonnet 1 runs") for line in shown) and any(line.startswith("W-NOMODEL: ") for line in shown), f"got {shown}. Fix: add model_warnings to analyze_plan."
     assert hidden == (), f"warnings off must print none, got {hidden}"
