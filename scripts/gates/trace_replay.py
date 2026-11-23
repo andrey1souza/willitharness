@@ -8,6 +8,7 @@ from pathlib import Path
 from files import plant
 from lifecycle_site import TASK_NAME, WORLD_NAME, SiteSpec, costing_runner, make_site, run_setup, success_transcript, validate_site
 from willitharness.analyzed import finish_analysis
+from willitharness.budget import ledger_from_records, money_spent
 from willitharness.lifecycle import (
     TIMED_OUT,
     Job,
@@ -20,9 +21,7 @@ from willitharness.lifecycle import (
     conclude,
     finish_job,
     finished,
-    ledger_from_records,
     lifecycle_dir,
-    money_spent,
     read_reach,
     read_resume,
     record_reachability,

@@ -45,6 +45,11 @@ def first_and_second_arms(world, k1, k2):
     )
 
 
+@given(parsers.parse('every run of arm "{arm}" used model "{model}"'))
+def arm_used_model(world, arm, model):
+    world["models"][arm] = model
+
+
 @then(parsers.parse('the verdict is "{name}"'))
 def verdict_is(world, name):
     assert any(f"verdict {name};" in line for line in world["lines"] if line.startswith(TARGET)), f"got {world['lines']}"

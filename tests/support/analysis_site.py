@@ -7,7 +7,7 @@ from lifecycle_site import SCHEMA_VERSION, TASK_NAME, TASK_PROMPT, WORLD_NAME, r
 from willitharness.analysis import AnalysisInput, analyze_plan
 from willitharness.lifecycle import PlanSite, lifecycle_dir, read_reach, write_state
 from willitharness.plan import load_plan
-from willitharness.store import Cell, Record, RunState, append_record, load_records, run_id_of
+from willitharness.store import UNKNOWN_MODEL, Cell, Record, RunState, append_record, load_records, run_id_of
 from willitharness.vocabulary import Reach
 
 LOO_LABEL = "C"
@@ -27,6 +27,7 @@ class CellShape:
     unusable_for_completed: int = 0
     denied: int = 0
     incomplete: int = 1
+    model: str = UNKNOWN_MODEL
 
 
 def stored_usable_record(cell, rep, shape):
@@ -43,6 +44,7 @@ def stored_usable_record(cell, rep, shape):
         RUN_COST_USD,
         {TARGET: rep <= shape.k, COMPLETED: rep > shape.incomplete},
         1 if rep <= shape.denied else 0,
+        model=shape.model,
     )
 
 

@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 from analysis_site import COMPLETED, FULL_ROLES, LOO_LABEL, TARGET, filled_cells, TASK, TWO_TASK_CELLS, site_with_state
 from cli_runner import run_cli
@@ -13,7 +15,7 @@ from willitharness.vocabulary import Reach
 
 @pytest.fixture
 def world():
-    return {"roles": FULL_ROLES, "cells": {}, "pooled": False}
+    return {"roles": FULL_ROLES, "cells": {}, "pooled": False, "models": {}}
 
 
 def analyze_with_given_noise(world):
@@ -27,7 +29,9 @@ def analyze_with_given_noise(world):
 def analyze_the_plan(world, tmp_path, monkeypatch, capsys):
     if "given_noise" in world:
         return analyze_with_given_noise(world)
-    site_with_state(tmp_path, world["roles"], (filled_cells(world["roles"], world["cells"]), PlanState.COMPLETE))
+    cells = filled_cells(world["roles"], world["cells"])
+    cells = {cell: replace(shape, model=world["models"].get(cell.arm, shape.model)) for cell, shape in cells.items()}
+    site_with_state(tmp_path, world["roles"], (cells, PlanState.COMPLETE))
     monkeypatch.chdir(tmp_path)
     arguments = ["analyze", "plan.json", *(["--pooled"] if world["pooled"] else [])]
     world["exit_code"], out, world["message"] = run_cli(capsys, arguments)

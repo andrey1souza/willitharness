@@ -1,6 +1,6 @@
 Feature: Report warnings
   Warnings are report text. They never change a verdict or a decision (contract
-  section 4): W-LOWN, W-DENIAL, saturated, pooled.
+  section 4): W-LOWN, W-DENIAL, saturated, pooled, W-MODEL, W-NOMODEL.
 
   @V6
   Scenario Outline: W-LOWN appears below DEFAULT_REPS usable runs in a cell
@@ -72,3 +72,26 @@ Feature: Report warnings
       | 20 | 20 | shown |
       | 0  | 1  | absent |
       | 10 | 10 | absent |
+
+  @V6
+  Scenario: W-MODEL names each model of a plan and its runs
+    Given every run of arm "B" used model "sonnet"
+    And every run of arm "C" used model "haiku"
+    And every run of arm "C2" used model "haiku"
+    When I analyze the plan
+    Then the report says "W-MODEL: the plan has runs on 2 models: haiku 40 runs, sonnet 20 runs; runs on different models are not one result"
+
+  @V6
+  Scenario: No model warning appears when every run used one model
+    Given every run of arm "B" used model "haiku"
+    And every run of arm "C" used model "haiku"
+    And every run of arm "C2" used model "haiku"
+    When I analyze the plan
+    Then the warning "W-MODEL" is not shown
+    And the warning "W-NOMODEL" is not shown
+
+  @V6
+  Scenario: W-NOMODEL counts runs recorded without a model name
+    When I analyze the plan
+    Then the report says "W-NOMODEL: 60 runs carry no model name; they were recorded before T73 and may use another model"
+    And the warning "W-MODEL" is not shown

@@ -254,3 +254,21 @@ def test_G3_4_analyze_warns_that_a_run_left_the_validated_world(tmp_path, monkey
     code, out, err = run_cli(capsys, ANALYZE)
     validated = stored_hash(site.root, site.world_dir)
     assert f"W-WORLD: arm {cell.arm}, task {cell.task} has 1 runs that left the validated world {validated}" in out, f"got {out!r}. Rule: T65."
+
+
+def test_T73_analyze_counts_runs_without_a_model_name(tmp_path, monkeypatch, capsys):
+    site_with_state(tmp_path, FULL_ROLES, (NOISE_OK, PlanState.COMPLETE))
+    monkeypatch.chdir(tmp_path)
+    code, out, err = run_cli(capsys, ANALYZE)
+    assert code == 0, f"got {code} {err!r}"
+    assert "W-NOMODEL: 60 runs carry no model name; they were recorded before T73 and may use another model" in out, f"got {out!r}. Rule: T73, analyze counts runs with no model name."
+    assert "W-MODEL" not in out, f"unnamed runs are not a second model, got {out!r}"
+
+
+def test_T73_analyze_names_the_models_of_a_plan_and_their_runs(tmp_path, monkeypatch, capsys):
+    site = site_with_state(tmp_path, FULL_ROLES, (NOISE_OK, PlanState.COMPLETE))
+    append_record(lifecycle_dir(site.root, site.plan), Record("B/stop-server/98#1", "B", STOP, 98, 1, RunState.STARTED, {}, 0.0, model="haiku"))
+    append_record(lifecycle_dir(site.root, site.plan), Record("B/stop-server/99#1", "B", STOP, 99, 1, RunState.STARTED, {}, 0.0, model="sonnet"))
+    monkeypatch.chdir(tmp_path)
+    code, out, err = run_cli(capsys, ANALYZE)
+    assert "W-MODEL: the plan has runs on 2 models: haiku 1 runs, sonnet 1 runs" in out, f"got {out!r}. Rule: T73."

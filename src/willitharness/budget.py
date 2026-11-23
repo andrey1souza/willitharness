@@ -2,7 +2,8 @@ import threading
 from dataclasses import replace
 from decimal import Decimal
 
-from willitharness.store import Record, RunState, in_flight_runs, with_record
+from willitharness.plan import Plan
+from willitharness.store import Record, RunState, in_flight_runs, latest_by_run, with_record
 
 UNUSABLE_FLAGS = {"attempted_violation": False, "completed": False}
 
@@ -74,3 +75,20 @@ def abort_records(records, run_cap):
     assert not in_flight_runs(updated), f"runs are still in flight after the abort: {in_flight_runs(updated)}"
     assert all(isinstance(record, Record) for record in updated), f"the abort returned a non-record among {updated!r}. Rule: abort returns store records. Fix: build them with timed_out_record."
     return updated
+
+
+def money_spent(records):
+    assert isinstance(records, tuple), f"money_spent needs a tuple of records, got {type(records).__name__}. Fix: pass load_records output."
+    total = sum((to_money(run.cost_usd) for run in latest_by_run(records).values() if run.state is not RunState.STARTED), Decimal(0))
+    assert total >= 0, f"money_spent is {total}. Rule: a cost is never negative."
+    return total
+
+
+def ledger_from_records(plan, records):
+    assert isinstance(plan, Plan), f"ledger_from_records needs a Plan, got {plan!r}. Fix: load the plan."
+    assert isinstance(records, tuple), f"ledger_from_records needs a tuple of records, got {type(records).__name__}. Fix: pass load_records output."
+    ledger = Ledger(plan.budget_usd, plan.run_cap_usd)
+    ledger.spent = money_spent(records)
+    ledger.reserved = ledger.run_cap * len(in_flight_runs(records))
+    assert ledger.spent + ledger.reserved >= 0, f"the ledger holds {ledger.spent} spent and {ledger.reserved} reserved. Rule: amounts are never negative."
+    return ledger

@@ -33,6 +33,7 @@ INSTRUCTION_FILES = ("CLAUDE.md", "AGENTS.md")
 INSTRUCTION_DIRECTORY = ".claude"
 AGENT_RECORD = "agent.json"
 VERSION_KEY = "claude_version"
+MODEL_KEY = "model"
 PATH_VARIABLE = "PATH"
 LIVE_GROUPS = set()
 LIVE_LOCK = threading.Lock()
@@ -118,19 +119,20 @@ def check_runnable(setup, base):
     assert all(inside(site.root, arm.overlay).is_dir() for arm in site.plan.arms), f"an overlay of plan {site.plan.name} is not a directory"
 
 
-def record_agent_version(site, version):
+def record_agent_version(site, version, model):
     assert version, "record_agent_version needs a version. Fix: pass claude_version output."
+    assert model, "record_agent_version needs a model. Rule: T73, agent.json holds the model next to the version. Fix: pass the model name."
     folder = lifecycle_dir(site.root, site.plan)
     record = folder / AGENT_RECORD
-    record.write_text(json.dumps({VERSION_KEY: version}))
-    assert json.loads(record.read_text())[VERSION_KEY] == version, f"{record} did not keep {version!r}"
+    record.write_text(json.dumps({VERSION_KEY: version, MODEL_KEY: model}))
+    assert json.loads(record.read_text()) == {VERSION_KEY: version, MODEL_KEY: model}, f"{record} did not keep {version!r} and {model!r}"
     return record
 
 
 def claude_runner(setup, model, base=None):
     assert model, "claude_runner needs a model. Fix: pass the model name."
     check_runnable(setup, base)
-    record_agent_version(setup.site, claude_version())
+    record_agent_version(setup.site, claude_version(), model)
     runner = AgentRunner(setup, model, base)
     assert callable(runner), f"claude_runner built {runner!r}, which cannot be called. Rule: the runner is runner(cell, rep, attempt)."
     return runner
