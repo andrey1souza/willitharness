@@ -35,16 +35,16 @@ RESUME_FILE = "resume.json"
 NOT_ENDED = "none"
 STATE_KEY = "state"
 MAX_PARALLEL_RUNNERS = 4
-WORLD_NOT_VALIDATED = "world not validated; run: willitharness world check"
-WORLD_CHANGED = "world changed since validation; run: willitharness world check"
-ABORT_AFTER_ANALYSIS = "plan already analyzed; abort is not possible"
+WORLD_NOT_VALIDATED = "world not validated; run: willitharness world check. Rule: L10, a run needs a validated world. Fix: run willitharness world check."
+WORLD_CHANGED = "world changed since validation; run: willitharness world check. Rule: L10, a run needs the world it was validated with. Fix: run willitharness world check."
+ABORT_AFTER_ANALYSIS = "plan already analyzed; abort is not possible. Rule: L5, an analyzed plan is final. Fix: run willitharness report, or copy the plan to start again."
 ANALYZE_AFTER_ABORT = "plan aborted; no verdict"
-ANALYZE_WHILE_RUNNING = "plan still running; analyze after Complete or BudgetStopped"
+ANALYZE_WHILE_RUNNING = "plan still running; analyze after Complete or BudgetStopped. Rule: L5, a verdict needs Complete or BudgetStopped. Fix: wait for the run to end, then run willitharness analyze."
 RESUME_WORLD_REFUSED = "world not validated or changed since validation. Rule: L10, the world must be validated again before a resume. Fix: run willitharness world check."
 RESUME_NO_RECORD = "plan has no stored budget and fingerprint. Rule: L10, a plan stores both when it first runs. Fix: start the plan with run before resuming."
 RESUME_PLAN_CHANGED = "plan differs from the stored plan in more than budget_usd. Rule: A-FP, a resume changes only the budget. Fix: restore the plan and raise only budget_usd."
 NOTHING_TO_RESUME = "plan is Complete; there is nothing to resume. Rule: L10, only a BudgetStopped plan resumes. Fix: run willitharness analyze."
-ANALYZE_BEFORE_RUN = "plan has not run yet; analyze after Complete or BudgetStopped"
+ANALYZE_BEFORE_RUN = "plan has not run yet; analyze after Complete or BudgetStopped. Rule: L5, a verdict needs Complete or BudgetStopped. Fix: run willitharness run first."
 STORE_LOCK = threading.Lock()
 
 
@@ -258,9 +258,9 @@ def start_running(site):
         raise LifecycleRefused(WORLD_CHANGED)
     absent = missing_arms(site)
     if absent:
-        raise LifecycleRefused(f"no reachability result for arm {absent[0]} of plan {site.plan.name} (missing: {', '.join(absent)}); run: willitharness probe --plan <plan.json> --arm {absent[0]} with the probe options")
+        raise LifecycleRefused(f"no reachability result for arm {absent[0]} of plan {site.plan.name} (missing: {', '.join(absent)}). Rule: L1, a run needs a reachability result for every arm. Fix: run willitharness probe --plan <plan.json> --arm {absent[0]} with the probe options.")
     if state is not PlanState.RUNNING and state is not PlanState.REACHABILITY_CHECKED:
-        raise LifecycleRefused(f"plan is {state}; a run can start only from ReachabilityChecked or Running")
+        raise LifecycleRefused(f"plan is {state}; a run can start only from ReachabilityChecked or Running. Rule: L1, a run starts from ReachabilityChecked or Running. Fix: probe every arm of the plan first.")
     if state is PlanState.REACHABILITY_CHECKED:
         write_resume(folder, ResumeRecord(site.plan.budget_usd, plan_fingerprint(site.plan), NOT_ENDED))
     running = move_to(folder, PlanState.RUNNING)

@@ -10,7 +10,7 @@ from willitharness.probe import DEFAULT_LABEL, PROMPT_TEMPLATE
 
 EXIT_OK = 0
 EXIT_USAGE = 2
-SEED_REQUIRED_MESSAGE = "seed required; pass --seed N"
+SEED_REQUIRED_MESSAGE = "seed required; pass --seed N. Rule: a fake run is reproducible from its seed. Fix: pass --seed N."
 CONTEXT_FILE = "CLAUDE.md"
 FALLBACK_FILE = "AGENTS.md"
 NO_VALUE_REPLY = "NONE"

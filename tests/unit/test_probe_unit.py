@@ -128,7 +128,7 @@ def test_the_two_tokens_must_differ():
 def test_requesting_fewer_runs_than_the_minimum_is_refused_with_the_fix():
     with pytest.raises(ProbeRefused) as raised:
         check_requested_runs(MIN_PROBE_RUNS - 1)
-    expected = "at least 3 probe runs per arm are needed; use --runs 3 or more"
+    expected = "at least 3 probe runs per arm are needed; use --runs 3 or more. Rule: P1, a probe needs at least 3 runs per arm. Fix: pass --runs 3 or more."
     assert str(raised.value) == expected, f"unexpected message {str(raised.value)!r}"
 
 

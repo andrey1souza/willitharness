@@ -47,7 +47,7 @@ def test_fewer_runs_than_the_minimum_exit_two_with_the_fix(tmp_path, capsys):
     work = plant(tmp_path / "work", "AGENTS.md", TARGET_LINE)
     code, output, errors = invoke_probe(capsys, work, work, RUNS - 1)
     assert code == cli.EXIT_USAGE, f"expected exit {cli.EXIT_USAGE}, got {code}"
-    assert errors.strip() == "at least 3 probe runs per arm are needed; use --runs 3 or more", f"unexpected stderr {errors!r}"
+    assert errors.strip() == "at least 3 probe runs per arm are needed; use --runs 3 or more. Rule: P1, a probe needs at least 3 runs per arm. Fix: pass --runs 3 or more.", f"unexpected stderr {errors!r}"
 
 
 def claude_stand_in(arguments, index):
