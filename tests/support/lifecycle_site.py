@@ -42,6 +42,7 @@ def plan_data(spec):
         "reps": spec.reps,
         "max_retries": spec.max_retries,
         "arms": arms,
+        "tasks": [{"id": TASK_NAME, "completed_check": {"kind": "calls_contain", "command": STUB_COMMAND}}],
     }
 
 

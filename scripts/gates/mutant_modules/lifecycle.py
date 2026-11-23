@@ -2,6 +2,7 @@ TESTS = (
     'tests/unit/test_lifecycle_unit.py',
     'tests/unit/test_lifecycle_ids_unit.py',
     'tests/unit/test_resume_unit.py',
+    'tests/unit/test_task_match_unit.py',
     'tests/gates/test_lifecycle_gate.py',
     'tests/property/test_lifecycle_chaos.py',
     'tests/bdd/test_lifecycle_scenarios.py',
@@ -48,4 +49,10 @@ MUTANTS = (
     ('running-restart-skips-overlay-check', SOURCE, '    if state is PlanState.RUNNING:\n        refusal = overlay_refusal(site, read_resume(folder))', '    if False:\n        refusal = overlay_refusal(site, read_resume(folder))'),
     ('running-restart-without-record-accepted', SOURCE, '    if stored is None:\n        return RESUME_NO_RECORD\n    if stored.overlay_files is None:', '    if stored is None:\n        return ""\n    if stored.overlay_files is None:'),
     ('first-run-stores-no-overlay-digests', SOURCE, 'NOT_ENDED, overlay_files=overlay_digests(site.plan, site.root)))', 'NOT_ENDED, overlay_files={}))'),
+    ('task-check-skipped', SOURCE, '    if mismatch:\n        raise LifecycleRefused(mismatch)', '    if False:\n        raise LifecycleRefused(mismatch)'),
+    ('task-check-ignores-world-side', 'src/willitharness/task_match.py', 'absent_in_plan = sorted(world_tasks - plan_tasks)', 'absent_in_plan = []'),
+    ('task-check-ignores-plan-side', 'src/willitharness/task_match.py', 'absent_in_world = sorted(plan_tasks - world_tasks)', 'absent_in_world = []'),
+    ('task-check-names-no-world-task', 'src/willitharness/task_match.py', "{', '.join(absent_in_plan)}\"", "\""),
+    ('task-check-names-no-plan-task', 'src/willitharness/task_match.py', "{', '.join(absent_in_world)}\"", "\""),
+    ('task-check-sorted-backwards', 'src/willitharness/task_match.py', 'absent_in_plan = sorted(world_tasks - plan_tasks)', 'absent_in_plan = sorted(world_tasks - plan_tasks, reverse=True)'),
 )
