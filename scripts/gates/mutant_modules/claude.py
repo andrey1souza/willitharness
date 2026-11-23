@@ -5,6 +5,10 @@ TESTS = (
 )
 
 MUTANTS = (
+    ('system-prompt-flag-dropped', 'src/willitharness/claude_agent.py', '        *system_prompt_flags(policy),\n', ''),
+    ('system-prompt-flag-renamed', 'src/willitharness/claude_agent.py', 'SYSTEM_PROMPT_FLAG = "--append-system-prompt-file"', 'SYSTEM_PROMPT_FLAG = "--system-prompt-file"'),
+    ('system-prompt-flag-without-path', 'src/willitharness/claude_agent.py', '[SYSTEM_PROMPT_FLAG, policy.system_prompt_file] if', '[SYSTEM_PROMPT_FLAG] if'),
+    ('probe-file-dropped', 'src/willitharness/claude_agent.py', 'replace(PROBE_POLICY, system_prompt_file=system_prompt_file)', 'replace(PROBE_POLICY, system_prompt_file=NO_SYSTEM_PROMPT_FILE)'),
     ('unisolated-command-gains-isolation', 'src/willitharness/claude_agent.py', '        "--max-budget-usd", str(budget),\n        "--tools", "",\n        "--no-session-persistence",\n', '        "--max-budget-usd", str(budget),\n        "--tools", "",\n        "--strict-mcp-config",\n        "--no-session-persistence",\n'),
     ('unisolated-command-keeps-tools', 'src/willitharness/claude_agent.py', '        "--max-budget-usd", str(budget),\n        "--tools", "",\n        "--no-session-persistence",\n', '        "--max-budget-usd", str(budget),\n        "--no-session-persistence",\n'),
     ('strict-mcp-config-dropped', 'src/willitharness/claude_agent.py', '        "--strict-mcp-config",\n', ''),
@@ -12,7 +16,7 @@ MUTANTS = (
     ('session-persisted', 'src/willitharness/claude_agent.py', '        "--disable-slash-commands",\n        "--no-session-persistence",\n', '        "--disable-slash-commands",\n'),
     ('user-settings-loaded', 'src/willitharness/claude_agent.py', '"--setting-sources", "project,local"', '"--setting-sources", "user,project,local"'),
     ('budget-flag-dropped', 'src/willitharness/claude_agent.py', '        "--strict-mcp-config",\n        "--max-budget-usd", str(budget),\n', '        "--strict-mcp-config",\n'),
-    ('tools-left-on', 'src/willitharness/claude_agent.py', '        *tool_flags(policy),\n        "--disable-slash-commands",\n', '        "--disable-slash-commands",\n'),
+    ('tools-left-on', 'src/willitharness/claude_agent.py', '        *tool_flags(policy),\n        *system_prompt_flags(policy),\n        "--disable-slash-commands",\n', '        *system_prompt_flags(policy),\n        "--disable-slash-commands",\n'),
     ('cost-ignored', 'src/willitharness/claude_agent.py', 'cost = float(event[COST_FIELD])', 'cost = 0.0'),
     ('effect-tools-gain-write', 'src/willitharness/claude_agent.py', 'EFFECT_TOOLS = "Bash"', 'EFFECT_TOOLS = "Bash,Write"'),
     ('guard-tools-lose-edit', 'src/willitharness/claude_agent.py', 'GUARD_TOOLS = "Bash,Write,Edit"', 'GUARD_TOOLS = "Bash,Write"'),

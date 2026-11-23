@@ -9,7 +9,8 @@ from willitharness.world import CONTROL_NAMES, stub_outputs
 BIN_NAME = "bin"
 CALLS_LOG = "calls.log"
 SCRATCH_NAME = "tmp"
-RESERVED_NAMES = CONTROL_NAMES | {BIN_NAME, CALLS_LOG}
+SYSTEM_PROMPT_NAME = "system-prompt.txt"
+RESERVED_NAMES = CONTROL_NAMES | {BIN_NAME, CALLS_LOG, SYSTEM_PROMPT_NAME}
 WRAPPER_MODE = 0o755
 WRAPPER_TEMPLATE = (
     "#!/bin/sh\n"

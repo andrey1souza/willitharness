@@ -199,13 +199,47 @@ def test_an_arm_overlay_that_is_not_a_directory_is_refused_before_any_run(tmp_pa
     assert not stored_final_runs(site), f"a refused plan must not start a run, found {stored_final_runs(site)}"
 
 
-def test_an_arm_on_the_system_prompt_channel_is_refused(tmp_path, monkeypatch):
+RULE_BYTES = "Rule A\r\nCode: \u00e9\u4e2d\n\nno final newline".encode()
+SYSTEM_PROMPT_FLAG = "--append-system-prompt-file"
+
+
+def system_prompt_site(tmp_path, monkeypatch):
     site = prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok")
+    (site.root / "A.md" / "system-prompt.txt").write_bytes(RULE_BYTES)
     arm = replace(site.plan.arms[0], channel="system_prompt")
-    refused = replace(site, plan=replace(site.plan, arms=(arm,)))
+    return replace(site, plan=replace(site.plan, arms=(arm,)))
+
+
+def test_a_system_prompt_arm_delivers_its_rule_text_byte_for_byte_through_the_flag(tmp_path, monkeypatch):
+    site = system_prompt_site(tmp_path, monkeypatch)
+    report = report_of(run_one(site).transcript)
+    path = report["arguments"][report["arguments"].index(SYSTEM_PROMPT_FLAG) + 1]
+    assert path == str(site.root.resolve() / "A.md" / "system-prompt.txt"), f"the flag must name the overlay file, got {path!r}"
+    assert bytes.fromhex(report["system_prompt_hex"]) == RULE_BYTES, f"the rule text must arrive unchanged, got {report['system_prompt_hex']!r}"
+
+
+def test_the_rule_file_of_a_system_prompt_arm_does_not_enter_the_workspace(tmp_path, monkeypatch):
+    report = report_of(run_one(system_prompt_site(tmp_path, monkeypatch)).transcript)
+    assert "system-prompt.txt" not in report["files"] and "rule.txt" in report["files"], f"the workspace holds {report['files']}"
+
+
+def test_an_arm_on_the_file_channel_gets_no_system_prompt_flag(tmp_path, monkeypatch):
+    site = prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok")
+    (site.root / "A.md" / "system-prompt.txt").write_bytes(RULE_BYTES)
+    arguments = report_of(run_one(site).transcript)["arguments"]
+    assert SYSTEM_PROMPT_FLAG not in arguments, f"a file arm must not use the system prompt channel, got {arguments}"
+
+
+@pytest.mark.parametrize("content", [None, b""], ids=["missing", "empty"])
+def test_a_system_prompt_arm_without_rule_text_is_refused_before_any_run(tmp_path, monkeypatch, content):
+    site = system_prompt_site(tmp_path, monkeypatch)
+    rule = site.root / "A.md" / "system-prompt.txt"
+    rule.unlink() if content is None else rule.write_bytes(content)
     with pytest.raises(PlanError) as raised:
-        claude_runner(run_setup(refused), "haiku")
-    assert "channel system_prompt" in str(raised.value) and "T64" in str(raised.value) and "Fix:" in str(raised.value), f"unexpected message {str(raised.value)!r}"
+        claude_runner(run_setup(site), "haiku")
+    message = str(raised.value)
+    assert "system-prompt.txt" in message and "Rule:" in message and "Fix:" in message, f"unexpected message {message!r}"
+    assert not stored_final_runs(site), f"a refused plan must not start a run, found {stored_final_runs(site)}"
 
 
 def test_the_run_command_runs_the_claude_agent_and_prints_the_spend(tmp_path, monkeypatch, capsys):

@@ -172,3 +172,42 @@ def test_a_plan_that_already_ran_refuses_a_new_result(tmp_path, monkeypatch, cap
     errors = capsys.readouterr().err
     assert code == cli.EXIT_DOMAIN_FAILURE, f"expected exit 1, got {code}"
     assert "reachability is recorded before the first run" in errors and "Fix:" in errors, f"unexpected stderr {errors!r}"
+
+
+def claude_probe_with_arm(tmp_path, monkeypatch, channel, rule_text):
+    make_site(tmp_path, TWO_ARMS)
+    plan_path = tmp_path / "plan.json"
+    data = json.loads(plan_path.read_text())
+    data["arms"][0]["channel"] = channel
+    plan_path.write_text(json.dumps(data))
+    if rule_text is not None:
+        (tmp_path / "A.md").mkdir(exist_ok=True)
+        (tmp_path / "A.md" / "system-prompt.txt").write_text(rule_text)
+    monkeypatch.chdir(tmp_path)
+    work = planted_work(tmp_path)
+    seen = []
+
+    def recording_runner(arguments, index):
+        seen.append(arguments.system_prompt_file)
+        return claude_stand_in(arguments, index)
+
+    arguments = ["--agent", "claude", "--directory", str(work), "--runs", str(RUNS), "--target-token", TARGET, "--control-token", CONTROL, "--plan", "plan.json", "--arm", "A"]
+    return cli.probe_command(arguments, {"claude": recording_runner}), seen
+
+
+def test_the_probe_of_a_system_prompt_arm_uses_the_overlay_file_as_its_channel(tmp_path, monkeypatch, capsys):
+    code, seen = claude_probe_with_arm(tmp_path, monkeypatch, "system_prompt", "the rule\n")
+    capsys.readouterr()
+    assert code == cli.EXIT_OK and seen == [str(tmp_path.resolve() / "A.md" / "system-prompt.txt")] * RUNS, f"got {code} and {seen}"
+
+
+def test_the_probe_of_a_file_arm_has_no_system_prompt_file(tmp_path, monkeypatch, capsys):
+    code, seen = claude_probe_with_arm(tmp_path, monkeypatch, "file", "the rule\n")
+    capsys.readouterr()
+    assert code == cli.EXIT_OK and seen == [""] * RUNS, f"got {code} and {seen}"
+
+
+def test_the_probe_of_a_system_prompt_arm_without_rule_text_exits_one_before_any_run(tmp_path, monkeypatch, capsys):
+    code, seen = claude_probe_with_arm(tmp_path, monkeypatch, "system_prompt", None)
+    errors = capsys.readouterr().err
+    assert code == cli.EXIT_DOMAIN_FAILURE and seen == [] and "system-prompt.txt" in errors and "Fix:" in errors, f"got {code}, {seen}, {errors!r}"

@@ -17,7 +17,7 @@ from willitharness.isolation import agent_environment, sandbox_profile, sandboxe
 from willitharness.lifecycle import TIMED_OUT, PlanState, RunSetup, finished, lifecycle_dir, read_state
 from willitharness.paths import PathOutsideRoot, inside
 from willitharness.plan import PlanError, has_guard_arm
-from willitharness.stubs import calls_path, copy_without_reserved, scratch_path, stub_folder, write_stub_wrappers
+from willitharness.stubs import SYSTEM_PROMPT_NAME, calls_path, copy_without_reserved, scratch_path, stub_folder, write_stub_wrappers
 from willitharness.world import allowed_commands, prompt_text
 
 POLL_SECONDS = 0.05
@@ -28,8 +28,7 @@ CLAUDE_TEMP_VARIABLE = "CLAUDE_CODE_TMPDIR"
 CONFIG_VARIABLE = "CLAUDE_CONFIG_DIR"
 DEFAULT_CONFIG_NAME = ".claude"
 HOME_STATE_NAME = ".claude.json"
-UNSUPPORTED_CHANNEL = "system_prompt"
-CHANNEL_TASK = "T64"
+SYSTEM_PROMPT_CHANNEL = "system_prompt"
 INSTRUCTION_FILES = ("CLAUDE.md", "AGENTS.md")
 INSTRUCTION_DIRECTORY = ".claude"
 AGENT_RECORD = "agent.json"
@@ -58,15 +57,18 @@ class RunKey:
     attempt: int
 
 
-def check_channels(plan):
-    assert plan.arms, f"plan {plan.name} has no arms. Rule: a plan needs arms. Fix: load the plan with load_plan."
-    assert UNSUPPORTED_CHANNEL, "the unsupported channel name is empty. Fix: restore the constant."
-    for arm in plan.arms:
-        if arm.channel == UNSUPPORTED_CHANNEL:
-            raise PlanError(
-                f"arm {arm.label} uses channel {arm.channel}. Rule: the claude runner delivers an arm as files in the workspace; "
-                f"the {arm.channel} channel is backlog task {CHANNEL_TASK}. Fix: use another channel for arm {arm.label}."
-            )
+def system_prompt_file(site, arm):
+    assert arm in site.plan.arms, f"{arm.label} is not an arm of plan {site.plan.name}. Fix: pass an arm of the plan."
+    if arm.channel != SYSTEM_PROMPT_CHANNEL:
+        return ""
+    path = inside(site.root, arm.overlay) / SYSTEM_PROMPT_NAME
+    if not path.is_file() or path.stat().st_size == 0:
+        raise PlanError(
+            f"arm {arm.label} uses channel {arm.channel} but {path} is missing or empty. "
+            f"Rule: the {arm.channel} channel delivers the text of {SYSTEM_PROMPT_NAME} in the overlay. Fix: write the rule text to {SYSTEM_PROMPT_NAME} in the overlay of arm {arm.label}."
+        )
+    assert path.is_absolute(), f"the system prompt file {path} is not absolute"
+    return str(path)
 
 
 def workspace_base(base):
@@ -104,7 +106,6 @@ def check_runnable(setup, base):
     assert isinstance(setup, RunSetup), f"check_runnable needs a RunSetup, got {setup!r}. Fix: build one with the site, tasks and timeout."
     assert setup.timeout_seconds > 0, f"the timeout is {setup.timeout_seconds}. Rule: every run has a wall-clock limit above 0. Fix: pass a positive limit."
     site = setup.site
-    check_channels(site.plan)
     check_ancestors(workspace_base(base))
     for arm in site.plan.arms:
         try:
@@ -113,6 +114,7 @@ def check_runnable(setup, base):
             raise PlanError(str(error)) from error
         if not overlay.is_dir():
             raise PlanError(f"overlay {overlay} of arm {arm.label} is not a directory. Rule: an arm is an overlay directory. Fix: create the directory the arm names in overlay.")
+        system_prompt_file(site, arm)
     assert all(inside(site.root, arm.overlay).is_dir() for arm in site.plan.arms), f"an overlay of plan {site.plan.name} is not a directory"
 
 
@@ -267,7 +269,9 @@ def run_cell(runner, cell, rep, attempt):
     home = Path.home()
     prompt = prompt_text(site.world_dir, cell.task)
     guarded = has_guard_arm(site.plan)
+    arm = next(known for known in site.plan.arms if known.label == cell.arm)
     policy = tool_policy(guarded, allowed_commands(site.world_dir))
+    policy = replace(policy, system_prompt_file=system_prompt_file(site, arm))
     with tempfile.TemporaryDirectory(prefix=RUN_DIRECTORY_PREFIX, dir=runner.base) as directory:
         run_root = Path(directory).resolve()
         work = build_workspace(site, cell.arm, run_root)

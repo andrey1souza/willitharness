@@ -1,5 +1,6 @@
 import json
 import math
+from dataclasses import replace
 
 import pytest
 
@@ -97,3 +98,12 @@ def test_a_probe_with_settings_is_refused():
     with pytest.raises(AssertionError) as raised:
         build_command("hello", MODEL, BUDGET, ToolPolicy("", (), "{}"))
     assert "Rule:" in str(raised.value) and "--settings" in str(raised.value), f"unexpected message {str(raised.value)!r}"
+
+
+def test_a_policy_with_a_system_prompt_file_adds_the_append_flag_and_its_path():
+    command = build_command("hello", MODEL, BUDGET, replace(PROBE_POLICY, system_prompt_file="/rules/system-prompt.txt"))
+    assert command[command.index("--append-system-prompt-file") + 1] == "/rules/system-prompt.txt", f"flag missing in {command}"
+
+
+def test_a_policy_without_a_system_prompt_file_adds_no_append_flag():
+    assert "--append-system-prompt-file" not in build_command("hello", MODEL, BUDGET, PROBE_POLICY), f"the default command must not carry the flag, got {build_command('hello', MODEL, BUDGET, PROBE_POLICY)}"
