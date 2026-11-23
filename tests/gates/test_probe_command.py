@@ -188,7 +188,7 @@ def claude_probe_with_arm(tmp_path, monkeypatch, channel, rule_text):
     seen = []
 
     def recording_runner(arguments, index):
-        seen.append(arguments.system_prompt_file)
+        seen.append(arguments.skills if arguments.skills else arguments.system_prompt_file)
         return claude_stand_in(arguments, index)
 
     arguments = ["--agent", "claude", "--directory", str(work), "--runs", str(RUNS), "--target-token", TARGET, "--control-token", CONTROL, "--plan", "plan.json", "--arm", "A"]
@@ -199,6 +199,21 @@ def test_the_probe_of_a_system_prompt_arm_uses_the_overlay_file_as_its_channel(t
     code, seen = claude_probe_with_arm(tmp_path, monkeypatch, "system_prompt", "the rule\n")
     capsys.readouterr()
     assert code == cli.EXIT_OK and seen == [str(tmp_path.resolve() / "A.md" / "system-prompt.txt")] * RUNS, f"got {code} and {seen}"
+
+
+def test_the_probe_of_a_skill_arm_passes_the_skill_names_of_the_overlay(tmp_path, monkeypatch, capsys):
+    skill = tmp_path / "A.md" / ".claude" / "skills" / "arm-skill"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text("---\nname: arm-skill\n---\nBody.\n")
+    code, seen = claude_probe_with_arm(tmp_path, monkeypatch, "skill", None)
+    capsys.readouterr()
+    assert code == cli.EXIT_OK and seen == [("arm-skill",)] * RUNS, f"got {code} and {seen}"
+
+
+def test_the_probe_of_a_skill_arm_without_a_skill_file_exits_one_before_any_run(tmp_path, monkeypatch, capsys):
+    code, seen = claude_probe_with_arm(tmp_path, monkeypatch, "skill", None)
+    errors = capsys.readouterr().err
+    assert code == cli.EXIT_DOMAIN_FAILURE and seen == [] and "SKILL.md" in errors and "Fix:" in errors, f"got {code}, {seen}, {errors!r}"
 
 
 def test_the_probe_of_a_file_arm_has_no_system_prompt_file(tmp_path, monkeypatch, capsys):

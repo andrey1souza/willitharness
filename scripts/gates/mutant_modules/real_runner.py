@@ -1,5 +1,5 @@
 PLATFORM = "darwin"
-TESTS = ("tests/gates/test_real_runner.py", "tests/gates/test_agent_tools.py", "tests/gates/test_plan_gate.py", "tests/gates/test_probe_command.py",)
+TESTS = ("tests/gates/test_real_runner.py", "tests/gates/test_agent_tools.py", "tests/gates/test_plan_gate.py", "tests/gates/test_probe_command.py", "tests/gates/test_skill_arm.py",)
 SOURCE = "src/willitharness/real_runner.py"
 
 MUTANTS = (
@@ -7,7 +7,7 @@ MUTANTS = (
     ("rule-arm-gets-a-hook", SOURCE, "    if arm.role != ROLE_GUARD_ONLY:\n", "    if False:\n"),
     ("guard-arm-treated-as-rule-arm", SOURCE, "    if arm.role != ROLE_GUARD_ONLY:\n", "    if True:\n"),
     ("guard-rules-not-loaded-at-start", SOURCE, "        load_rules(path.parent, path.name)\n", "        pass\n"),
-    ("guard-rules-not-checked-at-start", SOURCE, "        guard_rules_file(site, arm)\n    assert all(inside", "    assert all(inside"),
+    ("guard-rules-not-checked-at-start", SOURCE, "        guard_rules_file(site, arm)\n        skill_names(site, arm)\n", "        skill_names(site, arm)\n"),
     ("guard-rules-file-of-another-name", SOURCE, "path = inside(site.root, arm.overlay) / GUARD_RULES_NAME", 'path = inside(site.root, arm.overlay) / "rules.json"'),
     ("guard-rules-not-installed-in-the-run-folder", SOURCE, "    shutil.copyfile(rules_source, installed)\n", "    installed.write_text(\"[]\")\n"),
     ("hook-names-the-source-rules", SOURCE, "    result = guard_hook_settings(installed)\n", "    result = guard_hook_settings(rules_source)\n"),
@@ -69,5 +69,14 @@ MUTANTS = (
     ("system-prompt-file-of-another-name", SOURCE, "path = inside(site.root, arm.overlay) / SYSTEM_PROMPT_NAME", 'path = inside(site.root, arm.overlay) / "rule.txt"'),
     ("probe-ignores-the-arm-channel", 'src/willitharness/cli.py', "    path = system_prompt_file(site, next(arm for arm in site.plan.arms if arm.label == arm_label))", '    path = ""'),
     ("probe-runner-drops-the-system-prompt-file", 'src/willitharness/cli.py', "arguments.run_budget_usd, arguments.system_prompt_file)", 'arguments.run_budget_usd)'),
+    ("probe-runner-drops-the-skills", 'src/willitharness/cli.py', "    if arguments.skills:\n", "    if False:\n"),
+    ("probe-ignores-the-skill-names", 'src/willitharness/cli.py', "    names = skill_names(site, next(arm for arm in site.plan.arms if arm.label == arm_label))", '    names = ()'),
     ("probe-arm-without-rule-text-runs", 'src/willitharness/cli.py', "    except PlanError as error:\n        print(str(error), file=sys.stderr)\n        return EXIT_DOMAIN_FAILURE\n    transcripts", "    except PlanError as error:\n        arguments.system_prompt_file = \"\"\n    transcripts"),
+    ('skill-arm-not-given-skills', 'src/willitharness/real_runner.py', '    policy = skill_policy(policy, skills) if skills else policy\n', ''),
+    ('every-arm-gets-skills', 'src/willitharness/real_runner.py', '    skills = skill_names(site, arm)\n', '    skills = skill_names(site, arm) or ("x",)\n'),
+    ('skill-channel-ignored', 'src/willitharness/real_runner.py', '    if arm.channel != SKILL_CHANNEL:\n        return ()', '    if False:\n        return ()'),
+    ('skill-less-skill-arm-accepted', 'src/willitharness/real_runner.py', '    if not names:\n        raise PlanError(', '    if False:\n        raise PlanError('),
+    ('skill-check-not-run-at-start', 'src/willitharness/real_runner.py', '        skill_names(site, arm)\n    assert all', '    assert all'),
+    ('foreign-skills-not-refused', 'src/willitharness/real_runner.py', '    if foreign:\n        raise PlanError(', '    if False:\n        raise PlanError('),
+    ('foreign-check-skipped', 'src/willitharness/real_runner.py', '    refuse_foreign_skills(arm, skills, output)\n', ''),
 )
