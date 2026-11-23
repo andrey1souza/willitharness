@@ -14,3 +14,8 @@ def bash_call(command):
 def run_hook_command(command, call_text, directory):
     assert command, "run_hook_command needs the hook command. Fix: read it from the settings."
     return subprocess.run(command, shell=True, input=call_text, capture_output=True, text=True, cwd=directory)
+
+
+def run_script(command, directory):
+    assert command, "run_script needs the command words. Fix: pass a list such as ['sh', 'script.sh']."
+    return subprocess.run(command, capture_output=True, text=True, cwd=directory)

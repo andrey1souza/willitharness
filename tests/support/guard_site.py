@@ -10,6 +10,7 @@ FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
 RULES_FILE = FIXTURES / "guard" / "rules.json"
 CORPUS_FILE = FIXTURES / "guard" / "corpus.json"
 MESSAGES_FILE = FIXTURES / "rules" / "messages.json"
+REPRO_ARMS = FIXTURES / "guard-repro" / "arms"
 TASK = "backup"
 RUN_COST_USD = 0.01
 BLOCKED_COPY = "cp a.json b.json"
@@ -60,3 +61,16 @@ def arm_records(arm, completed_count, runs):
     records = tuple(usable_guard_run(arm, rep, rep <= completed_count) for rep in range(1, runs + 1))
     assert len(records) == runs, f"arm_records built {len(records)} of {runs}"
     return records
+
+
+def repro_arm_rules(label):
+    assert label, "repro_arm_rules needs an arm label. Fix: pass OLD or USABLE."
+    entries = json.loads((REPRO_ARMS / label / "guard-rules.json").read_text())
+    assert entries, f"the arm {label} holds no guard rules. Fix: restore fixtures/guard-repro."
+    return entries
+
+
+def pkill_fixture_rule():
+    (entry,) = [entry for entry in json.loads(RULES_FILE.read_text()) if entry["name"] == "pkill"]
+    assert entry["blocked"], f"the pkill rule blocks no program: {entry}. Fix: restore fixtures/guard/rules.json."
+    return entry

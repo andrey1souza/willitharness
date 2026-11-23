@@ -1,12 +1,16 @@
+import io
 import re
 
-from guard_site import bash, corpus, guard_rules, messages, write_call
+import guard_repro
+from guard_site import RULES_FILE, bash, corpus, guard_rules, messages, write_call
+from hook_calls import bash_call
 from pytest_bdd import given, parsers, scenario, then, when
 
 from willitharness.bypass import bypass_counts, bypass_report_lines
 from willitharness.counts import Counts
 from willitharness.decision import decide
 from willitharness.guard import BlockedProgram, GuardRule, check_messages, coverage_of, decide_command, evaluate
+from willitharness.guard_hook import main as hook_main
 from willitharness.verdict import verdict_of
 from willitharness.vocabulary import Coverage, EffectResult, GuardResult, Reach, Verdict
 
@@ -67,6 +71,26 @@ def test_coverage_is_the_share_of_violating_commands_the_guard_blocked(world):
 
 @scenario(FEATURE, "A block message must name a way forward")
 def test_a_block_message_must_name_a_way_forward(world):
+    assert world, f"the steps filled nothing, got {world!r}. Fix: each step must record its state in the world."
+
+
+@scenario(FEATURE, "A guard arm blocks a violating command through a hook and the agent reads the message")
+def test_a_guard_arm_blocks_a_violating_command_through_a_hook(world):
+    assert world, f"the steps filled nothing, got {world!r}. Fix: each step must record its state in the world."
+
+
+@scenario(FEATURE, "A hook lets an allowed command through without a word")
+def test_a_hook_lets_an_allowed_command_through_without_a_word(world):
+    assert world, f"the steps filled nothing, got {world!r}. Fix: each step must record its state in the world."
+
+
+@scenario(FEATURE, "A hook that cannot read its tool call blocks it")
+def test_a_hook_that_cannot_read_its_tool_call_blocks_it(world):
+    assert world, f"the steps filled nothing, got {world!r}. Fix: each step must record its state in the world."
+
+
+@scenario(FEATURE, "Two guard arms with the same message print no difference")
+def test_two_guard_arms_with_the_same_message_print_no_difference(world):
     assert world, f"the steps filled nothing, got {world!r}. Fix: each step must record its state in the world."
 
 
@@ -243,3 +267,67 @@ def good_commands_allowed(world):
 @then(parsers.parse('the check result is "{result}"'))
 def check_result_is(world, result):
     assert ("accepted" if world["accepted"] else "rejected") == result, f"expected {result} for {world['message']!r}"
+
+
+@given(parsers.parse('a guard-only arm whose rules block "{program}"'))
+def arm_blocking(world, program):
+    assert any(entry.program == program for rule in guard_rules() for entry in rule.blocked), f"the guard fixtures do not block {program!r}. Fix: restore fixtures/guard/rules.json."
+    world["rules_path"] = RULES_FILE
+
+
+def hook_run(world, call_text):
+    standard_error = io.StringIO()
+    world["hook_code"] = hook_main([str(world["rules_path"])], io.StringIO(call_text), standard_error)
+    world["hook_message"] = standard_error.getvalue()
+
+
+@when(parsers.parse('the hook judges the command "{command}"'))
+def hook_judges(world, command):
+    hook_run(world, bash_call(command))
+
+
+@when(parsers.parse('the hook reads the text "{text}"'))
+def hook_reads(world, text):
+    hook_run(world, text)
+
+
+@then(parsers.parse("the hook exits with code {code:d}"))
+def hook_exit_code(world, code):
+    assert world["hook_code"] == code, f"the hook exited {world['hook_code']}, expected {code}. Rule: a hook blocks with 2 and allows with 0."
+
+
+@then(parsers.parse('the hook message starts with "{start}"'))
+def hook_message_start(world, start):
+    assert world["hook_message"].startswith(start), f"the hook message is {world['hook_message']!r}, expected a start of {start!r}"
+
+
+@then("the hook message is empty")
+def hook_message_empty(world):
+    assert world["hook_message"] == "", f"an allowed command gets no message, got {world['hook_message']!r}"
+
+
+@then("the hook message states a rule and a fix")
+def hook_message_rule_and_fix(world):
+    assert "Rule:" in world["hook_message"] and "Fix:" in world["hook_message"], f"the message needs a rule and a fix: {world['hook_message']!r}"
+
+
+@given("two guard-only arms that carry the same block message")
+def same_message_arms(world):
+    world["same_message"] = True
+
+
+@when("I run the guard repro in dry mode")
+def run_dry_repro(world, capsys):
+    arguments = ["--dry", *(["--same-message"] if world["same_message"] else [])]
+    world["exit_code"] = guard_repro.main(arguments, guard_repro.dry_runner, guard_repro.SOURCES)
+    world["output"] = capsys.readouterr().out
+
+
+@then(parsers.parse('the output has the line "{line}"'))
+def output_has_line(world, line):
+    assert line in world["output"].splitlines(), f"the output lacks the line {line!r}: {world['output']!r}"
+
+
+@then(parsers.parse("the exit code is {code:d}"))
+def exit_code_is(world, code):
+    assert world["exit_code"] == code, f"the exit code is {world['exit_code']}, expected {code}. Output: {world['output']!r}"
