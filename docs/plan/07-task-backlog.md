@@ -545,12 +545,12 @@ As an owner of a harness, I want a skill arm to reach the Skill tool, so that ar
 - Given a plan with no skill arm, then the command line is unchanged.
 - IDs: none yet. The contract text on the run environment changes. Gate: new, defined with the task. Deps: T64.
 
-### T78. Let build-plan write the tasks (S) not built (T78)
+### T78. Let build-plan write the tasks (S)
 As an owner of a harness, I want `build-plan` to write the tasks and their completed check, so that `analyze` works on a generated plan.
 - Given a task file, then the plan holds those tasks with their completed check.
 - Given no task, then `build-plan` exits 1 with a rule and a fix, and writes nothing.
 - Given a built plan, then `plan check` and `analyze` accept it with no hand edit.
-- IDs: none. Gate: new, defined with the task. Deps: T69, T76.
+- IDs: none. Gate: `uv run pytest tests/gates/test_plan_builder.py`. Deps: T69, T76.
 
 ### T79. Stop keeping counts by hand in the plan docs (S)
 As a maintainer, I want the plan docs to hold no count that changes with every PR, so that two open PRs never conflict on a number.
@@ -558,6 +558,13 @@ As a maintainer, I want the plan docs to hold no count that changes with every P
 - Given the backlog, then its header and summary table state no task count.
 - Given a doc that still states a count, then the docs gate fails when the count is wrong.
 - IDs: none. Gate: `uv run pytest tests/gates/test_docs_freshness.py tests/gates/test_no_hand_counts.py`. Deps: none.
+
+### T80. Refuse a run whose world and plan tasks differ (S) not built (T80)
+As an analyst, I want `run` to refuse early when the tasks of the world and the plan differ, so that a paid run cannot end with a result that `analyze` cannot read.
+- Given a task in `world/tasks.txt` with no entry in the plan `tasks`, then `run` exits 1 before any run and names the task.
+- Given a plan task that is not in `world/tasks.txt`, then `run` exits 1 before any run and names the task.
+- Given matching tasks, then `run` starts as before.
+- IDs: none. Gate: new, defined with the task. Deps: T78.
 
 ### T68. The probe command records its result for a plan arm (S)
 As an analyst, I want `probe` to record its result for an arm of my plan, so that `run` can start with the CLI alone.
