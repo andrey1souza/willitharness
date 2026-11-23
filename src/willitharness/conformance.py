@@ -8,7 +8,8 @@ from willitharness.decision import decide
 from willitharness.effect import map_effect
 from willitharness.guard import evaluate
 from willitharness.probe import classify
-from willitharness.vocabulary import Coverage, Decision, EffectResult, GuardResult, NoiseStatus, Reach, Verdict
+from willitharness.three_arm import arm_verdict_from
+from willitharness.vocabulary import ArmVerdict, Coverage, Decision, EffectResult, GuardResult, NoiseStatus, Reach, Verdict
 
 GOLDEN_DIRECTORY = Path(__file__).resolve().parents[2] / "formal" / "lean"
 NO_GUARD_ARM = "NoGuardArm"
@@ -22,6 +23,7 @@ FILE_BY_KIND = {
     "probe": "probe_table.json",
     "guard": "guard_table.json",
     "reported": "reported_table.json",
+    "arms": "arms_table.json",
 }
 
 
@@ -129,12 +131,31 @@ def reported_mismatches(rows: list[dict], report_function: Callable = can_report
     return found
 
 
+def arms_mismatches(rows: list[dict], arms_function: Callable = arm_verdict_from) -> list[str]:
+    assert rows, f"no arms rows to check, got {rows!r}"
+    assert all({"promptVsComponent", "nothingVsComponent", "nothingClean", "verdict"} <= row.keys() for row in rows), (
+        f"arms rows are incomplete: {rows[:1]!r}"
+    )
+    found = []
+    for row in rows:
+        try:
+            got = arms_function(Verdict(row["promptVsComponent"]), Verdict(row["nothingVsComponent"]), row["nothingClean"])
+            expected = ArmVerdict(row["verdict"])
+        except ValueError as error:
+            found.append(f"arms {row}: {error}")
+            continue
+        if got != expected:
+            found.append(f"arms {row}: lean={expected} python={got}")
+    return found
+
+
 MISMATCH_FUNCTION_BY_KIND = {
     "decision": decision_mismatches,
     "effect": effect_mismatches,
     "probe": probe_mismatches,
     "guard": guard_mismatches,
     "reported": reported_mismatches,
+    "arms": arms_mismatches,
 }
 
 

@@ -1,6 +1,7 @@
 import pytest
 
 from willitharness.conformance import (
+    arms_mismatches,
     GOLDEN_DIRECTORY,
     decision_mismatches,
     effect_mismatches,
@@ -14,13 +15,14 @@ from willitharness.analysis import PlanFacts, can_report
 from willitharness.decision import decide
 from willitharness.effect import map_effect
 from willitharness.guard import evaluate
+from willitharness.three_arm import arm_verdict_from
 from willitharness.probe import classify
-from willitharness.vocabulary import Decision, EffectResult, NoiseStatus, Reach
+from willitharness.vocabulary import ArmVerdict, Decision, EffectResult, NoiseStatus, Reach
 
-ROW_COUNT_BY_KIND = {"decision": 45, "effect": 12, "probe": 140, "guard": 30, "reported": 54}
+ROW_COUNT_BY_KIND = {"decision": 45, "effect": 12, "probe": 140, "guard": 30, "reported": 54, "arms": 32}
 USAGE_EXIT_CODE = 2
 SUCCESS_EXIT_CODE = 0
-TABLE_FILE_NAMES = ["decision_table.json", "effect_table.json", "guard_table.json", "probe_table.json", "reported_table.json"]
+TABLE_FILE_NAMES = ["arms_table.json", "decision_table.json", "effect_table.json", "guard_table.json", "probe_table.json", "reported_table.json"]
 
 
 def wrong_decide_masked_keeps(reach, effect, guard):
@@ -42,6 +44,10 @@ def wrong_evaluate_ignores_bypass(completed, coverage, zero_bypass):
 
 def wrong_can_report_ignores_noise(facts):
     return can_report(PlanFacts(facts.has_noise_pair, NoiseStatus.NOISE_OK, facts.loo_probe, facts.rule_reach))
+
+
+def wrong_arms_insurance_never(prompt_vs_component, nothing_vs_component, nothing_clean):
+    return arm_verdict_from(prompt_vs_component, nothing_vs_component, False)
 
 
 @pytest.mark.parametrize(("kind", "count"), ROW_COUNT_BY_KIND.items())
@@ -98,6 +104,23 @@ def test_proof_it_can_fail_P2_ignoring_the_control_token_is_detected():
 def test_proof_it_can_fail_G1_ignoring_bypass_is_detected():
     found = guard_mismatches(load_rows("guard"), wrong_evaluate_ignores_bypass)
     assert found != [], f"{found=} for a guard check that ignores bypass"
+
+
+def test_TA1_arms_table_conforms():
+    found = arms_mismatches(load_rows("arms"))
+    assert found == [], f"{found=}"
+
+
+def test_proof_it_can_fail_TA3_a_verdict_that_ignores_insurance_is_detected():
+    found = arms_mismatches(load_rows("arms"), wrong_arms_insurance_never)
+    assert found != [], f"{found=} for a verdict that never gives insurance"
+
+
+def test_proof_it_can_fail_a_changed_arms_row_is_detected():
+    rows = load_rows("arms")
+    rows[0] = {**rows[0], "verdict": ArmVerdict.INSURANCE_KEEP.value}
+    found = arms_mismatches(rows)
+    assert len(found) == 1, f"{found=} for one changed row"
 
 
 def test_proof_it_can_fail_a_changed_table_row_is_detected():

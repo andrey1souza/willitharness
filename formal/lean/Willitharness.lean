@@ -4,3 +4,4 @@ import Willitharness.Probe
 import Willitharness.Link
 import Willitharness.Guard
 import Willitharness.SideEffects
+import Willitharness.ThreeArm
