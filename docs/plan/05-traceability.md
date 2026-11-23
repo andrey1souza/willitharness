@@ -97,6 +97,7 @@ decides which tool covers which group. 57 IDs in total.
 |---|---|---|---|
 | Warnings W-LOWN, W-DENIAL, saturated, AtBound, pooled | `warnings.feature`, `effect-with-noise.feature`, `report.feature` | `test_warnings.py` | G4.6 |
 | Channel per arm (file, skill, hook, system_prompt) | `plan-arms.feature` | `tests/bdd/test_plan_arms.py` | G1.8 |
+| The system_prompt channel is a file flag for the run and the probe | `runner-isolation.feature` | `test_real_runner.py`, `test_agent_tools.py`, `test_probe_command.py` | G3.10 |
 | Outcomes per task cell, usable per outcome | `runner-isolation.feature`, `effect-with-noise.feature` | `test_analysis_outcomes.py` | G3.2, G4.5 |
 | DEFAULT_REPS 20, MAX_RETRIES 2, MIN_PROBE_RUNS 3 | `budget-and-resume.feature`, `reachability.feature` | `test_plan.py` | G1.8 |
 | A-CAP enforcement and timeout transition | `runner-isolation.feature`, `budget-and-resume.feature` | `test_run_cap.py` | G3.10 |
