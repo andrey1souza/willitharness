@@ -12,7 +12,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from willitharness.artifacts import RunArtifacts, artifact_directory, store_artifacts
-from willitharness.claude_agent import build_command, claude_version, tool_policy
+from willitharness.claude_agent import build_command, claude_version, foreign_skills, skill_policy, tool_policy
 from willitharness.claude_sandbox import NO_DOMAINS, sandbox_settings
 from willitharness.guard import load_rules
 from willitharness.guard_hook import guard_hook_settings
@@ -32,6 +32,9 @@ CONFIG_VARIABLE = "CLAUDE_CONFIG_DIR"
 DEFAULT_CONFIG_NAME = ".claude"
 HOME_STATE_NAME = ".claude.json"
 SYSTEM_PROMPT_CHANNEL = "system_prompt"
+SKILL_CHANNEL = "skill"
+SKILLS_FOLDER = ".claude/skills"
+SKILL_FILE = "SKILL.md"
 INSTRUCTION_FILES = ("CLAUDE.md", "AGENTS.md")
 INSTRUCTION_DIRECTORY = ".claude"
 AGENT_RECORD = "agent.json"
@@ -92,6 +95,21 @@ def guard_rules_file(site, arm):
     return path
 
 
+def skill_names(site, arm):
+    assert arm in site.plan.arms, f"{arm.label} is not an arm of plan {site.plan.name}. Fix: pass an arm of the plan."
+    if arm.channel != SKILL_CHANNEL:
+        return ()
+    folder = inside(site.root, arm.overlay) / SKILLS_FOLDER
+    names = tuple(sorted(path.name for path in folder.iterdir() if (path / SKILL_FILE).is_file())) if folder.is_dir() else ()
+    if not names:
+        raise PlanError(
+            f"arm {arm.label} uses channel {arm.channel} but {folder} holds no folder with a {SKILL_FILE}. "
+            f"Rule: the {arm.channel} channel delivers the skills in {SKILLS_FOLDER} of the overlay. Fix: write {SKILLS_FOLDER}/<name>/{SKILL_FILE} in the overlay of arm {arm.label}."
+        )
+    assert names == tuple(sorted(set(names))), f"the skill names {names!r} of arm {arm.label} are not unique and sorted"
+    return names
+
+
 def workspace_base(base):
     assert base is None or isinstance(base, Path), f"workspace_base needs a Path or None, got {base!r}. Fix: pass a pathlib.Path."
     resolved = Path(tempfile.gettempdir()).resolve() if base is None else base.resolve()
@@ -137,6 +155,7 @@ def check_runnable(setup, base):
             raise PlanError(f"overlay {overlay} of arm {arm.label} is not a directory. Rule: an arm is an overlay directory. Fix: create the directory the arm names in overlay.")
         system_prompt_file(site, arm)
         guard_rules_file(site, arm)
+        skill_names(site, arm)
     assert all(inside(site.root, arm.overlay).is_dir() for arm in site.plan.arms), f"an overlay of plan {site.plan.name} is not a directory"
 
 
@@ -298,6 +317,17 @@ def keep_run(site, key, artifacts, environment):
     return store_artifacts(folder, key.attempt, artifacts, environment)
 
 
+def refuse_foreign_skills(arm, skills, output):
+    assert (not skills) or arm.channel == SKILL_CHANNEL, f"arm {arm.label} has skills {skills!r} but channel {arm.channel}. Rule: only a skill arm has skills."
+    foreign = foreign_skills(output.splitlines(), skills) if skills and output else []
+    if foreign:
+        raise PlanError(
+            f"the run of arm {arm.label} listed the skills {foreign!r} next to {skills!r}. "
+            f"Rule: a skill arm loads only its own skills, so no skill from the user, a plugin or Claude Code may load. Fix: remove those skills from the setting sources and the workspace, then run again."
+        )
+    assert not foreign, f"foreign skills {foreign!r} were found but not refused"
+
+
 def run_cell(runner, cell, rep, attempt):
     assert isinstance(runner, AgentRunner), f"run_cell needs an AgentRunner, got {runner!r}. Fix: build one with claude_runner."
     assert cell.arm and cell.task, f"cell {cell} lacks an arm or a task. Rule: every run belongs to a cell."
@@ -308,6 +338,8 @@ def run_cell(runner, cell, rep, attempt):
     arm = next(known for known in site.plan.arms if known.label == cell.arm)
     policy = tool_policy(guarded, allowed_commands(site.world_dir))
     policy = replace(policy, system_prompt_file=system_prompt_file(site, arm))
+    skills = skill_names(site, arm)
+    policy = skill_policy(policy, skills) if skills else policy
     with tempfile.TemporaryDirectory(prefix=RUN_DIRECTORY_PREFIX, dir=runner.base) as directory:
         run_root = Path(directory).resolve()
         work = build_workspace(site, cell.arm, run_root)
@@ -319,4 +351,5 @@ def run_cell(runner, cell, rep, attempt):
         output = watch(start_agent(command, profile, work, environment), deadline, lifecycle_dir(site.root, site.plan))
         calls = calls_text(run_root)
         keep_run(site, RunKey(cell, rep, attempt), RunArtifacts(output or "", calls), environment)
+    refuse_foreign_skills(arm, skills, output)
     return TIMED_OUT if output is None else finished(output.splitlines(), calls)

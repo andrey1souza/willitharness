@@ -4,7 +4,7 @@ from dataclasses import replace
 
 import pytest
 
-from willitharness.claude_agent import PROBE_POLICY, ToolPolicy, build_command, tool_policy, transcript_cost, unisolated_command
+from willitharness.claude_agent import PROBE_POLICY, ToolPolicy, build_command, skill_policy, tool_policy, transcript_cost, unisolated_command
 
 MODEL = "haiku"
 BUDGET = 0.03
@@ -107,3 +107,32 @@ def test_a_policy_with_a_system_prompt_file_adds_the_append_flag_and_its_path():
 
 def test_a_policy_without_a_system_prompt_file_adds_no_append_flag():
     assert "--append-system-prompt-file" not in build_command("hello", MODEL, BUDGET, PROBE_POLICY), f"the default command must not carry the flag, got {build_command('hello', MODEL, BUDGET, PROBE_POLICY)}"
+
+
+def test_a_command_without_a_skill_arm_is_exactly_the_command_from_before_T77():
+    policy = replace(tool_policy(False, ["pkill"]), settings="{}", system_prompt_file="/rule.txt")
+    assert build_command("hello", MODEL, BUDGET, policy) == [
+        "claude", "-p", "hello", "--model", "haiku", "--setting-sources", "project,local", "--strict-mcp-config",
+        "--max-budget-usd", "0.03", "--tools", "Bash", "--permission-mode", "default", "--allowedTools", "Bash(pkill:*)",
+        "--settings", "{}", "--append-system-prompt-file", "/rule.txt", "--disable-slash-commands", "--no-session-persistence",
+        "--output-format", "stream-json", "--verbose",
+    ], "the command of a plan with no skill arm changed. Rule: T77 touches skill arms only."
+
+
+def test_a_skill_policy_adds_the_skill_tool_and_drops_the_slash_command_flag():
+    command = build_command("hello", MODEL, BUDGET, skill_policy(tool_policy(True, ["pkill"]), ("b", "a", "a")))
+    assert command[command.index("--tools") + 1] == "Bash,Write,Edit,Skill", f"got {command}"
+    assert command[command.index("--allowedTools") + 1] == "Bash(pkill:*),Skill(a),Skill(b)", f"got {command}"
+    assert "--disable-slash-commands" not in command, f"got {command}"
+
+
+def test_skill_names_without_the_skill_tool_are_refused():
+    with pytest.raises(AssertionError) as raised:
+        build_command("hello", MODEL, BUDGET, replace(PROBE_POLICY, skills=("a",)))
+    assert "Rule: a skill arm keeps the Skill tool" in str(raised.value), f"got {raised.value}"
+
+
+def test_a_skill_policy_needs_names():
+    with pytest.raises(AssertionError) as raised:
+        skill_policy(PROBE_POLICY, ())
+    assert "Rule: a skill arm names its skills" in str(raised.value), f"got {raised.value}"

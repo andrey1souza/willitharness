@@ -2,6 +2,7 @@ PLATFORM = "darwin"
 TESTS = (
     'tests/unit/test_claude_agent_unit.py',
     'tests/gates/test_agent_tools.py',
+    'tests/gates/test_skill_arm.py',
 )
 
 MUTANTS = (
@@ -12,11 +13,11 @@ MUTANTS = (
     ('unisolated-command-gains-isolation', 'src/willitharness/claude_agent.py', '        "--max-budget-usd", str(budget),\n        "--tools", "",\n        "--no-session-persistence",\n', '        "--max-budget-usd", str(budget),\n        "--tools", "",\n        "--strict-mcp-config",\n        "--no-session-persistence",\n'),
     ('unisolated-command-keeps-tools', 'src/willitharness/claude_agent.py', '        "--max-budget-usd", str(budget),\n        "--tools", "",\n        "--no-session-persistence",\n', '        "--max-budget-usd", str(budget),\n        "--no-session-persistence",\n'),
     ('strict-mcp-config-dropped', 'src/willitharness/claude_agent.py', '        "--strict-mcp-config",\n', ''),
-    ('slash-commands-allowed', 'src/willitharness/claude_agent.py', '        "--disable-slash-commands",\n', ''),
-    ('session-persisted', 'src/willitharness/claude_agent.py', '        "--disable-slash-commands",\n        "--no-session-persistence",\n', '        "--disable-slash-commands",\n'),
+    ('slash-commands-allowed', 'src/willitharness/claude_agent.py', '        *slash_command_flags(policy),\n', ''),
+    ('session-persisted', 'src/willitharness/claude_agent.py', '        *slash_command_flags(policy),\n        "--no-session-persistence",\n', '        *slash_command_flags(policy),\n'),
     ('user-settings-loaded', 'src/willitharness/claude_agent.py', '"--setting-sources", "project,local"', '"--setting-sources", "user,project,local"'),
     ('budget-flag-dropped', 'src/willitharness/claude_agent.py', '        "--strict-mcp-config",\n        "--max-budget-usd", str(budget),\n', '        "--strict-mcp-config",\n'),
-    ('tools-left-on', 'src/willitharness/claude_agent.py', '        *tool_flags(policy),\n        *system_prompt_flags(policy),\n        "--disable-slash-commands",\n', '        *system_prompt_flags(policy),\n        "--disable-slash-commands",\n'),
+    ('tools-left-on', 'src/willitharness/claude_agent.py', '        *tool_flags(policy),\n        *system_prompt_flags(policy),\n        *slash_command_flags(policy),\n', '        *system_prompt_flags(policy),\n        *slash_command_flags(policy),\n'),
     ('cost-ignored', 'src/willitharness/claude_agent.py', 'cost = float(event[COST_FIELD])', 'cost = 0.0'),
     ('effect-tools-gain-write', 'src/willitharness/claude_agent.py', 'EFFECT_TOOLS = "Bash"', 'EFFECT_TOOLS = "Bash,Write"'),
     ('guard-tools-lose-edit', 'src/willitharness/claude_agent.py', 'GUARD_TOOLS = "Bash,Write,Edit"', 'GUARD_TOOLS = "Bash,Write"'),
@@ -34,4 +35,13 @@ MUTANTS = (
     ('settings-flag-dropped', 'src/willitharness/claude_agent.py', '        flags += [SETTINGS_FLAG, policy.settings]\n', '        flags += []\n'),
     ('probe-gets-settings-flag', 'src/willitharness/claude_agent.py', '    if policy.settings:\n', '    if True:\n'),
     ('settings-flag-renamed', 'src/willitharness/claude_agent.py', 'SETTINGS_FLAG = "--settings"', 'SETTINGS_FLAG = "--setting"'),
+    ('skill-arm-keeps-slash-flag', 'src/willitharness/claude_agent.py', 'flags = [] if policy.skills else [SLASH_COMMANDS_OFF_FLAG]', 'flags = [SLASH_COMMANDS_OFF_FLAG]'),
+    ('plain-arm-loses-slash-flag', 'src/willitharness/claude_agent.py', 'flags = [] if policy.skills else [SLASH_COMMANDS_OFF_FLAG]', 'flags = []'),
+    ('skill-tool-not-added', 'src/willitharness/claude_agent.py', 'tools = f"{policy.tools},{SKILL_TOOL}" if policy.tools else SKILL_TOOL', 'tools = policy.tools'),
+    ('skill-tool-renamed', 'src/willitharness/claude_agent.py', 'SKILL_TOOL = "Skill"', 'SKILL_TOOL = "Skills"'),
+    ('skill-not-allowed', 'src/willitharness/claude_agent.py', 'allowed = (*policy.allowed, *(SKILL_ALLOW_PATTERN.format(name=name) for name in sorted(set(names))))', 'allowed = policy.allowed'),
+    ('foreign-skill-ignored', 'src/willitharness/claude_agent.py', 'foreign = [name for name in listed_skills(transcript) if name not in names]', 'foreign = []'),
+    ('foreign-skill-includes-arm-skill', 'src/willitharness/claude_agent.py', 'foreign = [name for name in listed_skills(transcript) if name not in names]', 'foreign = listed_skills(transcript)'),
+    ('init-skills-ignored', 'src/willitharness/claude_agent.py', 'listed.update(event.get(SKILLS_FIELD) or ())', 'listed.update(())'),
+    ('skill-probe-loses-skill-tool', 'src/willitharness/claude_agent.py', 'argv = build_command(prompt, model, budget, skill_policy(PROBE_POLICY, skills))', 'argv = build_command(prompt, model, budget, PROBE_POLICY)'),
 )

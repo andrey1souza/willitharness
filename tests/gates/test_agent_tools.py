@@ -6,7 +6,7 @@ from dataclasses import replace
 
 import pytest
 
-from agent_site import CELL, ONE_RUN, OVERLAY_NAME, add_guard_rules, add_overlay_file, guard_site, install_fake_agent_environment, prepare_project_with_fake_agent, run_one
+from agent_site import CELL, ONE_RUN, OVERLAY_NAME, add_guard_rules, add_overlay_file, flag_value, guard_site, install_fake_agent_environment, prepare_project_with_fake_agent, run_one
 from cli_runner import run_cli
 from fake_claude import DENIED_COMMAND, FAKE_VERSION, report_of
 from files import write_tree
@@ -40,11 +40,6 @@ def run_with_commands(tmp_path, monkeypatch, behavior, commands):
 
 def artifact(tmp_path, name):
     return tmp_path.joinpath("project", *RUN_FOLDER, name)
-
-
-def flag_value(arguments, flag):
-    assert flag in arguments, f"{flag} is missing from {arguments}"
-    return arguments[arguments.index(flag) + 1]
 
 
 def test_an_effect_run_has_the_bash_tool_only_and_the_allowlist_from_the_world(tmp_path, monkeypatch):
@@ -274,6 +269,15 @@ def test_the_cli_probe_runner_hands_the_system_prompt_file_to_the_agent(tmp_path
     rule.write_bytes(b"cli rule")
     work = tmp_path / "work"
     work.mkdir()
-    arguments = argparse.Namespace(directory=work, label="Verification code", model="haiku", run_budget_usd=0.03, system_prompt_file=str(rule))
+    arguments = argparse.Namespace(directory=work, label="Verification code", model="haiku", run_budget_usd=0.03, system_prompt_file=str(rule), skills=())
     report = report_of(cli.claude_runner_for_cli(arguments, 0))
     assert flag_value(report["arguments"], "--append-system-prompt-file") == str(rule), f"got {report['arguments']}"
+
+
+def test_the_cli_probe_runner_gives_a_skill_arm_the_skill_tool(tmp_path, monkeypatch):
+    install_fake_agent_environment(tmp_path, monkeypatch)
+    work = tmp_path / "work"
+    work.mkdir()
+    arguments = argparse.Namespace(directory=work, label="Verification code", model="haiku", run_budget_usd=0.03, system_prompt_file="", skills=("arm-skill",))
+    report = report_of(cli.claude_runner_for_cli(arguments, 0))
+    assert flag_value(report["arguments"], "--tools") == "Skill" and "--disable-slash-commands" not in report["arguments"], f"got {report['arguments']}"

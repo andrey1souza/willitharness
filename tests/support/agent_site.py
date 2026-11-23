@@ -64,3 +64,8 @@ def guard_site(site):
     guarded = replace(site, plan=replace(site.plan, arms=(guard,)))
     assert guarded.plan.arms[0].role == "guard_only", f"the arm is {guarded.plan.arms[0].role}, not guard_only"
     return guarded
+
+
+def flag_value(arguments, flag):
+    assert flag in arguments, f"{flag} is missing from {arguments}"
+    return arguments[arguments.index(flag) + 1]
