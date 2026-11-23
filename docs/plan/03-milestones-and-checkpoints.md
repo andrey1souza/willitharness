@@ -161,6 +161,8 @@ Scenarios: `side-effects.feature`, `report.feature`, `three-arm-report.feature`,
 | G6.5 | `uv run python scripts/gates/s2_type_check.py` | `decision parameters are exactly: reach, effect, guard` | a mutant of `decide` with a `side_effects` parameter exits 1 |
 | G6.6 | `uv run pytest tests/gates/test_three_arm_report.py` | all pass: the report of `tests/golden/demo-three-arm-plan` equals `tests/golden/demo-three-arm-report.md`; `remove candidate` prints only with 20 runs in each arm | a mutant in `scripts/gates/mutant_modules/three_arm_report.py` that lowers the run minimum fails |
 | G6.7 | `uv run pytest tests/gates/test_placebo_report.py` | all pass: the report of `tests/golden/demo-placebo-plan` equals `tests/golden/demo-placebo-report.md`; a plan without arm PL gets no content section | a mutant in `scripts/gates/mutant_modules/placebo_report.py` that always shows the content section fails |
+| G6.8 | `uv run pytest tests/gates/test_three_arm_pkill.py` | all pass: the plan of `fixtures/three-arm-pkill` equals the `build-plan` output, the fake agent takes arms N, N2, P and C to the verdict, and the live script refuses 21 runs per arm | an edited overlay, or a script that accepts 21 runs, fails |
+| G6.9 (@live) | `scripts/gates/three_arm_live.sh --live --reps 20 --cap-usd 0.92 --model haiku --artifacts NAME` (not in `make live`) | `decide` and `report` print the three-arm verdict and the trigger rate of arm C; worst case $0.92 | `--cap-usd 0.5` exits 2 with a rule and a fix; the script also refuses while the run command cannot reach the Skill tool |
 Cost cap: $0.20 (optional live smoke).
 Exit criteria: the report is deterministic, lists every question, shows the
 warnings, and has a limits section; the decision cannot depend on side effects.
