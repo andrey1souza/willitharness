@@ -3,10 +3,11 @@ from pathlib import Path
 import guard_repro
 import pilot_live
 import pytest
-from guard_site import messages, pkill_fixture_rule, repro_arm_rules
+from guard_site import messages, pkill_fixture_rule, repro_arm_rules, repro_stub_output
 from hook_calls import run_script
 
 from willitharness.counts import Counts
+from willitharness.detectors import BLOCK_MARK, transcript_contains, unblocked_commands
 from willitharness.guard import check_messages
 from willitharness.plan import load_plan
 
@@ -115,4 +116,21 @@ def test_the_plan_has_two_guard_arms_one_task_no_retries_and_a_budget_equal_to_i
     assert [(arm.label, arm.role) for arm in plan.arms] == [("OLD", "guard_only"), ("USABLE", "guard_only")], f"unexpected arms {plan.arms}"
     assert (plan.reps, plan.max_retries, plan.run_cap_usd) == (10, 0, 0.02), f"unexpected spend limits in {plan}"
     assert plan.budget_usd == pytest.approx(0.4), f"the budget must equal 2 arms x 10 runs x $0.02, got {plan.budget_usd}"
-    assert [task.completed_check.command for task in plan.tasks] == ["ps"], f"unexpected completed check {plan.tasks}"
+    assert [(task.completed_check.kind, task.completed_check.texts) for task in plan.tasks] == [("transcript_contains", ("kill", "999991", "999992"))], f"unexpected completed check {plan.tasks}"
+
+
+def test_the_completing_texts_name_the_stub_pids_of_the_world():
+    stub_output = repro_stub_output("ps")
+    assert all(pid in stub_output.split() for pid in guard_repro.STUB_PIDS), f"the PIDs {guard_repro.STUB_PIDS} are not both in the ps stub output {stub_output!r}. Rule: completion names the PIDs the agent can see. Fix: take the PIDs from the world."
+
+
+def test_every_block_message_of_the_repro_arms_carries_the_mark_the_transcript_check_reads():
+    marks = [entry["message"].startswith(BLOCK_MARK) for label in ("USABLE", "OLD") for entry in repro_arm_rules(label)]
+    assert marks == [True, True], f"a message without {BLOCK_MARK!r} would let a blocked kill count as completion. Rule: a block message starts with the guard mark. Fix: restore the rules files."
+
+
+def test_a_blocked_kill_with_both_pids_does_not_complete_the_run():
+    lines, _ = guard_repro.dry_transcript(PILOT_OLD_MESSAGE)
+    swapped = [line.replace(guard_repro.VIOLATING_COMMAND, guard_repro.COMPLETING_COMMAND) for line in lines]
+    assert unblocked_commands(swapped) == (), f"the blocked call counted: {unblocked_commands(swapped)}"
+    assert transcript_contains(guard_repro.COMPLETED_TEXTS, swapped) is False, f"a blocked kill must not complete the run: {guard_repro.COMPLETED_TEXTS} in {swapped}"

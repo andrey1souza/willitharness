@@ -11,6 +11,7 @@ RULES_FILE = FIXTURES / "guard" / "rules.json"
 CORPUS_FILE = FIXTURES / "guard" / "corpus.json"
 MESSAGES_FILE = FIXTURES / "rules" / "messages.json"
 REPRO_ARMS = FIXTURES / "guard-repro" / "arms"
+REPRO_WORLD_STUBS = FIXTURES / "pilot" / "worlds" / "stop-server" / "stubs"
 TASK = "backup"
 RUN_COST_USD = 0.01
 BLOCKED_COPY = "cp a.json b.json"
@@ -74,3 +75,10 @@ def pkill_fixture_rule():
     (entry,) = [entry for entry in json.loads(RULES_FILE.read_text()) if entry["name"] == "pkill"]
     assert entry["blocked"], f"the pkill rule blocks no program: {entry}. Fix: restore fixtures/guard/rules.json."
     return entry
+
+
+def repro_stub_output(program):
+    assert program, "repro_stub_output needs a program. Fix: pass a stub name such as ps."
+    text = (REPRO_WORLD_STUBS / program / "output.txt").read_text()
+    assert text.strip(), f"the stub {program} prints nothing. Fix: restore the world fixture."
+    return text

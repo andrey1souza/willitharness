@@ -99,6 +99,7 @@ decides which tool covers which group. 57 IDs in total.
 | Channel per arm (file, skill, hook, system_prompt) | `plan-arms.feature` | `tests/bdd/test_plan_arms.py` | G1.8 |
 | The system_prompt channel is a file flag for the run and the probe | `runner-isolation.feature` | `test_real_runner.py`, `test_agent_tools.py`, `test_probe_command.py` | G3.10 |
 | A `guard_only` arm blocks through a hook in `--settings`; the rules file stays out of the workspace; the repro prints `no difference` for one message | `guard-test.feature` | `test_guard_hook_unit.py`, `test_guard_hook_gate.py`, `test_real_runner.py`, `test_guard_repro_dry.py`, `test_guard_repro_live_path.py` | G3.10, G5.5 |
+| A completed check reads the transcript: every text in one Bash call, a blocked call never counts | `detectors.feature` | `test_detectors_unit.py`, `test_detectors_scenarios.py`, `test_plan_unit.py`, `test_transcript_completed_gate.py` | G5.8 |
 | Outcomes per task cell, usable per outcome | `runner-isolation.feature`, `effect-with-noise.feature` | `test_analysis_outcomes.py` | G3.2, G4.5 |
 | DEFAULT_REPS 20, MAX_RETRIES 2, MIN_PROBE_RUNS 3 | `budget-and-resume.feature`, `reachability.feature` | `test_plan.py` | G1.8 |
 | A-CAP enforcement and timeout transition | `runner-isolation.feature`, `budget-and-resume.feature` | `test_run_cap.py` | G3.10 |

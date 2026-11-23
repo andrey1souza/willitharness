@@ -16,7 +16,7 @@ CHEAP_RUN = "0.005"
 SMALL_RUNS = "5"
 VIOLATION_THEN_LISTING = "pkill -f vitest"
 LISTING_ONLY = "ps -axo pid,command"
-FOLLOW_BEHAVIOR = "tools follow"
+FOLLOW_BEHAVIOR = "tools follow finish"
 
 
 def install_fake_agent_for_commands(tmp_path, monkeypatch, commands):
