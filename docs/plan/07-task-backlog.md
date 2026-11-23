@@ -494,12 +494,12 @@ As an owner of a harness, I want a plan built from a skill or a hook, so that I 
 - Given any arm, then a detector declared in the plan before the first run judges every run. The plan fingerprint covers the detector.
 - IDs: none. Gate: new, defined with the task. Deps: T67, T66.
 
-### T70. Report and decide for the three arms (M) not built (T70)
+### T70. Report and decide for the three arms (M)
 As an owner of a harness, I want the report and `decide` to read the three arms, so that the verdict and its cost are in one place.
 - Given a skill, then the report shows the trigger rate of arm C and the effect when the skill fires, as two separate numbers.
 - Given each arm, then the report shows turns and cost per arm.
 - Given the owner rule "no benefit shown after N runs means remove", then `decide` prints remove candidate only when each arm has at least N runs. The report states the smallest change those runs could detect.
-- IDs: none. Gate: new, defined with the task. Deps: T67.
+- IDs: none. Gate: G6.6. Deps: T67.
 
 ### T71. Live reference run of the three arms (S) not built (T71)
 As an owner of a harness, I want one real run of the three arms, so that the verdict has a first measured case.

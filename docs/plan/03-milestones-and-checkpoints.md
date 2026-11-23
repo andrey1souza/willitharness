@@ -148,7 +148,7 @@ the table for all 45 inputs.
 
 ## M6. Side effects and report
 Goal: Q4 (S1, S2) and the deterministic report.
-Scenarios: `side-effects.feature`, `report.feature`.
+Scenarios: `side-effects.feature`, `report.feature`, `three-arm-report.feature`.
 
 | Gate | Command | Expected output | Bad input |
 |---|---|---|---|
@@ -157,6 +157,7 @@ Scenarios: `side-effects.feature`, `report.feature`.
 | G6.3 | `uv run python scripts/gates/message_check.py src` | `all N failure messages state the rule and end with a fix`, then one `note:` line per message that names no value; the same check runs as `failure-messages` in the repo checks | a fixture message `error` exits 1 |
 | G6.4 | `uv run pytest tests/gates/test_full_plan_end_to_end.py` | the fake-agent plan goes from Drafted to Analyzed and the report holds the decision for the rule | a mutant that skips analysis makes the report command refuse (exit 1) and the test fail |
 | G6.5 | `uv run python scripts/gates/s2_type_check.py` | `decision parameters are exactly: reach, effect, guard` | a mutant of `decide` with a `side_effects` parameter exits 1 |
+| G6.6 | `uv run pytest tests/gates/test_three_arm_report.py` | all pass: the report of `tests/golden/demo-three-arm-plan` equals `tests/golden/demo-three-arm-report.md`; `remove candidate` prints only with 20 runs in each arm | a mutant in `scripts/gates/mutant_modules/three_arm_report.py` that lowers the run minimum fails |
 Cost cap: $0.20 (optional live smoke).
 Exit criteria: the report is deterministic, lists every question, shows the
 warnings, and has a limits section; the decision cannot depend on side effects.

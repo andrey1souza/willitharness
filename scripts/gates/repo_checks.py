@@ -33,6 +33,8 @@ PLAN_DIRECTORY = Path("docs") / "plan"
 RETIRED_COMMAND = "behave features/"
 PENDING_FILE = Path("scripts") / "gates" / "trace_pending.json"
 GENERATED_PATHS = (Path("formal") / "tla" / "generated", Path("site") / "data" / "gate_status.json")
+FIXTURE_FOLDERS = ("tests", "fixtures", "features")
+TOOL_CACHES = ("__pycache__", ".pytest_cache")
 MAKEFILE = Path("Makefile")
 SOURCE_FOLDER = "src"
 DATA_HEADING = "## Data"
@@ -143,6 +145,25 @@ def tracked_generated_errors(root):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
     listed = subprocess.run(["git", "-C", str(root), "ls-files"], capture_output=True, text=True, check=True).stdout.splitlines()
     errors = generated_errors_among(listed)
+    assert all(isinstance(error, str) for error in errors), f"errors must be text, got {errors!r}"
+    return errors
+
+
+def ignored_fixture_errors_among(names):
+    assert isinstance(names, list), f"names must be a list of ignored paths, got {type(names).__name__}. Fix: pass the git ls-files output split into lines."
+    assert all(isinstance(name, str) for name in names), f"every ignored path must be text, got {names!r}"
+    return [
+        f"{name} is ignored by git, so CI never sees it. Rule: a file under {', '.join(FIXTURE_FOLDERS)} is tracked or not there. Fix: git add -f it, or delete it."
+        for name in names
+        if not any(part in TOOL_CACHES for part in Path(name).parts)
+    ]
+
+
+def ignored_fixture_errors(root):
+    assert root.is_dir(), f"{root} is not a directory. Fix: pass the repository root."
+    command = ["git", "-C", str(root), "ls-files", "--others", "--ignored", "--exclude-standard", "--", *FIXTURE_FOLDERS]
+    listed = subprocess.run(command, capture_output=True, text=True, check=True).stdout.splitlines()
+    errors = ignored_fixture_errors_among(listed)
     assert all(isinstance(error, str) for error in errors), f"errors must be text, got {errors!r}"
     return errors
 
@@ -388,6 +409,7 @@ CHECKS = {
     "paid-gate-target": paid_target_errors,
     "result-detector": result_detector_errors,
     "no-tracked-generated": tracked_generated_errors,
+    "no-ignored-fixtures": ignored_fixture_errors,
     "trace-fixtures": trace_fixtures.stale_fixture_errors,
     "contract-sentences": contract_sentence_errors,
     "docs_freshness": docs_freshness.docs_freshness_errors,
