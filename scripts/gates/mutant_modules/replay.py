@@ -9,7 +9,7 @@ FIXTURES = 'scripts/gates/trace_fixtures.py'
 MUTANTS = (
     ('replay-conclude-always-complete', SOURCE, '        pending = any(count > 0 for count in runs_to_start(facts, load_records(folder)).values())', '        pending = False'),
     ('replay-ledger-forgets-spent', 'src/willitharness/budget.py', '    ledger.spent = money_spent(records)', '    ledger.spent = Decimal(0)'),
-    ('replay-resume-keeps-old-budget', SOURCE, 'write_resume(folder, ResumeRecord(site.plan.budget_usd, stored.fingerprint, NOT_ENDED))', 'write_resume(folder, ResumeRecord(stored.budget_usd, stored.fingerprint, NOT_ENDED))'),
+    ('replay-resume-keeps-old-budget', SOURCE, 'write_resume(folder, ResumeRecord(site.plan.budget_usd, stored.fingerprint, NOT_ENDED, overlay_files=stored.overlay_files))', 'write_resume(folder, ResumeRecord(stored.budget_usd, stored.fingerprint, NOT_ENDED, overlay_files=stored.overlay_files))'),
     ('replay-conclude-ignores-the-budget', SOURCE, '        if pending and not budget_blocks:\n            return state', '        if False:\n            return state'),
     ('replay-never-compares-states', REPLAY, 'reason = reason or ("" if observed == expected_of(state) else "the code state differs from the model state")', 'reason = reason or ""'),
     ('replay-coverage-forgets-abort-in-flight', REPLAY, '([] if aborted_in_flight else [ABORT_IN_FLIGHT])', '[]'),

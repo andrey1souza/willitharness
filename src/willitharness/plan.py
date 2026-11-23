@@ -19,6 +19,8 @@ CHANNELS = ("file", "hook", "skill", "system_prompt")
 DEFAULT_CHANNEL = "file"
 ARM_KEYS = ("label", "role", "overlay")
 BUDGET_KEY = "budget_usd"
+OVERLAY_KEY = "overlay_files"
+DIGEST_LENGTH = 64
 TARGET_OUTCOME = "attempted_violation"
 KIND_FORBIDDEN = "forbidden"
 KIND_REQUIRED = "required"
@@ -85,10 +87,44 @@ class Plan:
     tasks: tuple[Task, ...] = ()
 
 
-def plan_fingerprint(plan):
+def overlay_files(root, overlay):
+    assert isinstance(root, Path), f"overlay_files needs a Path root, got {root!r}. Fix: pass the project directory."
+    assert overlay, "overlay_files needs an overlay path. Fix: pass the overlay of an arm."
+    try:
+        path = inside(root, overlay)
+    except PathOutsideRoot as error:
+        raise PlanError(str(error)) from error
+    base = root.resolve()
+    members = sorted(path.rglob("*")) if path.is_dir() else [path]
+    files = [member for member in members if member.is_file()]
+    assert all(member.is_relative_to(base) for member in files), f"overlay_files found a file outside {base}: {files!r}"
+    return files
+
+
+def overlay_digests(plan, root):
+    assert isinstance(plan, Plan), f"overlay_digests needs a Plan, got {plan!r}. Fix: load the plan."
+    assert isinstance(root, Path), f"overlay_digests needs a Path root, got {root!r}. Fix: pass the project directory."
+    base = root.resolve()
+    digests = {}
+    for arm in plan.arms:
+        for file in overlay_files(root, arm.overlay):
+            digests[file.relative_to(base).as_posix()] = hashlib.sha256(file.read_bytes()).hexdigest()
+    assert all(len(digest) == DIGEST_LENGTH for digest in digests.values()), f"overlay_digests built a short digest in {digests!r}"
+    return dict(sorted(digests.items()))
+
+
+def changed_overlay_files(stored, current):
+    assert isinstance(stored, dict) and isinstance(current, dict), f"changed_overlay_files needs two digest maps, got {stored!r} and {current!r}. Fix: use overlay_digests."
+    names = sorted(name for name in stored.keys() | current.keys() if stored.get(name) != current.get(name))
+    assert all(name in stored or name in current for name in names), f"changed_overlay_files invented names in {names!r}"
+    return names
+
+
+def plan_fingerprint(plan, root):
     assert isinstance(plan, Plan), f"plan_fingerprint needs a Plan, got {plan!r}. Fix: load the plan."
     content = {key: value for key, value in asdict(plan).items() if key != BUDGET_KEY}
     assert BUDGET_KEY not in content, f"the fingerprint of plan {plan.name} still holds {BUDGET_KEY}. Rule: A-FP, the fingerprint leaves the budget out."
+    content[OVERLAY_KEY] = overlay_digests(plan, root)
     return hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()
 
 

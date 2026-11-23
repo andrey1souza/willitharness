@@ -202,6 +202,15 @@ Feature: Budget, resume, retry, abort and plan lifecycle
     And the plan state is "BudgetStopped"
 
   @L10
+  Scenario: A BudgetStopped plan with an edited overlay file cannot resume
+    Given the plan state is "BudgetStopped"
+    And an overlay file changed since the first run
+    When I resume the plan with a higher budget
+    Then the command fails with exit code 1
+    And the message names the overlay file
+    And the plan state is "BudgetStopped"
+
+  @L10
   Scenario: An analyzed plan cannot resume
     Given a BudgetStopped plan that I analyzed
     When I resume the plan with a higher budget

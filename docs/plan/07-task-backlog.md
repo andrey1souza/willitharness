@@ -508,13 +508,14 @@ As an owner of a harness, I want one real run of the three arms, so that the ver
 - Given the finished run, then `decide` and `report` print the verdict for the case.
 - IDs: none. Gate: live, defined with the task. Deps: T69, T70.
 
-### T72. Hash the arm overlays into the plan fingerprint (M) not built (T72)
+### T72. Hash the arm overlays into the plan fingerprint (M)
 As an analyst, I want the content of every arm overlay in the plan fingerprint, so that an edit to a rule after the plan exists is found.
 - Given a test written first, then it shows that today an overlay edit after the plan exists changes nothing.
 - Given an overlay file edited after the first run, then `run` refuses to resume and names the file that changed.
 - Given the same overlays twice, then the fingerprint is the same.
 - Given an overlay file, then its path and its bytes both enter the fingerprint. Given a `budget_usd` change, then the fingerprint stays the same (A-FP).
-- IDs: A-FP changes meaning. The contract glossary and section 7 say that overlay content is part of the plan. Gate: new, defined with the task. Deps: T64.
+- Given a plan that is already Running and restarts after a crash, then the same check runs before the restart.
+- IDs: A-FP changes meaning. The contract glossary and section 7 say that overlay content is part of the plan. Gate: `uv run pytest tests/unit/test_overlay_hash_unit.py tests/unit/test_resume_unit.py`. Deps: T64.
 
 ### T73. Record the model of every run (S)
 As an analyst, I want the model name stored with every run, so that runs on different models are never mixed unseen.

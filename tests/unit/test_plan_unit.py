@@ -262,9 +262,9 @@ def test_a_bad_task_is_rejected_with_a_rule_and_a_fix(tasks, fragment):
     assert fragment in message and "Fix:" in message, f"got {message!r}"
 
 
-def test_the_fingerprint_follows_the_rule_and_still_ignores_only_the_budget():
+def test_the_fingerprint_follows_the_rule_and_still_ignores_only_the_budget(tmp_path):
     base = load_plan(changed({"rule": RULE, "tasks": TASKS}))
     other = load_plan(changed({"rule": {**RULE, "detector": "pgrep"}, "tasks": TASKS}))
     richer = load_plan(changed({"rule": RULE, "tasks": TASKS, "budget_usd": BUDGET + 1}))
-    assert plan.plan_fingerprint(base) != plan.plan_fingerprint(other), f"the detector is part of the plan: {base.rule} against {other.rule}"
-    assert plan.plan_fingerprint(base) == plan.plan_fingerprint(richer), f"the budget is not part of the plan: {base.budget_usd} against {richer.budget_usd}"
+    assert plan.plan_fingerprint(base, tmp_path) != plan.plan_fingerprint(other, tmp_path), f"the detector is part of the plan: {base.rule} against {other.rule}"
+    assert plan.plan_fingerprint(base, tmp_path) == plan.plan_fingerprint(richer, tmp_path), f"the budget is not part of the plan: {base.budget_usd} against {richer.budget_usd}"

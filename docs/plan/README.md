@@ -12,7 +12,7 @@ Do not edit the contract from here. Gaps are listed in `contract-issues.md`.
 |---|---|
 | Contract IDs covered | 57 (V1 to V6, E1, P1 to P4, G1, R1, D1 to D12, TA1 to TA8, S1, S2, W1 to W5, L1 to L12, T1, T2, T2a, DI-1, DI-2) |
 | Feature files | 15 |
-| Scenarios | 162 |
+| Scenarios | 163 |
 | Milestones | 8 (M0 to M7) |
 | Backlog tasks | 76 (T01 to T76) |
 | Gates | 53, of which 4 are live (G2.3, G3.8, G4.4, G5.5) |

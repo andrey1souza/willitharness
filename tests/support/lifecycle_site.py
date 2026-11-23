@@ -16,6 +16,8 @@ ARM_LABELS = "ABCDEFGH"
 WORLD_NAME = "world"
 SCHEMA_VERSION = 1
 RUN_TIMEOUT_SECONDS = 5.0
+OVERLAY_FILE = "rule.txt"
+OVERLAY_TEXT = "the rule text\n"
 
 
 @dataclass(frozen=True)
@@ -52,6 +54,7 @@ def make_site(root, spec):
         f"{WORLD_NAME}/stubs/{STUB_COMMAND}/output.txt": STUB_OUTPUT,
         f"{WORLD_NAME}/prompts/{TASK_NAME}.txt": TASK_PROMPT,
     }
+    files.update({f"{arm['overlay']}/{OVERLAY_FILE}": OVERLAY_TEXT for arm in data["arms"]})
     write_tree(root, files)
     site = PlanSite(root, load_plan(data), root / WORLD_NAME)
     assert site.world_dir.is_dir(), f"{site.world_dir} was not created. Fix: write the world files."
@@ -145,3 +148,19 @@ def stored_final_runs(site):
     runs = tuple(latest_by_run(load_records(folder_of(site))).values())
     assert all(run.run_id for run in runs), f"a stored run has no id: {runs}. Rule: every record has a run id."
     return runs
+
+
+def remove_resume_record(site):
+    record = lifecycle_dir(site.root, site.plan) / "resume.json"
+    assert record.exists(), f"{record} does not exist, so there is no stored record to remove. Fix: start the plan first."
+    record.unlink()
+    assert not record.exists(), f"{record} was not removed"
+    return site
+
+
+def edit_overlay(site, arm_index=0, text="an edit that changes the overlay\n"):
+    assert text != OVERLAY_TEXT, f"the edit {text!r} equals the planted text. Fix: pass different text."
+    overlay = site.root / site.plan.arms[arm_index].overlay
+    plant(overlay, OVERLAY_FILE, text)
+    assert (overlay / OVERLAY_FILE).read_text() == text, f"the overlay edit of {overlay} was not written"
+    return site

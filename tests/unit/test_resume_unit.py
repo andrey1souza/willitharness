@@ -2,7 +2,8 @@ import math
 from dataclasses import replace
 
 import pytest
-from lifecycle_site import SiteSpec, folder_of, stored_final_runs, costing_runner, edit_world, forget_validation, make_site, ready_site, run_setup, stop_at_budget, with_budget
+from files import plant
+from lifecycle_site import OVERLAY_FILE, SiteSpec, edit_overlay, folder_of, stored_final_runs, costing_runner, edit_world, forget_validation, make_site, ready_site, remove_resume_record, run_setup, stop_at_budget, with_budget
 
 from willitharness.lifecycle import (
     NOT_ENDED,
@@ -16,11 +17,12 @@ from willitharness.lifecycle import (
     read_resume,
     read_state,
     resume_if_stopped,
+    write_resume,
     resume_plan,
     start_running,
     world_is_validated,
 )
-from willitharness.plan import plan_fingerprint
+from willitharness.plan import overlay_digests, plan_fingerprint
 from willitharness.store import load_records, spent
 
 SMALL = SiteSpec(arm_count=1, budget_usd=1.0, run_cap_usd=0.02, reps=2, max_retries=1)
@@ -60,16 +62,16 @@ def test_L10_the_first_run_stores_the_budget_and_the_fingerprint_without_the_bud
     site = ready_site(tmp_path, SMALL)
     start_running(site)
     stored = read_resume(folder_of(site))
-    assert stored == ResumeRecord(1.0, plan_fingerprint(site.plan), NOT_ENDED), f"got {stored}"
+    assert stored == ResumeRecord(1.0, plan_fingerprint(site.plan, site.root), NOT_ENDED, overlay_files=overlay_digests(site.plan, site.root)), f"got {stored}"
     start_running(with_budget(site, 5.0))
     assert read_resume(folder_of(site)) == stored, f"a second start rewrote the stored values: {read_resume(folder_of(site))}"
 
 
 def test_L10_the_fingerprint_ignores_the_budget_and_follows_every_other_field(tmp_path):
     site = make_site(tmp_path, SMALL)
-    assert plan_fingerprint(replace(site.plan, budget_usd=9.0)) == plan_fingerprint(site.plan), f"budget 9.0 changed the fingerprint of {site.plan.name}"
-    assert plan_fingerprint(replace(site.plan, reps=3)) != plan_fingerprint(site.plan), f"reps 3 left the fingerprint of {site.plan.name} unchanged"
-    assert plan_fingerprint(replace(site.plan, run_cap_usd=0.03)) != plan_fingerprint(site.plan), f"run cap 0.03 left the fingerprint of {site.plan.name} unchanged"
+    assert plan_fingerprint(replace(site.plan, budget_usd=9.0), site.root) == plan_fingerprint(site.plan, site.root), f"budget 9.0 changed the fingerprint of {site.plan.name}"
+    assert plan_fingerprint(replace(site.plan, reps=3), site.root) != plan_fingerprint(site.plan, site.root), f"reps 3 left the fingerprint of {site.plan.name} unchanged"
+    assert plan_fingerprint(replace(site.plan, run_cap_usd=0.03), site.root) != plan_fingerprint(site.plan, site.root), f"run cap 0.03 left the fingerprint of {site.plan.name} unchanged"
 
 
 def test_L10_a_budget_stopped_plan_resumes_to_running_and_keeps_the_reachability_results(tmp_path):
@@ -122,6 +124,66 @@ def test_A_FP_a_plan_that_differs_in_more_than_the_budget_cannot_resume(tmp_path
     message = refusal_of(changed, resume_plan)
     assert "A-FP" in message and "only the budget" in message, f"got {message!r}"
     assert "Fix:" in message, f"the message needs a Fix, got {message!r}"
+
+
+def test_A_FP_an_overlay_edit_after_the_first_run_blocks_the_resume_and_names_the_file(tmp_path):
+    site = stopped_site(tmp_path)
+    edit_overlay(site)
+    message = refusal_of(with_budget(site, 0.10), resume_plan)
+    assert "A.md/rule.txt" in message, f"the message must name the changed file, got {message!r}"
+    assert "Rule: A-FP" in message and "Fix:" in message, f"the message needs a Rule and a Fix, got {message!r}"
+
+
+def test_A_FP_an_overlay_edit_between_a_crash_and_the_restart_blocks_the_start_and_names_the_file(tmp_path):
+    site = ready_site(tmp_path, SMALL)
+    start_running(site)
+    edit_overlay(site)
+    message = refusal_of(site, start_running)
+    assert "A.md/rule.txt" in message, f"the message must name the changed file, got {message!r}"
+    assert "Rule: A-FP" in message and "Fix:" in message, f"the message needs a Rule and a Fix, got {message!r}"
+
+
+def test_A_FP_a_restart_of_a_running_plan_without_a_stored_record_is_refused(tmp_path):
+    site = ready_site(tmp_path, SMALL)
+    start_running(site)
+    remove_resume_record(site)
+    message = refusal_of(site, start_running)
+    assert "Rule: L10" in message and "Fix:" in message, f"the message needs a Rule and a Fix, got {message!r}"
+
+
+def test_A_FP_a_restart_without_an_overlay_edit_stays_in_running(tmp_path):
+    site = ready_site(tmp_path, SMALL)
+    start_running(site)
+    restarted = start_running(site)
+    assert restarted is PlanState.RUNNING, f"an unchanged overlay must not block a restart of a Running plan, got {restarted}"
+
+
+def test_A_FP_a_new_overlay_file_blocks_the_resume(tmp_path):
+    site = stopped_site(tmp_path)
+    plant(site.root / "A.md", "extra.txt", "a new rule\n")
+    message = refusal_of(with_budget(site, 0.10), resume_plan)
+    assert "A.md/extra.txt" in message, f"got {message!r}"
+
+
+def test_A_FP_a_removed_overlay_file_blocks_the_resume(tmp_path):
+    site = stopped_site(tmp_path)
+    (site.root / "A.md" / OVERLAY_FILE).unlink()
+    message = refusal_of(with_budget(site, 0.10), resume_plan)
+    assert f"A.md/{OVERLAY_FILE}" in message, f"got {message!r}"
+
+
+def test_A_FP_a_plan_that_started_without_overlay_digests_cannot_resume(tmp_path):
+    site = stopped_site(tmp_path)
+    write_resume(folder_of(site), replace(read_resume(folder_of(site)), overlay_files=None))
+    message = refusal_of(with_budget(site, 0.10), resume_plan)
+    assert "started before that" in message and "Rule: A-FP" in message and "Fix:" in message, f"got {message!r}"
+
+
+def test_A_FP_a_resume_with_unchanged_overlays_keeps_the_stored_digests(tmp_path):
+    site = stopped_site(tmp_path)
+    before = read_resume(folder_of(site)).overlay_files
+    resume_plan(with_budget(site, 0.10))
+    assert before and read_resume(folder_of(site)).overlay_files == before, f"the digests changed from {before} to {read_resume(folder_of(site)).overlay_files}"
 
 
 @pytest.mark.parametrize("budget", [0.05, 0.04])

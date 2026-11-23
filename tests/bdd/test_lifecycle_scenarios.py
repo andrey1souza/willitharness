@@ -3,12 +3,12 @@ import re
 from dataclasses import replace
 
 from cli_runner import run_cli
-from lifecycle_site import TASK_NAME, SiteSpec, costing_runner, edit_world, make_site, ready_site, reach_every_arm, run_setup, validate_site, with_budget
+from lifecycle_site import TASK_NAME, SiteSpec, costing_runner, edit_overlay, edit_world, make_site, ready_site, reach_every_arm, run_setup, validate_site, with_budget
 from pytest_bdd import given, parsers, scenario, then, when
 
 from willitharness import cli
 from willitharness.lifecycle import Job, LifecycleRefused, PlanState, abort_plan, begin_run, lifecycle_dir, move_to, read_reach, read_resume, read_state, record_reachability, refresh_state, execute_plan, resume_if_stopped, start_running
-from willitharness.plan import plan_fingerprint
+from willitharness.plan import overlay_digests, plan_fingerprint
 from willitharness.world import world_changed
 from willitharness.store import UNKNOWN_MODEL, UNKNOWN_WORLD, Cell, Record, RunState, append_record, latest_by_run, load_records, spent
 from willitharness.vocabulary import Reach
@@ -92,6 +92,11 @@ def test_L10_a_complete_plan_cannot_resume(world):
 @scenario(BUDGET_FEATURE, "A BudgetStopped plan with a changed world cannot resume")
 def test_L10_a_budget_stopped_plan_with_a_changed_world_cannot_resume(world):
     assert world["exit_code"] == 1 and world_changed(world["site"].root, world["site"].world_dir), f"the resume must fail on a changed world, got {world['exit_code']}. Rule: L10. Fix: check the world hash."
+
+
+@scenario(BUDGET_FEATURE, "A BudgetStopped plan with an edited overlay file cannot resume")
+def test_A_FP_a_plan_with_an_edited_overlay_file_cannot_resume(world):
+    assert world["exit_code"] == 1 and "A.md/rule.txt" in world["message"], f"got {world['exit_code']} and {world['message']!r}. Rule: A-FP. Fix: compare the overlay files."
 
 
 @scenario(BUDGET_FEATURE, "A plan that differs from the stored plan in more than the budget cannot resume")
@@ -401,7 +406,7 @@ def world_hash_unchanged(world):
 
 @given("the plan is identical except for budget_usd")
 def plan_identical_except_budget(world):
-    assert plan_fingerprint(with_budget(world["site"], RAISED_BUDGET).plan) == read_resume(folder_in(world)).fingerprint, f"the plan {world['site'].plan.name} differs from the stored fingerprint {read_resume(folder_in(world)).fingerprint}"
+    assert plan_fingerprint(with_budget(world["site"], RAISED_BUDGET).plan, world["site"].root) == read_resume(folder_in(world)).fingerprint, f"the plan {world['site'].plan.name} differs from the stored fingerprint {read_resume(folder_in(world)).fingerprint}"
 
 
 @given("the world hash changed since validation")
@@ -410,10 +415,16 @@ def world_hash_changed(world):
     assert world_changed(world["site"].root, world["site"].world_dir), f"the edit of {world['site'].world_dir} left the world hash unchanged"
 
 
+@given("an overlay file changed since the first run")
+def overlay_file_changed(world):
+    edit_overlay(world["site"])
+    assert overlay_digests(world["site"].plan, world["site"].root) != read_resume(folder_in(world)).overlay_files, f"the edit of {world['site'].plan.arms[0].overlay} left the overlay digests unchanged"
+
+
 @given("the plan fingerprint differs from the stored fingerprint")
 def fingerprint_differs(world):
     world["site"] = replace(world["site"], plan=replace(world["site"].plan, reps=world["site"].plan.reps + 1))
-    assert plan_fingerprint(world["site"].plan) != read_resume(folder_in(world)).fingerprint, f"reps {world['site'].plan.reps} left the plan matching the stored fingerprint {read_resume(folder_in(world)).fingerprint}"
+    assert plan_fingerprint(world["site"].plan, world["site"].root) != read_resume(folder_in(world)).fingerprint, f"reps {world['site'].plan.reps} left the plan matching the stored fingerprint {read_resume(folder_in(world)).fingerprint}"
 
 
 @given("a BudgetStopped plan that I analyzed")
@@ -443,6 +454,11 @@ def reachability_kept(world):
 def plan_not_marked_as_ended(world):
     assert read_resume(folder_in(world)).ended_by == "none", f"the plan is marked as ended: {read_resume(folder_in(world))}"
     assert read_state(folder_in(world)) is PlanState.RUNNING, f"got {read_state(folder_in(world))}"
+
+
+@then("the message names the overlay file")
+def message_names_overlay_file(world):
+    assert "A.md/rule.txt" in world["message"] and "Rule: A-FP" in world["message"], f"got {world['message']!r}"
 
 
 @then("the message says the world must be validated again")
