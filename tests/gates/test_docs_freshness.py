@@ -147,11 +147,11 @@ def test_existing_scripts_tests_and_modules_pass(tmp_path):
 
 
 def test_a_not_built_marker_exempts_its_row_and_its_task_section(tmp_path):
-    backlog = BACKLOG.replace("### T03. c", "### T03. c not built (T03)") + "- run `scripts/gates/later.sh` and `willitharness report <plan>`\n"
+    backlog = BACKLOG.replace("### T03. c", "### T03. c not built (T03)").replace("### T02. b", "### T02. b not built (T02)") + "- run `scripts/gates/later.sh` and `willitharness report <plan>`\n"
     row = "| G0.3 | `not built (T02)` run `scripts/gates/later.sh` | out | bad |\n"
     files = {"docs/plan/07-task-backlog.md": backlog, "docs/plan/03-milestones-and-checkpoints.md": MILESTONES + row}
     assert errors_for(tmp_path, files) == [], "a marked row and a marked task section may name what does not exist"
-    assert docs_freshness.planned_lines(backlog) == {13: "T03", 14: "T03"}, "the marked heading and the lines under it are planned"
+    assert docs_freshness.planned_lines(backlog) == {11: "T02", 13: "T03", 14: "T03"}, "the marked headings and the lines under them are planned"
 
 
 def test_text_after_an_unmarked_heading_is_checked(tmp_path):
@@ -241,8 +241,16 @@ def test_tokens_that_are_not_plain_paths_are_not_checked(tmp_path, token):
 
 
 def test_a_not_built_marker_exempts_a_readme_row(tmp_path):
-    errors = readme_errors(tmp_path, README_TABLE + "| `formal/tla/` | The model, not built (T01). |\n")
+    marked_backlog = {"docs/plan/07-task-backlog.md": BACKLOG.replace("### T01. a", "### T01. a not built (T01)")}
+    errors = readme_errors(tmp_path, README_TABLE + "| `formal/tla/` | The model, not built (T01). |\n", marked_backlog)
     assert errors == [], f"a row marked not built is exempt, got {errors}"
+
+
+def test_a_marker_for_a_task_the_backlog_no_longer_marks_is_reported(tmp_path):
+    errors = readme_errors(tmp_path, README_TABLE + "| `formal/tla/` | The model, not built (T01). |\n")
+    stale = [error for error in errors if "has no 'not built (T01)' marker" in error]
+    assert len(stale) == 1, f"a marker for a built task must give one stale error, got {errors}"
+    assert "Rule:" in stale[0] and "Fix:" in stale[0], f"the error must state a rule and a fix, got {stale[0]!r}"
 
 
 def test_other_documents_are_not_held_to_the_readme_path_rule(tmp_path):

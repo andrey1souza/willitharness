@@ -26,7 +26,7 @@ A planned feature shows the id of its task in `docs/plan/07-task-backlog.md`.
 | `willitharness report <plan-dir or plan.json>` | Prints a Markdown report of an analyzed plan: the answer to each question, the decision, the warnings and the limits. | works |
 | `willitharness load-report [project-dir]` | Lists the instruction files, rules, skills and hooks a session loads, with character counts. | works |
 | `willitharness build-plan --skill NAME` or `--hook EVENT --run-hook` | Builds a plan of arms N, N2, P and C from a skill or a hook, with the detector from `--detector FILE`. `--placebo` adds arm PL. | works |
-| Reporting the verdict of a skill or hook against its text as a plain prompt | Tests whether the form matters, not only the text. | not built (T70) |
+| Reporting the verdict of a skill or hook against its text as a plain prompt | `decide` and `report` read a plan of arms C, P and N and print one verdict. The trigger rate is measured for skills only. | works |
 
 The `claude` agent runs real sessions and costs money. The `fake` agent runs offline and costs nothing.
 
