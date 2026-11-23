@@ -49,6 +49,7 @@ report = {{
     "environment": sorted(os.environ),
     "tmpdir": os.environ.get("TMPDIR"),
     "claude_tmpdir": os.environ.get("CLAUDE_CODE_TMPDIR"),
+    "system_prompt_hex": open(arguments[arguments.index("--append-system-prompt-file") + 1], "rb").read().hex() if "--append-system-prompt-file" in arguments else None,
     "wrote_inside": write_allowed("inside.txt"),
     "wrote_outside": write_allowed(open("{ESCAPE_TARGET_FILE}").read().strip() if os.path.exists("{ESCAPE_TARGET_FILE}") else "/nonexistent/none"),
 }}

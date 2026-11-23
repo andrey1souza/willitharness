@@ -1,7 +1,7 @@
 import json
 import os
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from willitharness.isolation import agent_environment
 from willitharness.probe import COST_FIELD, RESULT_EVENT
@@ -16,6 +16,8 @@ GUARD_TOOLS = "Bash,Write,Edit"
 PERMISSION_MODE = "default"
 ALLOW_PATTERN = "Bash({command}:*)"
 SETTINGS_FLAG = "--settings"
+SYSTEM_PROMPT_FLAG = "--append-system-prompt-file"
+NO_SYSTEM_PROMPT_FILE = ""
 
 
 class AgentUnavailable(Exception):
@@ -27,6 +29,7 @@ class ToolPolicy:
     tools: str
     allowed: tuple
     settings: str = ""
+    system_prompt_file: str = ""
 
 
 PROBE_POLICY = ToolPolicy("", ())
@@ -54,6 +57,13 @@ def tool_flags(policy):
     return flags
 
 
+def system_prompt_flags(policy):
+    assert isinstance(policy, ToolPolicy), f"system_prompt_flags needs a ToolPolicy, got {policy!r}. Fix: use PROBE_POLICY or tool_policy."
+    flags = [SYSTEM_PROMPT_FLAG, policy.system_prompt_file] if policy.system_prompt_file else []
+    assert len(flags) == (2 if policy.system_prompt_file else 0), f"system_prompt_flags built {flags!r}. Rule: the flag and its path go together."
+    return flags
+
+
 def build_command(prompt, model, budget, policy):
     assert prompt, "build_command needs a prompt. Fix: pass the probe prompt."
     assert model and budget > 0, f"build_command needs a model and a budget above 0, got {model!r} and {budget!r}. Fix: pass both."
@@ -64,6 +74,7 @@ def build_command(prompt, model, budget, policy):
         "--strict-mcp-config",
         "--max-budget-usd", str(budget),
         *tool_flags(policy),
+        *system_prompt_flags(policy),
         "--disable-slash-commands",
         "--no-session-persistence",
         "--output-format", "stream-json",
@@ -85,10 +96,17 @@ def unisolated_command(prompt, model, budget):
     ]
 
 
+def probe_argv(prompt, model, budget, system_prompt_file):
+    assert model, f"probe_argv needs a model, got {model!r}. Fix: pass the model name."
+    argv = build_command(prompt, model, budget, replace(PROBE_POLICY, system_prompt_file=system_prompt_file))
+    assert argv[argv.index("--tools") + 1] == "", f"a probe run must have no tool, got {argv!r}"
+    return argv
+
+
 def ask_claude(directory, prompt, model, budget):
     assert prompt, "ask_claude needs a prompt. Fix: pass the probe prompt."
     assert budget > 0, f"ask_claude needs a budget above 0, got {budget!r}. Rule: every run is capped. Fix: pass the run budget."
-    return run_command(directory, build_command(prompt, model, budget, PROBE_POLICY))
+    return run_command(directory, probe_argv(prompt, model, budget, NO_SYSTEM_PROMPT_FILE))
 
 
 def run_command(directory, command):

@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import sys
@@ -5,12 +6,14 @@ from dataclasses import replace
 
 import pytest
 
-from agent_site import CELL, ONE_RUN, OVERLAY_NAME, add_overlay_file, guard_site, prepare_project_with_fake_agent, run_one
+from agent_site import CELL, ONE_RUN, OVERLAY_NAME, add_overlay_file, guard_site, install_fake_agent_environment, prepare_project_with_fake_agent, run_one
 from cli_runner import run_cli
 from fake_claude import DENIED_COMMAND, FAKE_VERSION, report_of
 from files import write_tree
 from lifecycle_site import ready_site, run_setup, stored_final_runs, validate_site
 
+from willitharness import cli
+from willitharness.claude_agent import probe_argv, run_command
 from willitharness.lifecycle import record_reachability, start_running
 from willitharness.plan import PlanError
 from willitharness.real_runner import claude_runner
@@ -251,3 +254,25 @@ def test_a_guard_run_cannot_write_into_the_wrapper_folder_or_beside_the_calls_lo
     outputs = report_of(result.transcript)["tool_outputs"]
     assert all(output.startswith("status=1\n") and "Operation not permitted" in output for output in outputs[:3]), f"a write outside the workspace must fail under the sandbox, got {outputs}"
     assert outputs[3] == "stub-killed\n", f"the wrapper must be untouched, got {outputs[3]!r}"
+
+
+def test_a_probe_run_for_a_system_prompt_arm_passes_the_same_flag_and_keeps_no_tools(tmp_path, monkeypatch):
+    install_fake_agent_environment(tmp_path, monkeypatch)
+    rule = tmp_path / "system-prompt.txt"
+    rule.write_bytes(b"probe rule")
+    work = tmp_path / "work"
+    work.mkdir()
+    report = report_of(run_command(work, probe_argv("What value?", "haiku", 0.03, str(rule))))
+    assert flag_value(report["arguments"], "--append-system-prompt-file") == str(rule), f"the probe must use the run channel, got {report['arguments']}"
+    assert bytes.fromhex(report["system_prompt_hex"]) == b"probe rule" and flag_value(report["arguments"], "--tools") == "", f"unexpected report {report}"
+
+
+def test_the_cli_probe_runner_hands_the_system_prompt_file_to_the_agent(tmp_path, monkeypatch):
+    install_fake_agent_environment(tmp_path, monkeypatch)
+    rule = tmp_path / "system-prompt.txt"
+    rule.write_bytes(b"cli rule")
+    work = tmp_path / "work"
+    work.mkdir()
+    arguments = argparse.Namespace(directory=work, label="Verification code", model="haiku", run_budget_usd=0.03, system_prompt_file=str(rule))
+    report = report_of(cli.claude_runner_for_cli(arguments, 0))
+    assert flag_value(report["arguments"], "--append-system-prompt-file") == str(rule), f"got {report['arguments']}"

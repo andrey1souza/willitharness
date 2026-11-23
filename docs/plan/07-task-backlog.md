@@ -449,13 +449,15 @@ As an analyst, I want effect and guard runs to give the agent a Bash tool and ru
 - Given an ancestor of the workspace that holds `CLAUDE.md`, `AGENTS.md` or `.claude`, then the runner refuses to start and starts no run.
 - Given a finished run, then its transcript and `calls.log` are stored under `.willitharness/<plan>/runs/<arm>/<task>/<rep>/` with the value of every secret variable the agent received replaced by `[redacted]`.
 - Given no `claude` on PATH, then `run --agent claude` exits 3 with a rule and a fix and records no run. The version string is stored in `.willitharness/<plan>/agent.json`.
-- Given an arm with channel `system_prompt`, then `plan check` exits 1 and names T64.
+- Given an arm with channel `system_prompt`, then T64 sets how the runner delivers it.
 - IDs: W4, W5. Gates: G3.3, G3.10. Deps: T23, T31.
 
 ### T64. The system_prompt channel (M)
 As an analyst, I want an arm to deliver its rule through `--append-system-prompt-file`, so that I can compare rule placement by channel.
 - Given an arm with channel `system_prompt`, then the runner passes its rule text through `--append-system-prompt-file` and `plan check` accepts the plan.
 - Given the reachability probe for that arm, then it uses the same channel as the run.
+- Given an overlay file `system-prompt.txt` that is missing or empty, then the runner and the probe refuse the arm with a rule and a fix. The file never enters the workspace.
+- Given a channel name that is not in the list, then `plan check` still exits 1.
 - IDs: none. Gate: G3.10. Deps: T63.
 
 ### T65. Close the world-hash gaps (S)

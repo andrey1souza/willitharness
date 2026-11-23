@@ -32,7 +32,7 @@ from willitharness.outcomes import AnalysisError
 from willitharness.plan import PlanError, read_plan
 from willitharness.paths import PathOutsideRoot, inside
 from willitharness.report import ReportRefused, build_report, report_location
-from willitharness.real_runner import check_channels, claude_runner
+from willitharness.real_runner import claude_runner, system_prompt_file
 from willitharness.probe import DEFAULT_LABEL, PROMPT_TEMPLATE, ProbeRefused, check_requested_runs, parse_run, probe
 from willitharness.store import latest_by_run, load_records, spent
 from willitharness.world import WorldError, store_validation, task_commands, validate_world
@@ -63,7 +63,6 @@ def plan_check(root, name):
     assert name, "plan_check needs a plan file name. Fix: pass the path of a plan.json."
     try:
         plan = read_plan(root, name)
-        check_channels(plan)
     except PlanError as error:
         print(str(error), file=sys.stderr)
         return EXIT_DOMAIN_FAILURE
@@ -100,7 +99,7 @@ def claude_runner_for_cli(arguments, index):
     assert index >= 0, f"index is {index}. Rule: runs are counted from 0."
     assert arguments.directory.is_dir(), f"{arguments.directory} is not a directory. Rule: the agent starts in the directory under test."
     prompt = PROMPT_TEMPLATE.format(label=arguments.label)
-    return claude_agent.ask_claude(arguments.directory, prompt, arguments.model, arguments.run_budget_usd)
+    return claude_agent.run_command(arguments.directory, claude_agent.probe_argv(prompt, arguments.model, arguments.run_budget_usd, arguments.system_prompt_file))
 
 
 RUNNERS = {"fake": scripted_fake_runner, "claude": claude_runner_for_cli}
@@ -126,6 +125,16 @@ def recording_site(plan_name, arm):
         return None, EXIT_DOMAIN_FAILURE
     assert site.plan.arms and arm in labels, f"recording_site returned a site where {arm!r} is not an arm of {labels}"
     return site, EXIT_OK
+
+
+def arm_system_prompt_file(site, arm_label):
+    assert (site is None) == (arm_label is None), f"site {site!r} and arm {arm_label!r} go together. Fix: check both options before calling."
+    assert site is None or arm_label in [arm.label for arm in site.plan.arms], f"arm {arm_label!r} is not an arm of the plan. Fix: check the arm before calling."
+    if site is None:
+        return claude_agent.NO_SYSTEM_PROMPT_FILE
+    path = system_prompt_file(site, next(arm for arm in site.plan.arms if arm.label == arm_label))
+    assert isinstance(path, str), f"system_prompt_file returned {path!r}, not text. Rule: the probe passes a path or an empty value."
+    return path
 
 
 def probe_command(argv, runners):
@@ -160,6 +169,11 @@ def probe_command(argv, runners):
     site, refused = recording_site(arguments.plan, arguments.arm)
     if refused != EXIT_OK:
         return refused
+    try:
+        arguments.system_prompt_file = arm_system_prompt_file(site, arguments.arm)
+    except PlanError as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_DOMAIN_FAILURE
     transcripts = [runners[arguments.agent](arguments, index) for index in range(arguments.runs)]
     result = probe([parse_run(lines, arguments.target_token, arguments.control_token) for lines in transcripts])
     print(f"reachability: {result.reach}")

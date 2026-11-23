@@ -1,5 +1,5 @@
 PLATFORM = "darwin"
-TESTS = ("tests/gates/test_real_runner.py", "tests/gates/test_agent_tools.py", "tests/gates/test_plan_gate.py",)
+TESTS = ("tests/gates/test_real_runner.py", "tests/gates/test_agent_tools.py", "tests/gates/test_plan_gate.py", "tests/gates/test_probe_command.py",)
 SOURCE = "src/willitharness/real_runner.py"
 
 MUTANTS = (
@@ -16,7 +16,6 @@ MUTANTS = (
     ("world-not-copied", SOURCE, "    copy_without_reserved(site.world_dir, work)\n", "    work.mkdir()\n"),
     ("overlay-not-applied", SOURCE, "    copy_without_reserved(inside(site.root, arms[arm_label].overlay), work)\n", ""),
     ("overlay-check-dropped", SOURCE, "        if not overlay.is_dir():", "        if False:"),
-    ("system-prompt-channel-allowed", SOURCE, 'UNSUPPORTED_CHANNEL = "system_prompt"', 'UNSUPPORTED_CHANNEL = "unsupported"'),
     ("workspace-kept-after-run", SOURCE, "    with tempfile.TemporaryDirectory(prefix=RUN_DIRECTORY_PREFIX, dir=runner.base) as directory:\n        run_root = Path(directory).resolve()\n", "    directory = tempfile.mkdtemp(prefix=RUN_DIRECTORY_PREFIX, dir=runner.base)\n    if True:\n        run_root = Path(directory).resolve()\n"),
     ('stub-folder-not-first-on-path', 'src/willitharness/real_runner.py', 'path = os.pathsep.join([str(stub_folder(run_root)), scrubbed[PATH_VARIABLE]])', 'path = os.pathsep.join([scrubbed[PATH_VARIABLE], str(stub_folder(run_root))])'),
     ('stub-folder-not-on-path', 'src/willitharness/real_runner.py', 'path = os.pathsep.join([str(stub_folder(run_root)), scrubbed[PATH_VARIABLE]])', 'path = scrubbed[PATH_VARIABLE]'),
@@ -36,14 +35,11 @@ MUTANTS = (
     ('.claude-folder-not-an-instruction-folder', 'src/willitharness/real_runner.py', 'INSTRUCTION_DIRECTORY = ".claude"', 'INSTRUCTION_DIRECTORY = ".claude-none"'),
     ('workspace-base-itself-not-checked', 'src/willitharness/real_runner.py', 'for ancestor in (directory, *directory.parents):', 'for ancestor in directory.parents:'),
     ('only-the-parent-is-checked', 'src/willitharness/real_runner.py', 'for ancestor in (directory, *directory.parents):', 'for ancestor in (directory, *directory.parents[:1]):'),
-    ('runner-accepts-system-prompt-arm', 'src/willitharness/real_runner.py', '    check_channels(site.plan)\n', ''),
-    ('system-prompt-message-names-another-task', 'src/willitharness/real_runner.py', 'CHANNEL_TASK = "T64"', 'CHANNEL_TASK = "T63"'),
     ('version-not-checked', 'src/willitharness/real_runner.py', '    record_agent_version(setup.site, claude_version())\n', '    record_agent_version(setup.site, "unknown")\n'),
     ('version-not-recorded', 'src/willitharness/real_runner.py', '    record_agent_version(setup.site, claude_version())\n', '    claude_version()\n'),
     ('result-event-dropped-from-transcript', 'src/willitharness/real_runner.py', 'finished(output.splitlines(), calls)', 'finished(output.splitlines()[:-1], calls)'),
     ('unavailable-agent-exits-one', 'src/willitharness/cli.py', '        return EXIT_AGENT_MISSING\n', '        return EXIT_DOMAIN_FAILURE\n'),
     ('agent-missing-code-changed', 'src/willitharness/cli.py', 'EXIT_AGENT_MISSING = 3', 'EXIT_AGENT_MISSING = 5'),
-    ('plan-check-accepts-system-prompt-arm', 'src/willitharness/cli.py', '        check_channels(plan)\n', ''),
     ('calls-log-not-writable', SOURCE, 'extras = (scratch_path(run_root), calls_path(run_root), ', 'extras = (scratch_path(run_root), '),
     ('run-folder-writable', SOURCE, 'extras = (scratch_path(run_root), calls_path(run_root), ', 'extras = (run_root, '),
     ("effect-run-still-wrapped", SOURCE, "writable_extras(run_root, os.environ, home)) if guarded else None\n", "writable_extras(run_root, os.environ, home))\n"),
@@ -52,4 +48,14 @@ MUTANTS = (
     ("guard-run-gets-claude-sandbox-only", SOURCE, 'settings = "" if guarded else sandbox_settings(work, run_root, home, NO_DOMAINS)\n', "settings = sandbox_settings(work, run_root, home, NO_DOMAINS)\n"),
     ("effect-run-gets-settings-for-another-workspace", SOURCE, "sandbox_settings(work, run_root, home, NO_DOMAINS)", "sandbox_settings(run_root, run_root, home, NO_DOMAINS)"),
     ("guard-arm-not-detected", SOURCE, "guarded = has_guard_arm(site.plan)\n", "guarded = False\n"),
+    ("system-prompt-file-not-passed", SOURCE, "system_prompt_file=system_prompt_file(site, arm)", 'system_prompt_file=""'),
+    ("file-arm-gets-the-system-prompt-flag", SOURCE, "    if arm.channel != SYSTEM_PROMPT_CHANNEL:\n", "    if False:\n"),
+    ("system-prompt-arm-gets-no-file", SOURCE, "    if arm.channel != SYSTEM_PROMPT_CHANNEL:\n", "    if True:\n"),
+    ("missing-system-prompt-file-accepted", SOURCE, "    if not path.is_file() or path.stat().st_size == 0:\n", "    if False:\n"),
+    ("empty-system-prompt-file-accepted", SOURCE, "or path.stat().st_size == 0:", "or False:"),
+    ("system-prompt-file-not-checked-at-start", SOURCE, "        system_prompt_file(site, arm)\n", ""),
+    ("system-prompt-file-of-another-name", SOURCE, "path = inside(site.root, arm.overlay) / SYSTEM_PROMPT_NAME", 'path = inside(site.root, arm.overlay) / "rule.txt"'),
+    ("probe-ignores-the-arm-channel", 'src/willitharness/cli.py', "    path = system_prompt_file(site, next(arm for arm in site.plan.arms if arm.label == arm_label))", '    path = ""'),
+    ("probe-runner-drops-the-system-prompt-file", 'src/willitharness/cli.py', "arguments.run_budget_usd, arguments.system_prompt_file)", 'arguments.run_budget_usd)'),
+    ("probe-arm-without-rule-text-runs", 'src/willitharness/cli.py', "    except PlanError as error:\n        print(str(error), file=sys.stderr)\n        return EXIT_DOMAIN_FAILURE\n    transcripts", "    except PlanError as error:\n        arguments.system_prompt_file = \"\"\n    transcripts"),
 )

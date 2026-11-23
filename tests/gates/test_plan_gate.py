@@ -55,15 +55,24 @@ def test_a_plan_outside_the_working_directory_exits_one_with_the_fix(capsys, tmp
     assert "outside" in errors and "Fix:" in errors, f"stderr must say the path is outside and give a fix, got {errors!r}"
 
 
-def test_a_plan_with_a_system_prompt_arm_exits_one_naming_task_t64(capsys, tmp_path, monkeypatch):
-    arm = {"label": "B", "role": "rule", "overlay": "arms/B", "channel": "system_prompt"}
+def check_channel_plan(capsys, tmp_path, monkeypatch, channel):
+    arm = {"label": "B", "role": "rule", "overlay": "arms/B", "channel": channel}
     plan = {"schema": 1, "name": "sp", "budget_usd": 2.0, "run_cap_usd": 0.5, "world": "world", "arms": [arm]}
     (tmp_path / "world").mkdir()
     (tmp_path / "plan.json").write_text(json.dumps(plan))
     monkeypatch.chdir(tmp_path)
-    code, output, errors = run_cli(capsys, ["plan", "check", "plan.json"])
+    return run_cli(capsys, ["plan", "check", "plan.json"])
+
+
+def test_a_plan_with_a_system_prompt_arm_passes_the_check(capsys, tmp_path, monkeypatch):
+    code, output, errors = check_channel_plan(capsys, tmp_path, monkeypatch, "system_prompt")
+    assert code == cli.EXIT_OK and output.startswith("plan ok: sp") and errors == "", f"expected exit 0 and plan ok, got {code}, {output!r}, {errors!r}"
+
+
+def test_a_plan_with_an_unknown_channel_still_exits_one_with_the_fix(capsys, tmp_path, monkeypatch):
+    code, output, errors = check_channel_plan(capsys, tmp_path, monkeypatch, "carrier-pigeon")
     assert code == cli.EXIT_DOMAIN_FAILURE and output == "", f"expected exit 1 and no output, got {code}, {output!r}"
-    assert "arm B uses channel system_prompt" in errors and "T64" in errors and "Rule:" in errors and "Fix:" in errors, f"stderr {errors!r}"
+    assert "carrier-pigeon" in errors and "Rule:" in errors and "Fix:" in errors, f"stderr {errors!r}"
 
 
 def test_a_plan_with_a_file_channel_arm_still_passes_the_channel_check(capsys, tmp_path, monkeypatch):

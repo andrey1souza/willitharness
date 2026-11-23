@@ -135,8 +135,10 @@ Feature: Runner and isolation
     And no run is recorded
 
   @L6
-  Scenario: The system_prompt channel is refused until T64
-    Given a rule arm with the channel "system_prompt"
+  Scenario: The system_prompt channel passes the rule text through a file flag
+    Given a rule arm with the channel "system_prompt" and an overlay file "system-prompt.txt"
     When I check the plan
-    Then the command fails with exit code 1
-    And the message says "backlog task T64"
+    Then the command succeeds with exit code 0
+    And the run command contains "--append-system-prompt-file" with the path of the overlay file
+    And the probe command for the arm contains the same flag and path
+    And "system-prompt.txt" never reaches the workspace
