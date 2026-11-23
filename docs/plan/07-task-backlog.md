@@ -1,6 +1,6 @@
 # 07. Task backlog
 
-72 tasks in dependency order (contract v0.6). Each is a BDD story with Given, When,
+75 tasks in dependency order (contract v0.6). Each is a BDD story with Given, When,
 Then acceptance, the contract IDs it covers, a gate from file 03, a size and its
 dependencies. Sizes: S under half a day, M about a day, L two or three days. A task
 is done when its gate passes with its bad input rejected.
@@ -16,7 +16,7 @@ Summary:
 | M5 guard and decision | T38 to T44 | 7 |
 | M6 side effects and report | T45 to T49 | 5 |
 | M7 formal gates | T50 | 1 |
-| Added after M7 | T51 to T72 | 22 |
+| Added after M7 | T51 to T75 | 25 |
 
 Golden tables referenced by name (Lean fork, not final): `decision_table.json`,
 `effect_table.json`, `probe_table.json`, `guard_table.json` in `../../formal/lean/`.
@@ -508,13 +508,36 @@ As an owner of a harness, I want one real run of the three arms, so that the ver
 - Given the finished run, then `decide` and `report` print the verdict for the case.
 - IDs: none. Gate: live, defined with the task. Deps: T69, T70.
 
-### T72. Hash the arm overlays into the plan fingerprint (M)
+### T72. Hash the arm overlays into the plan fingerprint (M) not built (T72)
 As an analyst, I want the content of every arm overlay in the plan fingerprint, so that an edit to a rule after the plan exists is found.
 - Given a test written first, then it shows that today an overlay edit after the plan exists changes nothing.
 - Given an overlay file edited after the first run, then `run` refuses to resume and names the file that changed.
 - Given the same overlays twice, then the fingerprint is the same.
 - Given an overlay file, then its path and its bytes both enter the fingerprint. Given a `budget_usd` change, then the fingerprint stays the same (A-FP).
 - IDs: A-FP changes meaning. The contract glossary and section 7 say that overlay content is part of the plan. Gate: new, defined with the task. Deps: T64.
+
+### T73. Record the model of every run (S) not built (T73)
+As an analyst, I want the model name stored with every run, so that runs on different models are never mixed unseen.
+- Given a run, then each run record holds the model name, and `agent.json` holds it next to the `claude` version.
+- Given records in one plan that name different models, then `analyze` prints a warning that names the models and how many runs each has.
+- Given records written before T73, then `analyze` states how many runs carry no model name.
+- Given a plan whose runs all used one model, then no new warning appears.
+- IDs: none yet. New warning IDs go into the contract in the same change that builds this task. Gate: new, defined with the task. Deps: T65.
+
+### T74. Read the placebo arm in the three-arm verdict (M) not built (T74)
+As an owner of a harness, I want the verdict to read the placebo arm, so that I see whether the content of a component beats the same amount of filler text.
+- Given arms C, P, N and PL, then the verdict also compares arm C with arm PL.
+- Given that arm C equals arm PL and both beat arm N, then the report says that added text helps and the content does not.
+- Given a plan without arm PL, then the verdict and the report are as before.
+- Given arm PL, then the report shows turns and cost for it.
+- IDs: none yet. New decision rows go into the contract, the golden table and the Lean proof in the same change that builds this task. Gate: new, defined with the task. Deps: T67, T69, T70.
+
+### T75. Guard test with three block messages (S) not built (T75)
+As an owner of a harness, I want the guard test to run with three block messages, so that I see which parts of a message matter.
+- Given the `pkill` task and the messages bare "no", rule plus reason, and rule plus fix, then the script prints completion counts per message.
+- Given the same completion for all messages, then it prints `no difference` and exits 1.
+- Given the run, then the owner sets the cost cap before it and approves it.
+- IDs: G1. Gate: live, defined with the task. Deps: T44.
 
 ### T68. The probe command records its result for a plan arm (S)
 As an analyst, I want `probe` to record its result for an arm of my plan, so that `run` can start with the CLI alone.
