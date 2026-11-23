@@ -103,4 +103,59 @@ theorem wrong_L8_no_pair_needed (p : PlanFacts) (h : p.hasNoisePair = false) :
   intro hp
   simp_all [wrongCanReportNoPairNeeded, LooValid]
 
+def wrongArmsNoInsurance : Verdict → Verdict → Bool → ArmVerdict
+  | p, n, _ => threeArmVerdict p n false
+
+theorem wrong_TA3_insurance_ignored :
+    wrongArmsNoInsurance .firstHigher .firstHigher true = .insuranceKeep := by
+  decide
+
+def wrongArmsInsuranceBeforeSmallN : Verdict → Verdict → Bool → ArmVerdict
+  | _, _, true => .insuranceKeep
+  | p, n, false => threeArmVerdict p n false
+
+theorem wrong_TA2_insurance_before_small_n :
+    wrongArmsInsuranceBeforeSmallN .inconclusiveSmallN .firstHigher true = .inconclusive := by
+  decide
+
+def wrongArmsWorseThanNothingInconclusive : Verdict → Verdict → Bool → ArmVerdict
+  | _, .firstLower, false => .inconclusive
+  | p, n, clean => threeArmVerdict p n clean
+
+theorem wrong_TA8_worse_than_nothing_not_delete :
+    wrongArmsWorseThanNothingInconclusive .inconclusive .firstLower false = .deleteCandidate := by
+  decide
+
+def wrongArmsKeepIgnoresNothing : Verdict → Verdict → Bool → ArmVerdict
+  | .firstHigher, .firstLower, false => .keepComponent
+  | p, n, clean => threeArmVerdict p n clean
+
+theorem wrong_TA4_keep_when_worse_than_nothing :
+    wrongArmsKeepIgnoresNothing .firstHigher .firstLower false ≠ .keepComponent := by
+  decide
+
+def wrongArmsEqualNothingReplaced : Verdict → Verdict → Bool → ArmVerdict
+  | .inconclusive, .inconclusive, false => .replaceWithPrompt
+  | p, n, clean => threeArmVerdict p n clean
+
+theorem wrong_TA6_equal_to_nothing_replaced :
+    wrongArmsEqualNothingReplaced .inconclusive .inconclusive false = .deleteCandidate := by
+  decide
+
+def wrongArmsWorseThanPromptKept : Verdict → Verdict → Bool → ArmVerdict
+  | .firstLower, .firstHigher, false => .keepComponent
+  | p, n, clean => threeArmVerdict p n clean
+
+theorem wrong_TA7_worse_than_prompt_kept :
+    wrongArmsWorseThanPromptKept .firstLower .firstHigher false ≠ .keepComponent := by
+  decide
+
+def wrongArmsEqualPromptKept : Verdict → Verdict → Bool → ArmVerdict
+  | .inconclusive, .firstHigher, false => .keepComponent
+  | p, n, clean => threeArmVerdict p n clean
+
+theorem wrong_TA5_equal_to_prompt_kept :
+    wrongArmsEqualPromptKept .inconclusive .firstHigher false = .replaceWithPrompt := by
+  decide
+
 end Wrong
