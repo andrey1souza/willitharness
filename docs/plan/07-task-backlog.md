@@ -1,6 +1,6 @@
 # 07. Task backlog
 
-71 tasks in dependency order (contract v0.6). Each is a BDD story with Given, When,
+72 tasks in dependency order (contract v0.6). Each is a BDD story with Given, When,
 Then acceptance, the contract IDs it covers, a gate from file 03, a size and its
 dependencies. Sizes: S under half a day, M about a day, L two or three days. A task
 is done when its gate passes with its bad input rejected.
@@ -16,7 +16,7 @@ Summary:
 | M5 guard and decision | T38 to T44 | 7 |
 | M6 side effects and report | T45 to T49 | 5 |
 | M7 formal gates | T50 | 1 |
-| Added after M7 | T51 to T71 | 21 |
+| Added after M7 | T51 to T72 | 22 |
 
 Golden tables referenced by name (Lean fork, not final): `decision_table.json`,
 `effect_table.json`, `probe_table.json`, `guard_table.json` in `../../formal/lean/`.
@@ -488,11 +488,11 @@ As an owner of a harness, I want one verdict from three results, so that I know 
 
 ### T69. Plan builder for a component under test (M) not built (T69)
 As an owner of a harness, I want a plan built from a skill or a hook, so that I do not write the three arms by hand.
-- Given a skill, then the plan has arm N with nothing, arm P with the body text of the skill as a rule through the `system_prompt` channel, arm C with the real skill, and a noise pair that repeats arm C.
+- Given a skill, then the plan has arm N with nothing, arm P with the body text of the skill as a rule through the `system_prompt` channel, arm C with the real skill, and a noise pair N2 that repeats arm N. Noise on arm C is not measured separately.
 - Given a hook that injects context, then arm P has the text the hook returns for a fixed sample event, and the other arms are the same.
 - Given the option `--placebo`, then the plan adds an arm with filler text of the same character count as the component text. The extra arm separates the effect of added text from the effect of its content.
 - Given any arm, then a detector declared in the plan before the first run judges every run. The plan fingerprint covers the detector.
-- IDs: none. Gate: new, defined with the task. Deps: T67, T66.
+- IDs: none. Gate: `uv run pytest tests/gates/test_plan_builder.py`. Deps: T67, T66, T64.
 
 ### T70. Report and decide for the three arms (M)
 As an owner of a harness, I want the report and `decide` to read the three arms, so that the verdict and its cost are in one place.
@@ -507,6 +507,14 @@ As an owner of a harness, I want one real run of the three arms, so that the ver
 - Given the plan, then the owner sets the cost cap before the run and approves it.
 - Given the finished run, then `decide` and `report` print the verdict for the case.
 - IDs: none. Gate: live, defined with the task. Deps: T69, T70.
+
+### T72. Hash the arm overlays into the plan fingerprint (M)
+As an analyst, I want the content of every arm overlay in the plan fingerprint, so that an edit to a rule after the plan exists is found.
+- Given a test written first, then it shows that today an overlay edit after the plan exists changes nothing.
+- Given an overlay file edited after the first run, then `run` refuses to resume and names the file that changed.
+- Given the same overlays twice, then the fingerprint is the same.
+- Given an overlay file, then its path and its bytes both enter the fingerprint. Given a `budget_usd` change, then the fingerprint stays the same (A-FP).
+- IDs: A-FP changes meaning. The contract glossary and section 7 say that overlay content is part of the plan. Gate: new, defined with the task. Deps: T64.
 
 ### T68. The probe command records its result for a plan arm (S)
 As an analyst, I want `probe` to record its result for an arm of my plan, so that `run` can start with the CLI alone.
