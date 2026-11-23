@@ -1,6 +1,6 @@
 # 07. Task backlog
 
-76 tasks in dependency order (contract v0.6). Each is a BDD story with Given, When,
+78 tasks in dependency order (contract v0.6). Each is a BDD story with Given, When,
 Then acceptance, the contract IDs it covers, a gate from file 03, a size and its
 dependencies. Sizes: S under half a day, M about a day, L two or three days. A task
 is done when its gate passes with its bad input rejected.
@@ -16,7 +16,7 @@ Summary:
 | M5 guard and decision | T38 to T44 | 7 |
 | M6 side effects and report | T45 to T49 | 5 |
 | M7 formal gates | T50 | 1 |
-| Added after M7 | T51 to T76 | 26 |
+| Added after M7 | T51 to T78 | 28 |
 
 Golden tables referenced by name (Lean fork, not final): `decision_table.json`,
 `effect_table.json`, `probe_table.json`, `guard_table.json` in `../../formal/lean/`.
@@ -542,13 +542,28 @@ As an owner of a harness, I want the guard test to run with three block messages
 - Given the run, then the owner sets the cost cap before it and approves it.
 - IDs: G1. Gate: live, defined with the task. Deps: T44.
 
-### T76. Judge a guard run as completed from the transcript (S) not built (T76)
+### T76. Judge a guard run as completed from the transcript (S)
 As an owner of a harness, I want a completed check that reads the transcript, so that a command that no stub can log still counts as completion.
-- Given a guard arm with a completed check of kind `transcript_contains`, then a run counts as completed when a Bash call in its transcript holds that text.
+- Given a guard arm with a completed check of kind `transcript_contains` and a list of texts, then a run counts as completed when one Bash call in its transcript holds every text.
 - Given the `pkill` case, then completion means `kill` with both stub PIDs, as in the pilot.
 - Given a call that the guard blocked, then it does not count as completion.
 - Given the existing check `calls_contain`, then it works as before.
-- IDs: the contract row on the completed check changes. Gate: new, defined with the task. Deps: T44.
+- IDs: none. The contract rows on the completed check and on a blocked call change. Gate: G5.8, `uv run pytest tests/gates/test_transcript_completed_gate.py`. Deps: T44.
+
+### T77. Let a skill arm fire in a live run (M) not built (T77)
+As an owner of a harness, I want a skill arm to reach the Skill tool, so that arm C does not equal arm N by construction.
+- Given a plan with an arm of channel skill, then the runner enables the `Skill` tool and does not pass `--disable-slash-commands`.
+- Given such a run, then the transcript lists only the skill of the arm, and no skill from the user or from a plugin loads.
+- Given the reachability probe of a skill arm, then it keeps the `Skill` tool enabled.
+- Given a plan with no skill arm, then the command line is unchanged.
+- IDs: none yet. The contract text on the run environment changes. Gate: new, defined with the task. Deps: T64.
+
+### T78. Let build-plan write the tasks (S) not built (T78)
+As an owner of a harness, I want `build-plan` to write the tasks and their completed check, so that `analyze` works on a generated plan.
+- Given a task file, then the plan holds those tasks with their completed check.
+- Given no task, then `build-plan` exits 1 with a rule and a fix, and writes nothing.
+- Given a built plan, then `plan check` and `analyze` accept it with no hand edit.
+- IDs: none. Gate: new, defined with the task. Deps: T69, T76.
 
 ### T68. The probe command records its result for a plan arm (S)
 As an analyst, I want `probe` to record its result for an arm of my plan, so that `run` can start with the CLI alone.
