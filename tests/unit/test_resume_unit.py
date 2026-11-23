@@ -3,7 +3,7 @@ from dataclasses import replace
 
 import pytest
 from files import plant
-from lifecycle_site import OVERLAY_FILE, SiteSpec, edit_overlay, folder_of, stored_final_runs, costing_runner, edit_world, forget_validation, make_site, ready_site, run_setup, stop_at_budget, with_budget
+from lifecycle_site import OVERLAY_FILE, SiteSpec, edit_overlay, folder_of, stored_final_runs, costing_runner, edit_world, forget_validation, make_site, ready_site, remove_resume_record, run_setup, stop_at_budget, with_budget
 
 from willitharness.lifecycle import (
     NOT_ENDED,
@@ -132,6 +132,30 @@ def test_A_FP_an_overlay_edit_after_the_first_run_blocks_the_resume_and_names_th
     message = refusal_of(with_budget(site, 0.10), resume_plan)
     assert "A.md/rule.txt" in message, f"the message must name the changed file, got {message!r}"
     assert "Rule: A-FP" in message and "Fix:" in message, f"the message needs a Rule and a Fix, got {message!r}"
+
+
+def test_A_FP_an_overlay_edit_between_a_crash_and_the_restart_blocks_the_start_and_names_the_file(tmp_path):
+    site = ready_site(tmp_path, SMALL)
+    start_running(site)
+    edit_overlay(site)
+    message = refusal_of(site, start_running)
+    assert "A.md/rule.txt" in message, f"the message must name the changed file, got {message!r}"
+    assert "Rule: A-FP" in message and "Fix:" in message, f"the message needs a Rule and a Fix, got {message!r}"
+
+
+def test_A_FP_a_restart_of_a_running_plan_without_a_stored_record_is_refused(tmp_path):
+    site = ready_site(tmp_path, SMALL)
+    start_running(site)
+    remove_resume_record(site)
+    message = refusal_of(site, start_running)
+    assert "Rule: L10" in message and "Fix:" in message, f"the message needs a Rule and a Fix, got {message!r}"
+
+
+def test_A_FP_a_restart_without_an_overlay_edit_stays_in_running(tmp_path):
+    site = ready_site(tmp_path, SMALL)
+    start_running(site)
+    restarted = start_running(site)
+    assert restarted is PlanState.RUNNING, f"an unchanged overlay must not block a restart of a Running plan, got {restarted}"
 
 
 def test_A_FP_a_new_overlay_file_blocks_the_resume(tmp_path):

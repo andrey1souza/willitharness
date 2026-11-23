@@ -2,11 +2,13 @@ import repo_checks
 from files import write_tree
 
 
-CONTRACT_GOOD = "Ending a plan needs no validated world. A changed world only blocks starts.
-Each run record carries the hash of the world files at the start of the run (T62, T65).
-Each run record carries the model name (T73).
-A resume names each overlay file that changed.
-"
+CONTRACT_GOOD = "Ending a plan needs no validated world. A changed world only blocks starts.\nEach run record carries the hash of the world files at the start of the run (T62, T65).\nEach run record carries the model name (T73).\nA resume names each overlay file that changed.\nA restart of a Running plan checks the overlay files in the same way.\n"
+
+
+def test_a_contract_without_the_restart_sentence_is_reported(tmp_path):
+    write_tree(tmp_path, {"docs/contract.md": CONTRACT_GOOD.replace("A restart of a Running plan checks the overlay files in the same way.", "A restart skips overlays.")})
+    errors = repo_checks.contract_sentence_errors(tmp_path)
+    assert len(errors) == 1 and "A restart of a Running plan checks the overlay files in the same way." in errors[0], f"got {errors}"
 
 
 def test_a_contract_with_both_sentences_passes(tmp_path):

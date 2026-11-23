@@ -42,8 +42,10 @@ MUTANTS = (
     ('resume-without-world-check', SOURCE, '        if not world_is_validated(site):\n            raise LifecycleRefused(RESUME_WORLD_REFUSED)', '        if False:\n            raise LifecycleRefused(RESUME_WORLD_REFUSED)'),
     ('claim-reuses-attempt-number', SOURCE, 'job = Job(cell, seen.usable + seen.in_flight + 1, seen.attempts + 1)', 'job = Job(cell, 1, 1)'),
     ('duplicate-start-id-accepted', SOURCE, '    assert already is None, f"run id', '    assert True, f"run id'),
-    ('resume-without-fingerprint-check', SOURCE, '        if plan_fingerprint(site.plan, site.root) != stored.fingerprint:', '        if False:'),
-    ('resume-without-overlay-check', SOURCE, '        if changed:\n            raise LifecycleRefused(overlay_changed_message(changed))', '        if False:\n            raise LifecycleRefused(overlay_changed_message(changed))'),
-    ('resume-accepts-plan-without-overlay-digests', SOURCE, '        if stored.overlay_files is None:\n            raise LifecycleRefused(RESUME_NO_OVERLAYS)', '        if False:\n            raise LifecycleRefused(RESUME_NO_OVERLAYS)'),
+    ('resume-without-fingerprint-check', SOURCE, '    if plan_fingerprint(site.plan, site.root) != stored.fingerprint:', '    if False:'),
+    ('resume-without-overlay-check', SOURCE, '    if changed:\n        return overlay_changed_message(changed)', '    if False:\n        return overlay_changed_message(changed)'),
+    ('resume-accepts-plan-without-overlay-digests', SOURCE, '    if stored.overlay_files is None:\n        return RESUME_NO_OVERLAYS', '    if False:\n        return RESUME_NO_OVERLAYS'),
+    ('running-restart-skips-overlay-check', SOURCE, '    if state is PlanState.RUNNING:\n        refusal = overlay_refusal(site, read_resume(folder))', '    if False:\n        refusal = overlay_refusal(site, read_resume(folder))'),
+    ('running-restart-without-record-accepted', SOURCE, '    if stored is None:\n        return RESUME_NO_RECORD\n    if stored.overlay_files is None:', '    if stored is None:\n        return ""\n    if stored.overlay_files is None:'),
     ('first-run-stores-no-overlay-digests', SOURCE, 'NOT_ENDED, overlay_files=overlay_digests(site.plan, site.root)))', 'NOT_ENDED, overlay_files={}))'),
 )

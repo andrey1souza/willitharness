@@ -150,6 +150,14 @@ def stored_final_runs(site):
     return runs
 
 
+def remove_resume_record(site):
+    record = lifecycle_dir(site.root, site.plan) / "resume.json"
+    assert record.exists(), f"{record} does not exist, so there is no stored record to remove. Fix: start the plan first."
+    record.unlink()
+    assert not record.exists(), f"{record} was not removed"
+    return site
+
+
 def edit_overlay(site, arm_index=0, text="an edit that changes the overlay\n"):
     assert text != OVERLAY_TEXT, f"the edit {text!r} equals the planted text. Fix: pass different text."
     overlay = site.root / site.plan.arms[arm_index].overlay

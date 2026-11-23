@@ -224,6 +224,21 @@ def record_reachability(site, arm, reach):
     return refresh_state(site)
 
 
+def overlay_refusal(site, stored):
+    assert isinstance(site, PlanSite), f"overlay_refusal needs a PlanSite, got {site!r}. Fix: build one with the root, plan and world directory."
+    assert stored is None or isinstance(stored, ResumeRecord), f"overlay_refusal needs a ResumeRecord or None, got {stored!r}. Fix: read it with read_resume."
+    if stored is None:
+        return RESUME_NO_RECORD
+    if stored.overlay_files is None:
+        return RESUME_NO_OVERLAYS
+    changed = changed_overlay_files(stored.overlay_files, overlay_digests(site.plan, site.root))
+    if changed:
+        return overlay_changed_message(changed)
+    if plan_fingerprint(site.plan, site.root) != stored.fingerprint:
+        return RESUME_PLAN_CHANGED
+    return ""
+
+
 def start_running(site):
     state = refresh_state(site)
     folder = lifecycle_dir(site.root, site.plan)
@@ -236,6 +251,10 @@ def start_running(site):
         raise LifecycleRefused(f"no reachability result for arm {absent[0]} of plan {site.plan.name} (missing: {', '.join(absent)}). Rule: L1, a run needs a reachability result for every arm. Fix: run willitharness probe --plan <plan.json> --arm {absent[0]} with the probe options.")
     if state is not PlanState.RUNNING and state is not PlanState.REACHABILITY_CHECKED:
         raise LifecycleRefused(f"plan is {state}; a run can start only from ReachabilityChecked or Running. Rule: L1, a run starts from ReachabilityChecked or Running. Fix: probe every arm of the plan first.")
+    if state is PlanState.RUNNING:
+        refusal = overlay_refusal(site, read_resume(folder))
+        if refusal:
+            raise LifecycleRefused(refusal)
     if state is PlanState.REACHABILITY_CHECKED:
         write_resume(folder, ResumeRecord(site.plan.budget_usd, plan_fingerprint(site.plan, site.root), NOT_ENDED, overlay_files=overlay_digests(site.plan, site.root)))
     running = move_to(folder, PlanState.RUNNING)
@@ -368,13 +387,9 @@ def resume_plan(site):
             raise LifecycleRefused(RESUME_NO_RECORD)
         if not world_is_validated(site):
             raise LifecycleRefused(RESUME_WORLD_REFUSED)
-        if stored.overlay_files is None:
-            raise LifecycleRefused(RESUME_NO_OVERLAYS)
-        changed = changed_overlay_files(stored.overlay_files, overlay_digests(site.plan, site.root))
-        if changed:
-            raise LifecycleRefused(overlay_changed_message(changed))
-        if plan_fingerprint(site.plan, site.root) != stored.fingerprint:
-            raise LifecycleRefused(RESUME_PLAN_CHANGED)
+        refusal = overlay_refusal(site, stored)
+        if refusal:
+            raise LifecycleRefused(refusal)
         if to_money(site.plan.budget_usd) <= to_money(stored.budget_usd):
             raise LifecycleRefused(f"budget_usd {site.plan.budget_usd} is not above the stored budget {stored.budget_usd}. Rule: L11, a resume raises the budget. Fix: set budget_usd above {stored.budget_usd} in the plan.")
         write_resume(folder, ResumeRecord(site.plan.budget_usd, stored.fingerprint, NOT_ENDED, overlay_files=stored.overlay_files))

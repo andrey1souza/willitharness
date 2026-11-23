@@ -251,7 +251,8 @@ Resume: the transition BudgetStopped to Running. It has these rules:
   `budget_usd`. The implementation enforces it with a fingerprint. It leaves `budget_usd`
   out. It covers the path and the bytes of every file under each overlay path, resolved
   from the project root. The files are sorted by path. A missing overlay has no files.
-  A resume names each overlay file that changed. A plan that started before the
+  A resume names each overlay file that changed. A restart of a Running plan checks
+  the overlay files in the same way. A plan that started before the
   fingerprint covered overlays cannot resume. The TLA+ model does not check A-FP. It has
   no plan content.
 - Analyzed is final. `analyze` on a BudgetStopped plan moves it to Analyzed, and then
