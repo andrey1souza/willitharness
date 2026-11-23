@@ -32,7 +32,7 @@ from willitharness.outcomes import AnalysisError
 from willitharness.plan import PlanError, read_plan
 from willitharness.paths import PathOutsideRoot, inside
 from willitharness.three_arm_report import is_three_arm, three_arm_decision_lines
-from willitharness.plan_builder import BuildOptions, BuildRefused, build_component_plan, hook_component, read_detector_file, skill_component
+from willitharness.plan_builder import BuildOptions, BuildRefused, build_component_plan, hook_component, read_detector_file, read_task_file, skill_component
 from willitharness.report import ReportRefused, build_report, report_location
 from willitharness.real_runner import claude_runner, skill_names, system_prompt_file
 from willitharness.probe import DEFAULT_LABEL, PROMPT_TEMPLATE, ProbeRefused, check_requested_runs, parse_run, probe
@@ -47,7 +47,7 @@ EXIT_BUDGET_STOPPED = 4
 USAGE = (
     "usage: willitharness plan check <plan.json> | willitharness world check <world-dir> "
     "| willitharness probe --agent fake|claude --directory D --runs N --target-token T --control-token C [--boundary B --seed S] [--model M] [--plan P --arm A] "
-    "| willitharness run <plan.json> --agent fake|claude [--timeout-seconds S] [--model M] | willitharness abort <plan.json> | willitharness analyze <plan.json> | willitharness decide <plan.json> | willitharness report <plan-dir or plan.json> | willitharness load-report [project-dir] [--run-hooks] | willitharness build-plan --skill NAME or --hook EVENT --run-hook --detector FILE --out DIR --budget-usd B --run-cap-usd R [--project DIR --name N --placebo]"
+    "| willitharness run <plan.json> --agent fake|claude [--timeout-seconds S] [--model M] | willitharness abort <plan.json> | willitharness analyze <plan.json> | willitharness decide <plan.json> | willitharness report <plan-dir or plan.json> | willitharness load-report [project-dir] [--run-hooks] | willitharness build-plan --skill NAME or --hook EVENT --run-hook --detector FILE --task-file FILE --out DIR --budget-usd B --run-cap-usd R [--project DIR --name N --placebo]"
 )
 EXIT_CODES = (EXIT_OK, EXIT_DOMAIN_FAILURE, EXIT_USAGE, EXIT_AGENT_MISSING, EXIT_BUDGET_STOPPED)
 FAKE_RUN_COST_USD = 0.01
@@ -371,6 +371,7 @@ def build_plan_command(argv):
     component.add_argument("--hook")
     parser.add_argument("--run-hook", action="store_true")
     parser.add_argument("--detector", type=Path)
+    parser.add_argument("--task-file", type=Path)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--budget-usd", type=float, required=True)
     parser.add_argument("--run-cap-usd", type=float, required=True)
@@ -381,8 +382,9 @@ def build_plan_command(argv):
     try:
         project = project_folder(Path.cwd(), arguments.project)
         detector = read_detector_file(arguments.detector)
+        tasks = read_task_file(arguments.task_file)
         found = skill_component(project, arguments.skill) if arguments.skill else hook_component(project, arguments.hook, arguments.run_hook)
-        options = BuildOptions(project, arguments.out, detector, arguments.budget_usd, arguments.run_cap_usd, arguments.placebo, arguments.name)
+        options = BuildOptions(project, arguments.out, detector, tasks, arguments.budget_usd, arguments.run_cap_usd, arguments.placebo, arguments.name)
         path = build_component_plan(found, options)
     except (BuildRefused, LoadRefused) as error:
         print(str(error), file=sys.stderr)
