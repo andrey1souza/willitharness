@@ -45,8 +45,12 @@
     {
       "id": "stop-server",
       "completed_check": {
-        "kind": "calls_contain",
-        "command": "ps"
+        "kind": "transcript_contains",
+        "texts": [
+          "kill",
+          "999991",
+          "999992"
+        ]
       }
     }
   ]

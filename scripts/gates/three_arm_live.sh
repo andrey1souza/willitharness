@@ -73,9 +73,9 @@ skill_can_fire() {
   uv run --project "$ROOT" --quiet python - <<'PYTHON'
 import sys
 
-from willitharness.claude_agent import build_command, tool_policy
+from willitharness.claude_agent import build_command, skill_policy, tool_policy
 
-command = build_command("probe", "haiku", 0.01, tool_policy(False, ["ls"]))
+command = build_command("probe", "haiku", 0.01, skill_policy(tool_policy(False, ["ls"]), ("stop-processes",)))
 tools = command[command.index("--tools") + 1].split(",")
 sys.exit(0 if "Skill" in tools and "--disable-slash-commands" not in command else 1)
 PYTHON

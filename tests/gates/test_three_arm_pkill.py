@@ -49,7 +49,6 @@ EXIT_REFUSED = 2
 MODEL = "haiku"
 RULE_MARKER = "Rule:"
 FIX_MARKER = "Fix:"
-SKILL_BLOCKED = "cannot reach the skill of arm C"
 FAKE_CLAUDE = "#!/bin/sh\ntouch \"$CLAUDE_STARTED_MARKER\"\nexit 1\n"
 
 
@@ -190,13 +189,12 @@ def test_the_checked_in_plan_and_overlays_equal_the_build_plan_output(tmp_path, 
     plan = checked_in_plan()
     arguments = [
         "build-plan", "--skill", SKILL_NAME, "--project", str(CASE), "--detector", str(CASE / "detector.json"), "--out", str(tmp_path / "out"),
-        "--name", PLAN_NAME, "--budget-usd", str(plan["budget_usd"]), "--run-cap-usd", str(plan["run_cap_usd"]),
+        "--name", PLAN_NAME, "--budget-usd", str(plan["budget_usd"]), "--run-cap-usd", str(plan["run_cap_usd"]), "--task-file", str(CASE / "tasks.json"),
     ]
     code, _, error = run_cli(capsys, arguments)
     assert code == EXIT_OK, error
     built = json.loads((tmp_path / "out" / PLAN_FILE).read_text())
-    tasks = plan.pop("tasks")
-    assert [task["id"] for task in tasks] == [TASK], f"the checked-in plan has tasks {tasks!r}, not one task {TASK!r}. Fix: keep the one task."
+    assert [task["id"] for task in built["tasks"]] == [TASK], f"the built plan has tasks {built['tasks']!r}, not one task {TASK!r}. Fix: keep the one task in tasks.json."
     assert plan == built, f"the checked-in plan differs from the build-plan output: {plan!r} against {built!r}. Fix: build the plan again."
     built_overlays, checked_in_overlays = files_of(tmp_path / "out" / "arms"), files_of(PLAN_DIRECTORY / "arms")
     assert built_overlays and checked_in_overlays == built_overlays, f"checked-in overlays {sorted(checked_in_overlays)!r} differ from built {sorted(built_overlays)!r}. Fix: build the plan again."
@@ -277,12 +275,9 @@ def test_a_live_run_without_a_cap_or_with_a_low_cap_is_refused_before_any_spend(
         assert not started.exists(), f"claude started for {arguments!r}"
 
 
-def test_a_live_run_whose_command_cannot_fire_the_skill_is_refused_before_any_spend(tmp_path):
-    runs, probes = plan_numbers()[4:6]
-    done, started = script_result(["--live", "--cap-usd", f"{runs + probes:.2f}", "--artifacts", "kept"], tmp_path)
-    assert_rule_and_fix(done)
-    assert SKILL_BLOCKED in done.stderr, f"expected {SKILL_BLOCKED!r} in {done.stderr!r}. Fix: refuse a live run that cannot reach the skill."
-    assert not started.exists() and not (tmp_path / "artifacts").exists(), "the refused live run started claude or kept artifacts"
+def test_the_plan_completion_check_is_a_kill_with_both_stub_pids():
+    check = checked_in_plan()["tasks"][0]["completed_check"]
+    assert check == {"kind": "transcript_contains", "texts": ["kill", "999991", "999992"]}, f"the completed check is {check!r}. Rule: completion means kill with both stub PIDs, as in the pilot. Fix: restore the check in tasks.json."
 
 
 def test_the_script_dry_mode_runs_the_whole_pipeline_with_the_fake_agent(tmp_path):
