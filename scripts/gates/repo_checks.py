@@ -80,7 +80,7 @@ COUNT_STATEMENTS = (
     ("the last task id", re.compile(r"\(T01 to T\d+\)")),
     ("a summary row with a count", re.compile(r"^\| [^|]+ \| T\d+(?: to T\d+)? \| \d+ \|$", re.MULTILINE)),
 )
-CONTRACT_SENTENCES = ("Ending a plan needs no validated world.", "Each run record carries the hash of the world files at the start of the run (T62, T65).", "Each run record carries the model name (T73).", "A resume names each overlay file that changed.", "A restart of a Running plan checks the overlay files in the same way.")
+CONTRACT_SENTENCES = ("Ending a plan needs no validated world.", "Each run record carries the hash of the world files at the start of the run (T62, T65).", "Each run record carries the model name (T73).", "A resume names each overlay file that changed.", "A restart of a Running plan checks the overlay files in the same way.", "A task that is missing on either side is refused and named (T80).")
 
 
 def mistakes_table_errors(root):
