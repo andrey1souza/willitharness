@@ -44,6 +44,11 @@ def reportedRow (p : PlanFacts) : String :=
     "\", \"looProbe\": \"" ++ p.looProbe.name ++ "\", \"ruleReach\": \"" ++ p.ruleReach.name ++
     "\", \"canReport\": " ++ boolName (decide (CanReport p)) ++ "}"
 
+def armRow (p n : Verdict) (clean : Bool) : String :=
+  "  {\"promptVsComponent\": \"" ++ verdictName p ++ "\", \"nothingVsComponent\": \"" ++
+    verdictName n ++ "\", \"nothingClean\": " ++ boolName clean ++ ", \"verdict\": \"" ++
+    (threeArmVerdict p n clean).name ++ "\"}"
+
 def maxProbeRuns : Nat := 6
 
 def decisionTable : String :=
@@ -65,6 +70,9 @@ def guardTable : String :=
 def reportedTable : String :=
   jsonList (allPlanFacts.map reportedRow)
 
+def armsTable : String :=
+  jsonList (allArmInputs.map fun (p, n, clean) => armRow p n clean)
+
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["decision"] => IO.println decisionTable; return 0
@@ -72,6 +80,7 @@ def main (args : List String) : IO UInt32 := do
   | ["probe"] => IO.println probeTable; return 0
   | ["guard"] => IO.println guardTable; return 0
   | ["reported"] => IO.println reportedTable; return 0
+  | ["arms"] => IO.println armsTable; return 0
   | _ =>
-    IO.eprintln "usage: export_table decision|effect|probe|guard|reported"
+    IO.eprintln "usage: export_table decision|effect|probe|guard|reported|arms"
     return 2

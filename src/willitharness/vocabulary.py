@@ -47,3 +47,11 @@ class Decision(StrEnum):
     DELETE_CANDIDATE = "DeleteCandidate"
     NEEDS_MORE_RUNS = "NeedsMoreRuns"
     CANNOT_DECIDE = "CannotDecide"
+
+
+class ArmVerdict(StrEnum):
+    KEEP_COMPONENT = "KeepComponent"
+    REPLACE_WITH_PROMPT = "ReplaceWithPrompt"
+    DELETE_CANDIDATE = "DeleteCandidate"
+    INCONCLUSIVE = "Inconclusive"
+    INSURANCE_KEEP = "InsuranceKeep"

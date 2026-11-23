@@ -40,7 +40,7 @@ VERDICT = ["InconclusiveSmallN", "FirstHigher", "FirstLower", "Inconclusive"]
 COMPLETED = ["NoGuardArm"] + VERDICT
 COVERAGE = ["Full", "Partial", "NoneSeen"]
 BOOLEANS = [False, True]
-EXPECTED_ROWS = {"decision": 45, "effect": 12, "probe": 140, "guard": 30, "reported": 54}
+EXPECTED_ROWS = {"decision": 45, "effect": 12, "probe": 140, "guard": 30, "reported": 54, "arms": 32}
 TABLE_KINDS = tuple(EXPECTED_ROWS)
 
 
@@ -124,6 +124,25 @@ def contract_reported(has_noise_pair, noise, loo_probe, rule_reach):
     return result
 
 
+def contract_arms(prompt_vs_component, nothing_vs_component, nothing_clean):
+    assert prompt_vs_component in VERDICT and nothing_vs_component in VERDICT, f"unknown value in ({prompt_vs_component}, {nothing_vs_component}). Fix: use the contract's names."
+    assert isinstance(nothing_clean, bool), f"nothing_clean must be a flag, got {nothing_clean!r}. Fix: pass True or False."
+    if "InconclusiveSmallN" in (prompt_vs_component, nothing_vs_component):
+        result = "Inconclusive"
+    elif nothing_clean:
+        result = "InsuranceKeep"
+    elif prompt_vs_component == "FirstHigher":
+        result = "KeepComponent"
+    elif prompt_vs_component == "Inconclusive" and nothing_vs_component == "FirstHigher":
+        result = "ReplaceWithPrompt"
+    elif prompt_vs_component == "Inconclusive" and nothing_vs_component == "Inconclusive":
+        result = "DeleteCandidate"
+    else:
+        result = "Inconclusive"
+    assert result != "InsuranceKeep" or nothing_clean, f"TA3 broken for ({prompt_vs_component}, {nothing_vs_component}): {result}"
+    return result
+
+
 ROW_BUILDERS = {
     "decision": lambda: {(r, e, g): contract_decision(r, e, g) for r in REACH for e in EFFECT for g in GUARD},
     "effect": lambda: {(n, v): contract_effect(n, v) for n in NOISE for v in VERDICT},
@@ -131,6 +150,7 @@ ROW_BUILDERS = {
                       for t in range(runs + 1) for c in range(runs + 1)},
     "guard": lambda: {(cv, coverage, zero): contract_guard(cv, coverage, zero)
                       for cv in COMPLETED for coverage in COVERAGE for zero in BOOLEANS},
+    "arms": lambda: {(p, n, clean): contract_arms(p, n, clean) for p in VERDICT for n in VERDICT for clean in BOOLEANS},
     "reported": lambda: {(pair, noise, loo, rule): contract_reported(pair, noise, loo, rule)
                          for pair in BOOLEANS for noise in NOISE for loo in REACH for rule in REACH},
 }
@@ -154,6 +174,8 @@ def row_key_and_value(kind, row):
         return (row["runs"], row["targetHits"], row["controlHits"]), row["result"]
     if kind == "guard":
         return (row["completed"], row["coverage"], row["bypassRateZero"]), row["guard"]
+    if kind == "arms":
+        return (row["promptVsComponent"], row["nothingVsComponent"], row["nothingClean"]), row["verdict"]
     return (row["hasNoisePair"], row["noise"], row["looProbe"], row["ruleReach"]), row["canReport"]
 
 
