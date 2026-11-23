@@ -1,6 +1,6 @@
 # 07. Task backlog
 
-75 tasks in dependency order (contract v0.6). Each is a BDD story with Given, When,
+76 tasks in dependency order (contract v0.6). Each is a BDD story with Given, When,
 Then acceptance, the contract IDs it covers, a gate from file 03, a size and its
 dependencies. Sizes: S under half a day, M about a day, L two or three days. A task
 is done when its gate passes with its bad input rejected.
@@ -16,7 +16,7 @@ Summary:
 | M5 guard and decision | T38 to T44 | 7 |
 | M6 side effects and report | T45 to T49 | 5 |
 | M7 formal gates | T50 | 1 |
-| Added after M7 | T51 to T75 | 25 |
+| Added after M7 | T51 to T76 | 26 |
 
 Golden tables referenced by name (Lean fork, not final): `decision_table.json`,
 `effect_table.json`, `probe_table.json`, `guard_table.json` in `../../formal/lean/`.
@@ -516,13 +516,13 @@ As an analyst, I want the content of every arm overlay in the plan fingerprint, 
 - Given an overlay file, then its path and its bytes both enter the fingerprint. Given a `budget_usd` change, then the fingerprint stays the same (A-FP).
 - IDs: A-FP changes meaning. The contract glossary and section 7 say that overlay content is part of the plan. Gate: new, defined with the task. Deps: T64.
 
-### T73. Record the model of every run (S) not built (T73)
+### T73. Record the model of every run (S)
 As an analyst, I want the model name stored with every run, so that runs on different models are never mixed unseen.
 - Given a run, then each run record holds the model name, and `agent.json` holds it next to the `claude` version.
 - Given records in one plan that name different models, then `analyze` prints a warning that names the models and how many runs each has.
 - Given records written before T73, then `analyze` states how many runs carry no model name.
 - Given a plan whose runs all used one model, then no new warning appears.
-- IDs: none yet. New warning IDs go into the contract in the same change that builds this task. Gate: new, defined with the task. Deps: T65.
+- IDs: W-MODEL and W-NOMODEL. Gate: `uv run pytest tests/unit/test_warning_rules_unit.py tests/gates/test_analysis_outcomes.py`. Deps: T65.
 
 ### T74. Read the placebo arm in the three-arm verdict (M) not built (T74)
 As an owner of a harness, I want the verdict to read the placebo arm, so that I see whether the content of a component beats the same amount of filler text.
@@ -538,6 +538,14 @@ As an owner of a harness, I want the guard test to run with three block messages
 - Given the same completion for all messages, then it prints `no difference` and exits 1.
 - Given the run, then the owner sets the cost cap before it and approves it.
 - IDs: G1. Gate: live, defined with the task. Deps: T44.
+
+### T76. Judge a guard run as completed from the transcript (S) not built (T76)
+As an owner of a harness, I want a completed check that reads the transcript, so that a command that no stub can log still counts as completion.
+- Given a guard arm with a completed check of kind `transcript_contains`, then a run counts as completed when a Bash call in its transcript holds that text.
+- Given the `pkill` case, then completion means `kill` with both stub PIDs, as in the pilot.
+- Given a call that the guard blocked, then it does not count as completion.
+- Given the existing check `calls_contain`, then it works as before.
+- IDs: the contract row on the completed check changes. Gate: new, defined with the task. Deps: T44.
 
 ### T68. The probe command records its result for a plan arm (S)
 As an analyst, I want `probe` to record its result for an arm of my plan, so that `run` can start with the CLI alone.
