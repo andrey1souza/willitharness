@@ -2,7 +2,11 @@ import repo_checks
 from files import write_tree
 
 
-CONTRACT_GOOD = "Ending a plan needs no validated world. A changed world only blocks starts.\nEach run record carries the hash of the world files at the start of the run (T62, T65).\nEach run record carries the model name (T73).\n"
+CONTRACT_GOOD = "Ending a plan needs no validated world. A changed world only blocks starts.
+Each run record carries the hash of the world files at the start of the run (T62, T65).
+Each run record carries the model name (T73).
+A resume names each overlay file that changed.
+"
 
 
 def test_a_contract_with_both_sentences_passes(tmp_path):
@@ -10,6 +14,12 @@ def test_a_contract_with_both_sentences_passes(tmp_path):
     assert repo_checks.contract_sentence_errors(tmp_path) == [], "a contract holding both sentences must pass"
     write_tree(tmp_path, {"docs/contract.md": CONTRACT_GOOD.replace("starts.\n", "starts.\n\n")})
     assert repo_checks.contract_sentence_errors(tmp_path) == [], "a line break inside the text must not matter"
+
+
+def test_a_contract_without_the_overlay_sentence_is_reported(tmp_path):
+    write_tree(tmp_path, {"docs/contract.md": CONTRACT_GOOD.replace("A resume names each overlay file that changed.", "A resume ignores overlays.")})
+    errors = repo_checks.contract_sentence_errors(tmp_path)
+    assert len(errors) == 1 and "A resume names each overlay file that changed." in errors[0], f"got {errors}"
 
 
 def test_a_contract_without_the_ending_sentence_is_reported(tmp_path):

@@ -2,9 +2,18 @@ TESTS = (
     'tests/unit/test_plan_unit.py',
     'tests/gates/test_plan_gate.py',
     'tests/bdd/test_plan_arms.py',
+    'tests/unit/test_overlay_hash_unit.py',
 )
 
 MUTANTS = (
+    ('overlay-bytes-left-out', 'src/willitharness/plan.py', 'hashlib.sha256(file.read_bytes()).hexdigest()', 'hashlib.sha256(b"").hexdigest()'),
+    ('overlay-path-left-out', 'src/willitharness/plan.py', 'digests[file.relative_to(base).as_posix()] =', 'digests[str(len(digests))] ='),
+    ('overlay-digests-left-out-of-the-fingerprint', 'src/willitharness/plan.py', '    content[OVERLAY_KEY] = overlay_digests(plan, root)\n', '    pass\n'),
+    ('overlay-digests-unsorted', 'src/willitharness/plan.py', 'return dict(sorted(digests.items()))', 'return dict(reversed(digests.items()))'),
+    ('overlay-outside-root-accepted', 'src/willitharness/plan.py', '    except PathOutsideRoot as error:\n        raise PlanError(str(error)) from error\n    base = root.resolve()', '    except PathOutsideRoot:\n        return []\n    base = root.resolve()'),
+    ('overlay-subfolders-skipped', 'src/willitharness/plan.py', 'sorted(path.rglob("*")) if path.is_dir() else [path]', 'sorted(path.glob("*")) if path.is_dir() else [path]'),
+    ('overlay-changes-miss-added-files', 'src/willitharness/plan.py', 'names = sorted(name for name in stored.keys() | current.keys()', 'names = sorted(name for name in stored.keys()'),
+    ('budget-enters-the-fingerprint', 'src/willitharness/plan.py', 'if key != BUDGET_KEY}', 'if key != "name"}'),
     ('default-reps-20-to-10', 'src/willitharness/plan.py', 'DEFAULT_REPS = 20', 'DEFAULT_REPS = 10'),
     ('max-retries-2-to-3', 'src/willitharness/plan.py', 'MAX_RETRIES = 2', 'MAX_RETRIES = 3'),
     ('min-probe-runs-3-to-1', 'src/willitharness/plan.py', 'MIN_PROBE_RUNS = 3', 'MIN_PROBE_RUNS = 1'),

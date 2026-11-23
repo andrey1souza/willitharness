@@ -1,6 +1,6 @@
 import json
 import threading
-from dataclasses import asdict, dataclass, replace
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
 
@@ -9,7 +9,8 @@ from willitharness.claude_agent import transcript_cost
 from willitharness.detectors import Evidence, judge
 from willitharness.outcomes import COMPLETED_OUTCOME, TARGET_OUTCOME
 from willitharness.paths import inside
-from willitharness.plan import Plan, plan_fingerprint
+from willitharness.plan import Plan, changed_overlay_files, overlay_digests, plan_fingerprint
+from willitharness.resume import NOT_ENDED, RESUME_NO_OVERLAYS, RESUME_NO_RECORD, RESUME_PLAN_CHANGED, RESUME_WORLD_REFUSED, ResumeRecord, overlay_changed_message, read_resume, write_resume
 from willitharness.store import (
     EMPTY_COUNTERS,
     UNKNOWN_MODEL,
@@ -31,8 +32,6 @@ from willitharness.world import STORE_DIR, claimed_world_hash, stored_hash, worl
 
 STATE_FILE = "state.json"
 REACH_FILE = "reach.json"
-RESUME_FILE = "resume.json"
-NOT_ENDED = "none"
 STATE_KEY = "state"
 MAX_PARALLEL_RUNNERS = 4
 WORLD_NOT_VALIDATED = "world not validated; run: willitharness world check. Rule: L10, a run needs a validated world. Fix: run willitharness world check."
@@ -40,9 +39,6 @@ WORLD_CHANGED = "world changed since validation; run: willitharness world check.
 ABORT_AFTER_ANALYSIS = "plan already analyzed; abort is not possible. Rule: L5, an analyzed plan is final. Fix: run willitharness report, or copy the plan to start again."
 ANALYZE_AFTER_ABORT = "plan aborted; no verdict"
 ANALYZE_WHILE_RUNNING = "plan still running; analyze after Complete or BudgetStopped. Rule: L5, a verdict needs Complete or BudgetStopped. Fix: wait for the run to end, then run willitharness analyze."
-RESUME_WORLD_REFUSED = "world not validated or changed since validation. Rule: L10, the world must be validated again before a resume. Fix: run willitharness world check."
-RESUME_NO_RECORD = "plan has no stored budget and fingerprint. Rule: L10, a plan stores both when it first runs. Fix: start the plan with run before resuming."
-RESUME_PLAN_CHANGED = "plan differs from the stored plan in more than budget_usd. Rule: A-FP, a resume changes only the budget. Fix: restore the plan and raise only budget_usd."
 NOTHING_TO_RESUME = "plan is Complete; there is nothing to resume. Rule: L10, only a BudgetStopped plan resumes. Fix: run willitharness analyze."
 ANALYZE_BEFORE_RUN = "plan has not run yet; analyze after Complete or BudgetStopped. Rule: L5, a verdict needs Complete or BudgetStopped. Fix: run willitharness run first."
 STORE_LOCK = threading.Lock()
@@ -78,14 +74,6 @@ LEGAL_MOVES = {
     PlanState.ANALYZED: frozenset({PlanState.REPORTED}),
     PlanState.REPORTED: frozenset(),
 }
-
-
-@dataclass(frozen=True)
-class ResumeRecord:
-    budget_usd: float
-    fingerprint: str
-    ended_by: str
-    ended_in_changed_world: bool = False
 
 
 @dataclass(frozen=True)
@@ -179,20 +167,6 @@ def read_reach(folder):
     return reach
 
 
-def read_resume(folder):
-    assert isinstance(folder, Path), f"read_resume needs the plan folder as a Path, got {folder!r}. Fix: use lifecycle_dir."
-    path = folder / RESUME_FILE
-    record = ResumeRecord(**json.loads(path.read_text())) if path.is_file() else None
-    assert record is None or record.fingerprint, f"{path} holds no fingerprint. Rule: the fingerprint is stored with the budget."
-    return record
-
-
-def write_resume(folder, record):
-    assert isinstance(record, ResumeRecord), f"write_resume needs a ResumeRecord, got {record!r}. Fix: build one with the budget, fingerprint and ended marker."
-    (folder / RESUME_FILE).write_text(json.dumps(asdict(record)))
-    assert read_resume(folder) == record, f"{folder / RESUME_FILE} did not keep {record}. Rule: the stored budget, fingerprint and ended marker persist."
-
-
 def missing_arms(site):
     assert isinstance(site, PlanSite), f"missing_arms needs a PlanSite, got {site!r}. Fix: build one with the root, plan and world directory."
     recorded = read_reach(lifecycle_dir(site.root, site.plan))
@@ -263,7 +237,7 @@ def start_running(site):
     if state is not PlanState.RUNNING and state is not PlanState.REACHABILITY_CHECKED:
         raise LifecycleRefused(f"plan is {state}; a run can start only from ReachabilityChecked or Running. Rule: L1, a run starts from ReachabilityChecked or Running. Fix: probe every arm of the plan first.")
     if state is PlanState.REACHABILITY_CHECKED:
-        write_resume(folder, ResumeRecord(site.plan.budget_usd, plan_fingerprint(site.plan), NOT_ENDED))
+        write_resume(folder, ResumeRecord(site.plan.budget_usd, plan_fingerprint(site.plan, site.root), NOT_ENDED, overlay_files=overlay_digests(site.plan, site.root)))
     running = move_to(folder, PlanState.RUNNING)
     assert running is PlanState.RUNNING, f"start_running ended in {running}. Rule: L1, runs start only in Running."
     assert not absent and world_is_validated(site), f"start_running passed for plan {site.plan.name} with missing arms {absent}. Rule: L1. Fix: check the world and the arms first."
@@ -394,11 +368,16 @@ def resume_plan(site):
             raise LifecycleRefused(RESUME_NO_RECORD)
         if not world_is_validated(site):
             raise LifecycleRefused(RESUME_WORLD_REFUSED)
-        if plan_fingerprint(site.plan) != stored.fingerprint:
+        if stored.overlay_files is None:
+            raise LifecycleRefused(RESUME_NO_OVERLAYS)
+        changed = changed_overlay_files(stored.overlay_files, overlay_digests(site.plan, site.root))
+        if changed:
+            raise LifecycleRefused(overlay_changed_message(changed))
+        if plan_fingerprint(site.plan, site.root) != stored.fingerprint:
             raise LifecycleRefused(RESUME_PLAN_CHANGED)
         if to_money(site.plan.budget_usd) <= to_money(stored.budget_usd):
             raise LifecycleRefused(f"budget_usd {site.plan.budget_usd} is not above the stored budget {stored.budget_usd}. Rule: L11, a resume raises the budget. Fix: set budget_usd above {stored.budget_usd} in the plan.")
-        write_resume(folder, ResumeRecord(site.plan.budget_usd, stored.fingerprint, NOT_ENDED))
+        write_resume(folder, ResumeRecord(site.plan.budget_usd, stored.fingerprint, NOT_ENDED, overlay_files=stored.overlay_files))
         resumed = move_to(folder, PlanState.RUNNING)
     assert resumed is PlanState.RUNNING, f"resume_plan ended in {resumed}. Rule: L10, a resume ends in Running."
     assert read_resume(folder).ended_by == NOT_ENDED, f"plan {site.plan.name} is Running but marked as ended. Rule: L12. Fix: reset the ended marker on resume."
