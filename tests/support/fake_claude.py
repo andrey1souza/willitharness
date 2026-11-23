@@ -15,6 +15,7 @@ SANDBOX_EXIT_CODE = 1
 
 BEHAVIOR_FILE = "fake-behavior.txt"
 PID_FILE = "agent.pid"
+LEAKED_SKILL = "leaked-skill"
 ESCAPE_TARGET_FILE = "fake-escape-target.txt"
 SECRET_VARIABLE = "FAKE_SECRET_TOKEN"
 OVERSPEND_USD = 5.0
@@ -56,7 +57,13 @@ report = {{
 }}
 commands = open("{COMMANDS_FILE}").read().splitlines() if "tools" in behaviors and os.path.exists("{COMMANDS_FILE}") else []
 commands += os.environ["{COMMANDS_VARIABLE}"].splitlines() if "{COMMANDS_VARIABLE}" in os.environ else []
-print(json.dumps({{"type": "system", "subtype": "init", "model": "{FAKE_MODEL}"}}))
+def skill_folders(root):
+    return sorted(name for name in os.listdir(root) if os.path.isfile(os.path.join(root, name, "SKILL.md"))) if os.path.isdir(root) else []
+sources = arguments[arguments.index("--setting-sources") + 1].split(",") if "--setting-sources" in arguments else ["user", "project", "local"]
+skills = [] if "--disable-slash-commands" in arguments else skill_folders(".claude/skills") + (skill_folders(os.path.expanduser("~/.claude/skills")) if "user" in sources else [])
+skills += ["{LEAKED_SKILL}"] if "leak-skill" in behaviors and "--disable-slash-commands" not in arguments else []
+report["skills"] = skills
+print(json.dumps({{"type": "system", "subtype": "init", "model": "{FAKE_MODEL}", "skills": skills}}))
 outputs = []
 while commands:
     command = commands.pop(0)

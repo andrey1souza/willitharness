@@ -18,6 +18,12 @@ ALLOW_PATTERN = "Bash({command}:*)"
 SETTINGS_FLAG = "--settings"
 SYSTEM_PROMPT_FLAG = "--append-system-prompt-file"
 NO_SYSTEM_PROMPT_FILE = ""
+SKILL_TOOL = "Skill"
+SKILL_ALLOW_PATTERN = "Skill({name})"
+SLASH_COMMANDS_OFF_FLAG = "--disable-slash-commands"
+INIT_EVENT = "system"
+INIT_SUBTYPE = "init"
+SKILLS_FIELD = "skills"
 
 
 class AgentUnavailable(Exception):
@@ -30,6 +36,7 @@ class ToolPolicy:
     allowed: tuple
     settings: str = ""
     system_prompt_file: str = ""
+    skills: tuple = ()
 
 
 PROBE_POLICY = ToolPolicy("", ())
@@ -43,8 +50,19 @@ def tool_policy(has_guard, commands):
     return policy
 
 
+def skill_policy(policy, names):
+    assert isinstance(policy, ToolPolicy), f"skill_policy needs a ToolPolicy, got {policy!r}. Fix: use PROBE_POLICY or tool_policy."
+    assert names and all(names) and not isinstance(names, str), f"skill_policy needs the skill names of the arm as a tuple, got {names!r}. Rule: a skill arm names its skills. Fix: pass skill_names output."
+    tools = f"{policy.tools},{SKILL_TOOL}" if policy.tools else SKILL_TOOL
+    allowed = (*policy.allowed, *(SKILL_ALLOW_PATTERN.format(name=name) for name in sorted(set(names))))
+    result = replace(policy, tools=tools, allowed=allowed, skills=tuple(sorted(set(names))))
+    assert SKILL_TOOL in result.tools.split(","), f"the policy {result!r} lost the {SKILL_TOOL} tool. Rule: the skill listing travels with the {SKILL_TOOL} tool."
+    return result
+
+
 def tool_flags(policy):
     assert isinstance(policy, ToolPolicy), f"tool_flags needs a ToolPolicy, got {policy!r}. Fix: use PROBE_POLICY or tool_policy."
+    assert not policy.skills or SKILL_TOOL in policy.tools.split(","), f"the policy {policy!r} names skills but has no {SKILL_TOOL} tool. Rule: a skill arm keeps the {SKILL_TOOL} tool. Fix: build the policy with skill_policy."
     flags = ["--tools", policy.tools]
     if policy.tools:
         flags += ["--permission-mode", PERMISSION_MODE]
@@ -64,6 +82,13 @@ def system_prompt_flags(policy):
     return flags
 
 
+def slash_command_flags(policy):
+    assert isinstance(policy, ToolPolicy), f"slash_command_flags needs a ToolPolicy, got {policy!r}. Fix: use PROBE_POLICY or tool_policy."
+    flags = [] if policy.skills else [SLASH_COMMANDS_OFF_FLAG]
+    assert (SLASH_COMMANDS_OFF_FLAG in flags) != bool(policy.skills), f"slash_command_flags built {flags!r} for skills {policy.skills!r}. Rule: only a skill arm reaches the {SKILL_TOOL} tool."
+    return flags
+
+
 def build_command(prompt, model, budget, policy):
     assert prompt, "build_command needs a prompt. Fix: pass the probe prompt."
     assert model and budget > 0, f"build_command needs a model and a budget above 0, got {model!r} and {budget!r}. Fix: pass both."
@@ -75,7 +100,7 @@ def build_command(prompt, model, budget, policy):
         "--max-budget-usd", str(budget),
         *tool_flags(policy),
         *system_prompt_flags(policy),
-        "--disable-slash-commands",
+        *slash_command_flags(policy),
         "--no-session-persistence",
         "--output-format", "stream-json",
         "--verbose",
@@ -100,6 +125,13 @@ def probe_argv(prompt, model, budget, system_prompt_file):
     assert model, f"probe_argv needs a model, got {model!r}. Fix: pass the model name."
     argv = build_command(prompt, model, budget, replace(PROBE_POLICY, system_prompt_file=system_prompt_file))
     assert argv[argv.index("--tools") + 1] == "", f"a probe run must have no tool, got {argv!r}"
+    return argv
+
+
+def skill_probe_argv(prompt, model, budget, skills):
+    assert model, f"skill_probe_argv needs a model, got {model!r}. Fix: pass the model name."
+    argv = build_command(prompt, model, budget, skill_policy(PROBE_POLICY, skills))
+    assert argv[argv.index("--tools") + 1] == SKILL_TOOL, f"a skill probe run has only the {SKILL_TOOL} tool, got {argv!r}"
     return argv
 
 
@@ -155,3 +187,24 @@ def transcript_cost(transcript):
             cost = float(event[COST_FIELD])
     assert cost >= 0, f"a cost cannot be negative, got {cost}"
     return cost
+
+
+def listed_skills(transcript):
+    assert isinstance(transcript, list), f"listed_skills needs the list of lines, got {type(transcript).__name__}. Fix: pass the lines."
+    listed = set()
+    for line in transcript:
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(event, dict) and event.get("type") == INIT_EVENT and event.get("subtype") == INIT_SUBTYPE:
+            listed.update(event.get(SKILLS_FIELD) or ())
+    assert all(isinstance(name, str) for name in listed), f"a skill name is not text in {listed!r}"
+    return sorted(listed)
+
+
+def foreign_skills(transcript, names):
+    assert names and not isinstance(names, str), f"foreign_skills needs the skill names of the arm, got {names!r}. Fix: pass skill_names output."
+    foreign = [name for name in listed_skills(transcript) if name not in names]
+    assert not set(foreign) & set(names), f"foreign skills {foreign!r} hold an arm skill from {names!r}"
+    return foreign

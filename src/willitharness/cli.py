@@ -34,7 +34,7 @@ from willitharness.paths import PathOutsideRoot, inside
 from willitharness.three_arm_report import is_three_arm, three_arm_decision_lines
 from willitharness.plan_builder import BuildOptions, BuildRefused, build_component_plan, hook_component, read_detector_file, skill_component
 from willitharness.report import ReportRefused, build_report, report_location
-from willitharness.real_runner import claude_runner, system_prompt_file
+from willitharness.real_runner import claude_runner, skill_names, system_prompt_file
 from willitharness.probe import DEFAULT_LABEL, PROMPT_TEMPLATE, ProbeRefused, check_requested_runs, parse_run, probe
 from willitharness.store import latest_by_run, load_records, spent
 from willitharness.world import WorldError, store_validation, task_commands, validate_world
@@ -101,6 +101,8 @@ def claude_runner_for_cli(arguments, index):
     assert index >= 0, f"index is {index}. Rule: runs are counted from 0."
     assert arguments.directory.is_dir(), f"{arguments.directory} is not a directory. Rule: the agent starts in the directory under test."
     prompt = PROMPT_TEMPLATE.format(label=arguments.label)
+    if arguments.skills:
+        return claude_agent.run_command(arguments.directory, claude_agent.skill_probe_argv(prompt, arguments.model, arguments.run_budget_usd, arguments.skills))
     return claude_agent.run_command(arguments.directory, claude_agent.probe_argv(prompt, arguments.model, arguments.run_budget_usd, arguments.system_prompt_file))
 
 
@@ -139,6 +141,16 @@ def arm_system_prompt_file(site, arm_label):
     return path
 
 
+def arm_skill_names(site, arm_label):
+    assert (site is None) == (arm_label is None), f"site {site!r} and arm {arm_label!r} go together. Fix: check both options before calling."
+    assert site is None or arm_label in [arm.label for arm in site.plan.arms], f"arm {arm_label!r} is not an arm of the plan. Fix: check the arm before calling."
+    if site is None:
+        return ()
+    names = skill_names(site, next(arm for arm in site.plan.arms if arm.label == arm_label))
+    assert isinstance(names, tuple), f"skill_names returned {names!r}, not a tuple. Rule: the probe passes skill names or an empty tuple."
+    return names
+
+
 def probe_command(argv, runners):
     assert isinstance(argv, list), f"probe_command needs a list of arguments, got {argv!r}. Fix: pass the arguments after probe."
     assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
@@ -173,6 +185,7 @@ def probe_command(argv, runners):
         return refused
     try:
         arguments.system_prompt_file = arm_system_prompt_file(site, arguments.arm)
+        arguments.skills = arm_skill_names(site, arguments.arm)
     except PlanError as error:
         print(str(error), file=sys.stderr)
         return EXIT_DOMAIN_FAILURE
