@@ -2,6 +2,7 @@ import atexit
 import contextlib
 import json
 import os
+import shutil
 import signal
 import subprocess
 import tempfile
@@ -13,11 +14,13 @@ from pathlib import Path
 from willitharness.artifacts import RunArtifacts, artifact_directory, store_artifacts
 from willitharness.claude_agent import build_command, claude_version, tool_policy
 from willitharness.claude_sandbox import NO_DOMAINS, sandbox_settings
+from willitharness.guard import load_rules
+from willitharness.guard_hook import hook_settings
 from willitharness.isolation import agent_environment, sandbox_profile, sandboxed_command
 from willitharness.lifecycle import TIMED_OUT, PlanState, RunSetup, finished, lifecycle_dir, read_state
 from willitharness.paths import PathOutsideRoot, inside
-from willitharness.plan import PlanError, has_guard_arm
-from willitharness.stubs import SYSTEM_PROMPT_NAME, calls_path, copy_without_reserved, scratch_path, stub_folder, write_stub_wrappers
+from willitharness.plan import ROLE_GUARD_ONLY, PlanError, has_guard_arm
+from willitharness.stubs import GUARD_RULES_NAME, SYSTEM_PROMPT_NAME, calls_path, copy_without_reserved, guard_rules_path, scratch_path, stub_folder, write_stub_wrappers
 from willitharness.world import allowed_commands, prompt_text
 
 POLL_SECONDS = 0.05
@@ -72,6 +75,23 @@ def system_prompt_file(site, arm):
     return str(path)
 
 
+def guard_rules_file(site, arm):
+    assert arm in site.plan.arms, f"{arm.label} is not an arm of plan {site.plan.name}. Fix: pass an arm of the plan."
+    if arm.role != ROLE_GUARD_ONLY:
+        return None
+    path = inside(site.root, arm.overlay) / GUARD_RULES_NAME
+    try:
+        load_rules(path.parent, path.name)
+    except (AssertionError, ValueError) as error:
+        raise PlanError(
+            f"guard arm {arm.label} has no loadable {GUARD_RULES_NAME} in {path.parent}: {error}. "
+            f"Rule: the hook of a guard_only arm loads {GUARD_RULES_NAME} from the overlay before it judges a command. "
+            f"Fix: write the guard rules in the format of fixtures/guard/rules.json to {GUARD_RULES_NAME} in the overlay of arm {arm.label}."
+        ) from error
+    assert path.is_absolute(), f"the guard rules file {path} is not absolute"
+    return path
+
+
 def workspace_base(base):
     assert base is None or isinstance(base, Path), f"workspace_base needs a Path or None, got {base!r}. Fix: pass a pathlib.Path."
     resolved = Path(tempfile.gettempdir()).resolve() if base is None else base.resolve()
@@ -116,6 +136,7 @@ def check_runnable(setup, base):
         if not overlay.is_dir():
             raise PlanError(f"overlay {overlay} of arm {arm.label} is not a directory. Rule: an arm is an overlay directory. Fix: create the directory the arm names in overlay.")
         system_prompt_file(site, arm)
+        guard_rules_file(site, arm)
     assert all(inside(site.root, arm.overlay).is_dir() for arm in site.plan.arms), f"an overlay of plan {site.plan.name} is not a directory"
 
 
@@ -172,6 +193,19 @@ def run_sandbox(guarded, work, run_root, home):
     settings = "" if guarded else sandbox_settings(work, run_root, home, NO_DOMAINS)
     assert (profile is None) != (settings == ""), f"a run needs exactly one sandbox, got profile {profile!r} and settings {settings!r}. Rule: guard runs use sandbox-exec, effect runs use the Claude sandbox."
     return profile, settings
+
+
+def hook_run_settings(site, arm, run_root, settings):
+    assert run_root.is_dir(), f"{run_root} is not a directory. Fix: build the workspace first."
+    rules_source = guard_rules_file(site, arm)
+    assert not (rules_source and settings), f"a guard run got sandbox settings {settings!r} and a hook. Rule: a guard run keeps sandbox-exec and carries the hook only. Fix: give --settings to one kind of run."
+    if rules_source is None:
+        return settings
+    installed = guard_rules_path(run_root)
+    shutil.copyfile(rules_source, installed)
+    result = hook_settings(installed)
+    assert installed.is_file() and str(installed) in result, f"the hook settings {result!r} do not name the installed rules {installed}"
+    return result
 
 
 def kill_group(process):
@@ -278,6 +312,7 @@ def run_cell(runner, cell, rep, attempt):
         run_root = Path(directory).resolve()
         work = build_workspace(site, cell.arm, run_root)
         profile, settings = run_sandbox(guarded, work, run_root, home)
+        settings = hook_run_settings(site, arm, run_root, settings)
         environment = run_environment(run_root, os.environ)
         command = build_command(prompt, runner.model, site.plan.run_cap_usd, replace(policy, settings=settings))
         deadline = time.monotonic() + runner.setup.timeout_seconds

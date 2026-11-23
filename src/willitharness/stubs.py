@@ -10,7 +10,8 @@ BIN_NAME = "bin"
 CALLS_LOG = "calls.log"
 SCRATCH_NAME = "tmp"
 SYSTEM_PROMPT_NAME = "system-prompt.txt"
-RESERVED_NAMES = CONTROL_NAMES | {BIN_NAME, CALLS_LOG, SYSTEM_PROMPT_NAME}
+GUARD_RULES_NAME = "guard-rules.json"
+RESERVED_NAMES = CONTROL_NAMES | {BIN_NAME, CALLS_LOG, SYSTEM_PROMPT_NAME, GUARD_RULES_NAME}
 WRAPPER_MODE = 0o755
 WRAPPER_TEMPLATE = (
     "#!/bin/sh\n"
@@ -62,6 +63,13 @@ def calls_path(run_root):
     assert run_root.is_absolute(), f"{run_root} is not absolute. Rule: the wrappers log to an absolute path. Fix: pass the resolved run folder."
     path = run_root / CALLS_LOG
     assert path.parent == run_root, f"the calls log {path} is not directly under {run_root}"
+    return path
+
+
+def guard_rules_path(run_root):
+    assert run_root.is_absolute(), f"{run_root} is not absolute. Rule: the hook names its rules by absolute path. Fix: pass the resolved run folder."
+    path = run_root / GUARD_RULES_NAME
+    assert path.parent == run_root, f"the guard rules {path} are not directly under {run_root}"
     return path
 
 

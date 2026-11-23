@@ -9,16 +9,17 @@ from pathlib import Path
 
 import pytest
 
-from agent_site import ONE_RUN, TWO_RUNS, add_overlay_file, guard_site, prepare_project_with_fake_agent, run_one
+from agent_site import ONE_RUN, TWO_RUNS, add_guard_rules, add_overlay_file, guard_site, prepare_project_with_fake_agent, run_one
 from cli_runner import run_cli
 from fake_claude import ESCAPE_TARGET_FILE, PID_FILE, SECRET_VARIABLE, report_of
 from files import write_tree
 from lifecycle_site import TASK_NAME, TASK_PROMPT, run_setup, stored_final_runs, validate_site
 
-from willitharness.lifecycle import TIMED_OUT, PlanState, RunSetup, abort_plan, execute_plan, lifecycle_dir, read_state, start_running
+from willitharness.lifecycle import TIMED_OUT, PlanState, RunSetup, abort_plan, execute_plan, lifecycle_dir, read_state, record_reachability, start_running
 from willitharness.plan import PlanError
-from willitharness.real_runner import claude_runner
+from willitharness.real_runner import claude_runner, hook_run_settings
 from willitharness.store import Cell, RunState
+from willitharness.vocabulary import Reach
 
 pytestmark = pytest.mark.skipif(sys.platform != "darwin", reason="the real runner uses macOS sandbox-exec")
 CELL = Cell("A", TASK_NAME)
@@ -108,11 +109,71 @@ def test_the_effect_run_sandbox_settings_name_the_run_folders_and_the_secret_fol
     }, f"the settings of an effect run are wrong: {settings}"
 
 
-def test_a_guard_run_has_no_claude_sandbox_settings(tmp_path, monkeypatch):
+def hook_command_of(arguments):
+    settings = json.loads(arguments[arguments.index("--settings") + 1])
+    assert list(settings) == ["hooks"], f"a guard run carries the hook and no sandbox key, got {list(settings)}"
+    (group,) = settings["hooks"]["PreToolUse"]
+    assert group["matcher"] == "Bash", f"the hook must judge Bash calls, got {group}"
+    (entry,) = group["hooks"]
+    return entry["command"]
+
+
+def test_a_guard_run_keeps_the_file_tools_and_carries_a_hook_instead_of_sandbox_settings(tmp_path, monkeypatch):
     site = guard_site(prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok"))
     arguments = report_of(run_one(site).transcript)["arguments"]
-    assert "--settings" not in arguments, f"a guard run keeps sandbox-exec and gets no Claude sandbox, got {arguments}"
+    assert hook_command_of(arguments), f"a guard run must carry a hook command, got {arguments}"
     assert arguments[arguments.index("--tools") + 1] == "Bash,Write,Edit", f"a guard run keeps the file tools, got {arguments}"
+
+
+def test_the_hook_names_a_rules_file_in_the_run_folder_and_not_in_the_workspace(tmp_path, monkeypatch):
+    site = guard_site(prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok"))
+    report = report_of(run_one(site).transcript)
+    rules_path = hook_command_of(report["arguments"]).split()[-1]
+    assert rules_path == f"{os.path.dirname(report['cwd'])}/guard-rules.json", f"the rules must sit beside the workspace, got {rules_path}"
+    assert "guard-rules.json" not in report["files"], f"the agent could edit its own rules: {report['files']}"
+
+
+def test_a_guard_run_blocks_a_violation_before_its_stub_runs_and_lets_an_allowed_command_through(tmp_path, monkeypatch):
+    site = guard_site(prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "tools"))
+    add_overlay_file(site, "fake-commands.txt", "pkill -f vitest\necho ok\n")
+    result = run_one(site)
+    blocked, allowed = report_of(result.transcript)["tool_outputs"]
+    assert blocked.startswith("Blocked by guard (pkill)") and "`kill PID...`" in blocked, f"the agent must read the block message, got {blocked!r}"
+    assert allowed == "ok\n", f"an allowed command must run, got {allowed!r}"
+    assert result.calls == "", f"the blocked stub must not run, calls.log holds {result.calls!r}"
+
+
+def test_a_rule_arm_in_a_plan_with_a_guard_arm_gets_no_hook(tmp_path, monkeypatch):
+    site = prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok")
+    add_guard_rules(site)
+    guard = replace(site.plan.arms[0], label="B", role="guard_only")
+    two_arms = replace(site, plan=replace(site.plan, arms=(site.plan.arms[0], guard)))
+    record_reachability(two_arms, "B", Reach.LOADED)
+    arguments = report_of(run_one(two_arms).transcript)["arguments"]
+    assert "--settings" not in arguments, f"arm A is a rule arm and must run without a hook, got {arguments}"
+
+
+def test_hook_settings_are_refused_beside_sandbox_settings(tmp_path, monkeypatch):
+    site = guard_site(prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok"))
+    run_root = tmp_path / "run"
+    run_root.mkdir()
+    with pytest.raises(AssertionError) as raised:
+        hook_run_settings(site, site.plan.arms[0], run_root, "{}")
+    assert "Rule:" in str(raised.value) and "Fix:" in str(raised.value), f"the refusal needs a rule and a fix: {raised.value}"
+
+
+@pytest.mark.parametrize("rules_text", [None, "", "not json", "[]"])
+def test_a_guard_arm_without_loadable_rules_is_refused_before_any_run(tmp_path, monkeypatch, rules_text):
+    site = prepare_project_with_fake_agent(tmp_path, monkeypatch, ONE_RUN, "ok")
+    if rules_text is not None:
+        add_overlay_file(site, "guard-rules.json", rules_text)
+    guard = replace(site.plan.arms[0], role="guard_only")
+    setup = run_setup(replace(site, plan=replace(site.plan, arms=(guard,))))
+    with pytest.raises(PlanError) as raised:
+        claude_runner(setup, "haiku")
+    message = str(raised.value)
+    assert "guard-rules.json" in message and "Rule:" in message and message.rstrip().endswith("."), f"the refusal needs the file and a rule: {message!r}"
+    assert "Fix:" in message, f"the refusal needs a fix: {message!r}"
 
 
 def test_a_run_whose_claude_sandbox_cannot_start_is_unusable_and_runs_nothing(tmp_path, monkeypatch):

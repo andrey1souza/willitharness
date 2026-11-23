@@ -21,7 +21,7 @@ NORMAL_USD = 0.01
 HANG_SECONDS = 60
 
 SCRIPT = f'''#!{sys.executable}
-import json, os, subprocess, sys, time
+import json, os, re, subprocess, sys, time
 if sys.argv[1:] == ["--version"]:
     print("{FAKE_VERSION}")
     sys.exit(0)
@@ -54,14 +54,24 @@ report = {{
     "wrote_outside": write_allowed(open("{ESCAPE_TARGET_FILE}").read().strip() if os.path.exists("{ESCAPE_TARGET_FILE}") else "/nonexistent/none"),
 }}
 commands = open("{COMMANDS_FILE}").read().splitlines() if "tools" in behaviors and os.path.exists("{COMMANDS_FILE}") else []
-commands += [os.environ["{COMMANDS_VARIABLE}"]] if "{COMMANDS_VARIABLE}" in os.environ else []
+commands += os.environ["{COMMANDS_VARIABLE}"].splitlines() if "{COMMANDS_VARIABLE}" in os.environ else []
 print(json.dumps({{"type": "system", "subtype": "init", "model": "{FAKE_MODEL}"}}))
 outputs = []
-for command in commands:
+while commands:
+    command = commands.pop(0)
     block = {{"type": "tool_use", "name": "Bash", "input": {{"command": command}}}}
     print(json.dumps({{"type": "assistant", "message": {{"content": [block]}}}}))
-    done = subprocess.run(command, shell=True, capture_output=True, text=True)
+    blocks = [
+        hook_done.stderr
+        for group in settings_of(arguments).get("hooks", {{}}).get("PreToolUse", [])
+        if group.get("matcher") == "Bash"
+        for entry in group["hooks"]
+        for hook_done in [subprocess.run(entry["command"], shell=True, input=json.dumps({{"tool_name": "Bash", "tool_input": {{"command": command}}}}), capture_output=True, text=True)]
+        if hook_done.returncode == 2
+    ]
+    done = subprocess.CompletedProcess(command, 2, "", blocks[0]) if blocks else subprocess.run(command, shell=True, capture_output=True, text=True)
     outputs.append(done.stdout + done.stderr)
+    commands += re.findall("`([^`]+)`", blocks[0])[:1] if blocks and "follow" in behaviors else []
     print(json.dumps({{"type": "user", "message": {{"content": [{{"type": "tool_result", "content": outputs[-1]}}]}}}}))
 report["tool_outputs"] = outputs
 report["path"] = os.environ.get("PATH")
