@@ -8,8 +8,9 @@ from willitharness.decision import decide
 from willitharness.effect import map_effect
 from willitharness.guard import evaluate
 from willitharness.probe import classify
+from willitharness.placebo import content_verdict_from
 from willitharness.three_arm import arm_verdict_from
-from willitharness.vocabulary import ArmVerdict, Coverage, Decision, EffectResult, GuardResult, NoiseStatus, Reach, Verdict
+from willitharness.vocabulary import ArmVerdict, ContentVerdict, Coverage, Decision, EffectResult, GuardResult, NoiseStatus, Reach, Verdict
 
 GOLDEN_DIRECTORY = Path(__file__).resolve().parents[2] / "formal" / "lean"
 NO_GUARD_ARM = "NoGuardArm"
@@ -24,6 +25,7 @@ FILE_BY_KIND = {
     "guard": "guard_table.json",
     "reported": "reported_table.json",
     "arms": "arms_table.json",
+    "placebo": "placebo_table.json",
 }
 
 
@@ -149,6 +151,24 @@ def arms_mismatches(rows: list[dict], arms_function: Callable = arm_verdict_from
     return found
 
 
+def placebo_mismatches(rows: list[dict], placebo_function: Callable = content_verdict_from) -> list[str]:
+    assert rows, f"no placebo rows to check, got {rows!r}"
+    assert all({"placeboVsComponent", "nothingVsPlacebo", "nothingVsComponent", "nothingClean", "verdict"} <= row.keys() for row in rows), (
+        f"placebo rows are incomplete: {rows[:1]!r}"
+    )
+    found = []
+    for row in rows:
+        try:
+            got = placebo_function(Verdict(row["placeboVsComponent"]), Verdict(row["nothingVsPlacebo"]), Verdict(row["nothingVsComponent"]), row["nothingClean"])
+            expected = ContentVerdict(row["verdict"])
+        except ValueError as error:
+            found.append(f"placebo {row}: {error}")
+            continue
+        if got != expected:
+            found.append(f"placebo {row}: lean={expected} python={got}")
+    return found
+
+
 MISMATCH_FUNCTION_BY_KIND = {
     "decision": decision_mismatches,
     "effect": effect_mismatches,
@@ -156,6 +176,7 @@ MISMATCH_FUNCTION_BY_KIND = {
     "guard": guard_mismatches,
     "reported": reported_mismatches,
     "arms": arms_mismatches,
+    "placebo": placebo_mismatches,
 }
 
 

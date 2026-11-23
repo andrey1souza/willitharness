@@ -49,6 +49,12 @@ def armRow (p n : Verdict) (clean : Bool) : String :=
     verdictName n ++ "\", \"nothingClean\": " ++ boolName clean ++ ", \"verdict\": \"" ++
     (threeArmVerdict p n clean).name ++ "\"}"
 
+def placeboRow (p n c : Verdict) (clean : Bool) : String :=
+  "  {\"placeboVsComponent\": \"" ++ verdictName p ++ "\", \"nothingVsPlacebo\": \"" ++
+    verdictName n ++ "\", \"nothingVsComponent\": \"" ++ verdictName c ++
+    "\", \"nothingClean\": " ++ boolName clean ++ ", \"verdict\": \"" ++
+    (contentVerdict p n c clean).name ++ "\"}"
+
 def maxProbeRuns : Nat := 6
 
 def decisionTable : String :=
@@ -73,6 +79,9 @@ def reportedTable : String :=
 def armsTable : String :=
   jsonList (allArmInputs.map fun (p, n, clean) => armRow p n clean)
 
+def placeboTable : String :=
+  jsonList (allContentInputs.map fun (p, n, c, clean) => placeboRow p n c clean)
+
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["decision"] => IO.println decisionTable; return 0
@@ -81,6 +90,7 @@ def main (args : List String) : IO UInt32 := do
   | ["guard"] => IO.println guardTable; return 0
   | ["reported"] => IO.println reportedTable; return 0
   | ["arms"] => IO.println armsTable; return 0
+  | ["placebo"] => IO.println placeboTable; return 0
   | _ =>
-    IO.eprintln "usage: export_table decision|effect|probe|guard|reported|arms"
+    IO.eprintln "usage: export_table decision|effect|probe|guard|reported|arms|placebo"
     return 2

@@ -40,8 +40,12 @@ VERDICT = ["InconclusiveSmallN", "FirstHigher", "FirstLower", "Inconclusive"]
 COMPLETED = ["NoGuardArm"] + VERDICT
 COVERAGE = ["Full", "Partial", "NoneSeen"]
 BOOLEANS = [False, True]
-EXPECTED_ROWS = {"decision": 45, "effect": 12, "probe": 140, "guard": 30, "reported": 54, "arms": 32}
+EXPECTED_ROWS = {"decision": 45, "effect": 12, "probe": 140, "guard": 30, "reported": 54, "arms": 32, "placebo": 128}
 TABLE_KINDS = tuple(EXPECTED_ROWS)
+ARM_KEY_FIELDS = {
+    "arms": ("promptVsComponent", "nothingVsComponent", "nothingClean"),
+    "placebo": ("placeboVsComponent", "nothingVsPlacebo", "nothingVsComponent", "nothingClean"),
+}
 
 
 def lean_environment():
@@ -145,6 +149,30 @@ def contract_arms(prompt_vs_component, nothing_vs_component, nothing_clean):
     return result
 
 
+def contract_placebo(placebo_vs_component, nothing_vs_placebo, nothing_vs_component, nothing_clean):
+    comparisons = (placebo_vs_component, nothing_vs_placebo, nothing_vs_component)
+    assert all(item in VERDICT for item in comparisons), f"unknown value in {comparisons}. Fix: use the contract's names."
+    assert isinstance(nothing_clean, bool), f"nothing_clean must be a flag, got {nothing_clean!r}. Fix: pass True or False."
+    both_beat_nothing = nothing_vs_placebo == "FirstHigher" and nothing_vs_component == "FirstHigher"
+    neither_beats_nothing = nothing_vs_placebo != "FirstHigher" and nothing_vs_component != "FirstHigher"
+    if "InconclusiveSmallN" in comparisons:
+        result = "Inconclusive"
+    elif nothing_clean:
+        result = "NoRoomToHelp"
+    elif placebo_vs_component == "FirstHigher":
+        result = "ContentBeatsFiller"
+    elif placebo_vs_component == "FirstLower":
+        result = "FillerBeatsContent"
+    elif both_beat_nothing:
+        result = "AddedTextHelps"
+    elif neither_beats_nothing:
+        result = "NothingHelps"
+    else:
+        result = "Unclear"
+    assert result != "NoRoomToHelp" or nothing_clean, f"PB3 broken for {comparisons}: {result}"
+    return result
+
+
 ROW_BUILDERS = {
     "decision": lambda: {(r, e, g): contract_decision(r, e, g) for r in REACH for e in EFFECT for g in GUARD},
     "effect": lambda: {(n, v): contract_effect(n, v) for n in NOISE for v in VERDICT},
@@ -153,6 +181,7 @@ ROW_BUILDERS = {
     "guard": lambda: {(cv, coverage, zero): contract_guard(cv, coverage, zero)
                       for cv in COMPLETED for coverage in COVERAGE for zero in BOOLEANS},
     "arms": lambda: {(p, n, clean): contract_arms(p, n, clean) for p in VERDICT for n in VERDICT for clean in BOOLEANS},
+    "placebo": lambda: {(p, n, c, clean): contract_placebo(p, n, c, clean) for p in VERDICT for n in VERDICT for c in VERDICT for clean in BOOLEANS},
     "reported": lambda: {(pair, noise, loo, rule): contract_reported(pair, noise, loo, rule)
                          for pair in BOOLEANS for noise in NOISE for loo in REACH for rule in REACH},
 }
@@ -176,8 +205,8 @@ def row_key_and_value(kind, row):
         return (row["runs"], row["targetHits"], row["controlHits"]), row["result"]
     if kind == "guard":
         return (row["completed"], row["coverage"], row["bypassRateZero"]), row["guard"]
-    if kind == "arms":
-        return (row["promptVsComponent"], row["nothingVsComponent"], row["nothingClean"]), row["verdict"]
+    if kind in ARM_KEY_FIELDS:
+        return tuple(row[field] for field in ARM_KEY_FIELDS[kind]), row["verdict"]
     return (row["hasNoisePair"], row["noise"], row["looProbe"], row["ruleReach"]), row["canReport"]
 
 

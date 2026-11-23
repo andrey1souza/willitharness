@@ -1,0 +1,3 @@
+{"model": "fake-model-1", "subtype": "init", "type": "system"}
+{"message": {"content": [{"input": {"command": "ls"}, "name": "Bash", "type": "tool_use"}]}, "type": "assistant"}
+{"is_error": false, "num_turns": 3, "subtype": "success", "total_cost_usd": 0.01, "type": "result"}

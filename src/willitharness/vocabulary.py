@@ -55,3 +55,13 @@ class ArmVerdict(StrEnum):
     DELETE_CANDIDATE = "DeleteCandidate"
     INCONCLUSIVE = "Inconclusive"
     INSURANCE_KEEP = "InsuranceKeep"
+
+
+class ContentVerdict(StrEnum):
+    CONTENT_BEATS_FILLER = "ContentBeatsFiller"
+    ADDED_TEXT_HELPS = "AddedTextHelps"
+    NOTHING_HELPS = "NothingHelps"
+    FILLER_BEATS_CONTENT = "FillerBeatsContent"
+    UNCLEAR = "Unclear"
+    NO_ROOM_TO_HELP = "NoRoomToHelp"
+    INCONCLUSIVE = "Inconclusive"
