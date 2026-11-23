@@ -27,6 +27,7 @@ from willitharness.store import (
     runs_to_start,
 )
 from willitharness.stream import parse_stream
+from willitharness.task_match import task_mismatch
 from willitharness.vocabulary import Reach
 from willitharness.world import STORE_DIR, claimed_world_hash, stored_hash, world_changed
 
@@ -251,6 +252,9 @@ def start_running(site):
         raise LifecycleRefused(f"no reachability result for arm {absent[0]} of plan {site.plan.name} (missing: {', '.join(absent)}). Rule: L1, a run needs a reachability result for every arm. Fix: run willitharness probe --plan <plan.json> --arm {absent[0]} with the probe options.")
     if state is not PlanState.RUNNING and state is not PlanState.REACHABILITY_CHECKED:
         raise LifecycleRefused(f"plan is {state}; a run can start only from ReachabilityChecked or Running. Rule: L1, a run starts from ReachabilityChecked or Running. Fix: probe every arm of the plan first.")
+    mismatch = task_mismatch(site.world_dir, site.plan)
+    if mismatch:
+        raise LifecycleRefused(mismatch)
     if state is PlanState.RUNNING:
         refusal = overlay_refusal(site, read_resume(folder))
         if refusal:

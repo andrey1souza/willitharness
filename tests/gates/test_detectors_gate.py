@@ -28,8 +28,9 @@ ANALYZE_ARGUMENTS = ["analyze", "plan.json"]
 def build_site(root, with_rule):
     arms = [{"label": label, "role": role, "overlay": f"{label}.md"} for label, role in ARM_ROLES.items()]
     data = {"schema": SCHEMA_VERSION, "name": "demo", "world": WORLD_NAME, "budget_usd": 1.0, "run_cap_usd": 0.02, "reps": REPS, "max_retries": 0, "arms": arms}
+    data = {**data, "tasks": TASKS}
     if with_rule:
-        data = {**data, "rule": RULE, "tasks": TASKS}
+        data = {**data, "rule": RULE}
     files = {
         "plan.json": json.dumps(data),
         f"{WORLD_NAME}/tasks.txt": f"{TASK_NAME}: pkill killall\n",
