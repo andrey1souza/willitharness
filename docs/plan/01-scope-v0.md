@@ -3,7 +3,7 @@
 v0 answers one user question: "Does this rule in my harness file work, and what
 should I do with it?" It answers with the four questions of the contract
 (Q1 reachability, Q2 effect, Q3 guard, Q4 side effects) and the decision table.
-Contract: v0.6.
+Contract: v0.7.
 
 ## What v0 includes
 | # | Capability | Why (spike evidence) | Contract IDs |

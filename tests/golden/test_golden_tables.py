@@ -8,6 +8,7 @@ from willitharness.conformance import (
     guard_mismatches,
     load_rows,
     main,
+    placebo_mismatches,
     probe_mismatches,
     reported_mismatches,
 )
@@ -15,14 +16,15 @@ from willitharness.analysis import PlanFacts, can_report
 from willitharness.decision import decide
 from willitharness.effect import map_effect
 from willitharness.guard import evaluate
+from willitharness.placebo import content_verdict_from
 from willitharness.three_arm import arm_verdict_from
 from willitharness.probe import classify
-from willitharness.vocabulary import ArmVerdict, Decision, EffectResult, NoiseStatus, Reach
+from willitharness.vocabulary import ArmVerdict, ContentVerdict, Decision, EffectResult, NoiseStatus, Reach
 
-ROW_COUNT_BY_KIND = {"decision": 45, "effect": 12, "probe": 140, "guard": 30, "reported": 54, "arms": 32}
+ROW_COUNT_BY_KIND = {"decision": 45, "effect": 12, "probe": 140, "guard": 30, "reported": 54, "arms": 32, "placebo": 128}
 USAGE_EXIT_CODE = 2
 SUCCESS_EXIT_CODE = 0
-TABLE_FILE_NAMES = ["arms_table.json", "decision_table.json", "effect_table.json", "guard_table.json", "probe_table.json", "reported_table.json"]
+TABLE_FILE_NAMES = ["arms_table.json", "decision_table.json", "effect_table.json", "guard_table.json", "placebo_table.json", "probe_table.json", "reported_table.json"]
 
 
 def wrong_decide_masked_keeps(reach, effect, guard):
@@ -48,6 +50,10 @@ def wrong_can_report_ignores_noise(facts):
 
 def wrong_arms_insurance_never(prompt_vs_component, nothing_vs_component, nothing_clean):
     return arm_verdict_from(prompt_vs_component, nothing_vs_component, False)
+
+
+def wrong_placebo_no_room_never(placebo_vs_component, nothing_vs_placebo, nothing_vs_component, nothing_clean):
+    return content_verdict_from(placebo_vs_component, nothing_vs_placebo, nothing_vs_component, False)
 
 
 @pytest.mark.parametrize(("kind", "count"), ROW_COUNT_BY_KIND.items())
@@ -154,3 +160,20 @@ def test_effect_rows_use_known_spellings():
     spellings = {row["effect"] for row in load_rows("effect")}
     known = {result.value for result in EffectResult}
     assert spellings <= known, f"{spellings - known=}"
+
+
+def test_PB1_placebo_table_conforms():
+    found = placebo_mismatches(load_rows("placebo"))
+    assert found == [], f"{found=}"
+
+
+def test_proof_it_can_fail_PB3_a_verdict_that_ignores_no_room_is_detected():
+    found = placebo_mismatches(load_rows("placebo"), wrong_placebo_no_room_never)
+    assert found != [], f"{found=} for a verdict that never gives no room"
+
+
+def test_proof_it_can_fail_a_changed_placebo_row_is_detected():
+    rows = load_rows("placebo")
+    rows[0] = {**rows[0], "verdict": ContentVerdict.NO_ROOM_TO_HELP.value}
+    found = placebo_mismatches(rows)
+    assert len(found) == 1, f"{found=} for one changed row"

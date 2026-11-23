@@ -6,7 +6,7 @@ import pytest
 import trace_check
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-CONTRACT_ID_COUNT = 57
+CONTRACT_ID_COUNT = 66
 REMOVED_ID = "S2"
 MINI_CONTRACT = (
     "## 8. Traceability\n| ID group | Where it must appear |\n|---|---|\n"

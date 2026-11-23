@@ -5,3 +5,4 @@ import Willitharness.Link
 import Willitharness.Guard
 import Willitharness.SideEffects
 import Willitharness.ThreeArm
+import Willitharness.Placebo

@@ -6,7 +6,7 @@ from files import write_tree
 from lifecycle_site import SCHEMA_VERSION, TASK_NAME, TASK_PROMPT, WORLD_NAME, reach_every_arm, validate_site
 
 from willitharness.artifacts import RUNS_DIR, TRANSCRIPT_NAME
-from willitharness.component_arms import ARM_COMPONENT, ARM_NOISE, ARM_NOTHING, ARM_PROMPT
+from willitharness.component_arms import ARM_COMPONENT, ARM_NOISE, ARM_NOTHING, ARM_PLACEBO, ARM_PROMPT
 from willitharness.lifecycle import PlanSite, PlanState, lifecycle_dir, write_state
 from willitharness.plan import load_plan
 from willitharness.real_runner import AGENT_RECORD
@@ -19,6 +19,7 @@ FAKE_VERSION = "9.9.9 (Fake Claude)"
 FIRED_TURNS = 4
 PLAIN_TURNS = 3
 SKILL_NAME = "pkill-guard"
+PLACEBO_CHANNEL = "system_prompt"
 
 
 @dataclass(frozen=True)
@@ -69,10 +70,13 @@ class SiteOptions:
     state: PlanState = PlanState.ANALYZED
     channel: str = "skill"
     extra_arms: tuple = ()
+    placebo: bool = False
 
 
 def three_arm_site(root, shapes, options=SiteOptions()):
     data = three_arm_data(options.channel)
+    if options.placebo:
+        data["arms"].append({"label": ARM_PLACEBO, "role": "rule", "overlay": f"{ARM_PLACEBO}.md", "channel": PLACEBO_CHANNEL})
     data["arms"] += [{"label": label, "role": "guard_only", "overlay": f"{label}.md"} for label in options.extra_arms]
     write_tree(root, {"plan.json": json.dumps(data), f"{WORLD_NAME}/tasks.txt": f"{TASK_NAME}: ls\n", f"{WORLD_NAME}/real.txt": "ls\n", f"{WORLD_NAME}/prompts/{TASK_NAME}.txt": TASK_PROMPT})
     site = PlanSite(root, load_plan(data), root / WORLD_NAME)

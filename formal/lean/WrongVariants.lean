@@ -158,4 +158,59 @@ theorem wrong_TA5_equal_to_prompt_kept :
     wrongArmsEqualPromptKept .inconclusive .firstHigher false = .replaceWithPrompt := by
   decide
 
+def wrongContentInsuranceBeforeSmallN : Verdict → Verdict → Verdict → Bool → ContentVerdict
+  | _, _, _, true => .noRoomToHelp
+  | p, n, c, false => contentVerdict p n c false
+
+theorem wrong_PB2_no_room_before_small_n :
+    wrongContentInsuranceBeforeSmallN .inconclusiveSmallN .firstHigher .firstHigher true = .inconclusive := by
+  decide
+
+def wrongContentNoRoomIgnored : Verdict → Verdict → Verdict → Bool → ContentVerdict
+  | p, n, c, _ => contentVerdict p n c false
+
+theorem wrong_PB3_no_room_ignored :
+    wrongContentNoRoomIgnored .firstHigher .firstHigher .firstHigher true = .noRoomToHelp := by
+  decide
+
+def wrongContentWinIgnored : Verdict → Verdict → Verdict → Bool → ContentVerdict
+  | .firstHigher, _, _, false => .nothingHelps
+  | p, n, c, clean => contentVerdict p n c clean
+
+theorem wrong_PB4_content_win_ignored :
+    wrongContentWinIgnored .firstHigher .inconclusive .inconclusive false = .contentBeatsFiller := by
+  decide
+
+def wrongContentFillerWinSwapped : Verdict → Verdict → Verdict → Bool → ContentVerdict
+  | .firstLower, _, _, false => .contentBeatsFiller
+  | p, n, c, clean => contentVerdict p n c clean
+
+theorem wrong_PB5_filler_win_called_content_win :
+    wrongContentFillerWinSwapped .firstLower .inconclusive .inconclusive false = .fillerBeatsContent := by
+  decide
+
+def wrongContentEqualCalledWin : Verdict → Verdict → Verdict → Bool → ContentVerdict
+  | .inconclusive, .firstHigher, .firstHigher, false => .contentBeatsFiller
+  | p, n, c, clean => contentVerdict p n c clean
+
+theorem wrong_PB6_equal_to_filler_called_content_win :
+    wrongContentEqualCalledWin .inconclusive .firstHigher .firstHigher false = .addedTextHelps := by
+  decide
+
+def wrongContentNothingCalledAddedText : Verdict → Verdict → Verdict → Bool → ContentVerdict
+  | .inconclusive, .inconclusive, .inconclusive, false => .addedTextHelps
+  | p, n, c, clean => contentVerdict p n c clean
+
+theorem wrong_PB7_nothing_called_added_text :
+    wrongContentNothingCalledAddedText .inconclusive .inconclusive .inconclusive false = .nothingHelps := by
+  decide
+
+def wrongContentOneWinCalledAddedText : Verdict → Verdict → Verdict → Bool → ContentVerdict
+  | .inconclusive, .firstHigher, _, false => .addedTextHelps
+  | p, n, c, clean => contentVerdict p n c clean
+
+theorem wrong_PB8_one_win_called_added_text :
+    wrongContentOneWinCalledAddedText .inconclusive .firstHigher .inconclusive false = .unclear := by
+  decide
+
 end Wrong
