@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from files import plant
+from plan_probe import TARGET, plan_probe_arguments
 from willitharness import cli
 from willitharness.lifecycle import PlanState, lifecycle_dir, read_reach, read_state
 from willitharness.plan import read_plan
@@ -18,10 +19,6 @@ PLAN_FILE = "plan.json"
 WORLD_DIRECTORY = "world"
 LEDGER_FILE = "runs.jsonl"
 ARMS = ("N", "N2", "P")
-TARGET = "ZQ-8841-lumen"
-CONTROL = "purple-giraffe-91"
-PROBE_SEED = 3
-PROBE_RUNS = 3
 TASK = "publish-fix"
 EXPECTED_RUNS = 60
 WORLD_NOT_VALIDATED = "world not validated; run: willitharness world check"
@@ -47,14 +44,6 @@ class Step:
 class Flow:
     root: Path
     steps: dict
-
-
-def plan_probe_arguments(directory, arm):
-    return [
-        "probe", "--agent", "fake", "--directory", str(directory), "--boundary", str(directory),
-        "--runs", str(PROBE_RUNS), "--seed", str(PROBE_SEED), "--target-token", TARGET, "--control-token", CONTROL,
-        "--plan", PLAN_FILE, "--arm", arm,
-    ]
 
 
 def plan_folder(root):
@@ -88,7 +77,7 @@ def run_until_complete(tmp_path_factory, patch):
     steps["world_check"] = step_of(root, ["world", "check", WORLD_DIRECTORY])
     steps["run_before_probe"] = step_of(root, RUN_ARGUMENTS)
     for arm in ARMS:
-        steps[f"probe_{arm}"] = step_of(root, plan_probe_arguments(directory, arm))
+        steps[f"probe_{arm}"] = step_of(root, plan_probe_arguments(directory, arm, PLAN_FILE))
     steps["run"] = step_of(root, RUN_ARGUMENTS)
     return root, steps
 
