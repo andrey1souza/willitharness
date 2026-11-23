@@ -94,7 +94,7 @@ def test_adding_a_scenario_needs_no_edit_to_any_count_line(tmp_path):
 
 
 def git(repository, arguments):
-    return subprocess.run(["git", "-C", str(repository), *arguments], capture_output=True, text=True)
+    return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.com", "-C", str(repository), *arguments], capture_output=True, text=True)
 
 
 def commit_on(repository, branch, parents):
