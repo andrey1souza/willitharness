@@ -48,9 +48,9 @@ def build_site(root, with_rule):
     return site
 
 
-def run_and_analyze(tmp_path, monkeypatch, capsys, with_rule):
+def run_and_analyze(tmp_path, monkeypatch, capsys):
     install_fake_agent_environment(tmp_path, monkeypatch)
-    site = build_site(tmp_path / "project", with_rule)
+    site = build_site(tmp_path / "project", True)
     monkeypatch.chdir(site.root)
     run_code, _, run_err = run_cli(capsys, RUN_ARGUMENTS)
     assert run_code == 0, f"the run failed with {run_code}: {run_err!r}"
@@ -59,7 +59,7 @@ def run_and_analyze(tmp_path, monkeypatch, capsys, with_rule):
 
 
 def test_G4_4_the_claude_run_stores_the_judged_outcome_and_analyze_prints_the_verdict_row(tmp_path, monkeypatch, capsys):
-    records, (code, out, err) = run_and_analyze(tmp_path, monkeypatch, capsys, True)
+    records, (code, out, err) = run_and_analyze(tmp_path, monkeypatch, capsys)
     lines = out.splitlines()
     assert all(run.state is RunState.RECORDED_USABLE for run in records) and len(records) == 3 * REPS, f"expected {3 * REPS} usable runs, got {records}"
     by_arm = {run.arm: run.outcome for run in records}
@@ -71,7 +71,10 @@ def test_G4_4_the_claude_run_stores_the_judged_outcome_and_analyze_prints_the_ve
     assert "completed stop-server C 0/5 against B 5/5: verdict FirstLower; noise NoiseOk" in lines, f"got {lines}"
 
 
-def test_G4_4_a_plan_without_a_rule_stores_no_outcome_and_analyze_stops_with_a_fix(tmp_path, monkeypatch, capsys):
-    records, (code, _, err) = run_and_analyze(tmp_path, monkeypatch, capsys, False)
-    assert all(run.outcome == {} for run in records), f"a plan without a rule must store no outcome, got {records}"
-    assert code == 1 and "stores no value for it" in err and "Fix:" in err, f"analyze must stop with a fix, got {code} {err!r}"
+def test_T81_a_plan_without_a_rule_is_refused_by_run_before_any_run_is_stored(tmp_path, monkeypatch, capsys):
+    install_fake_agent_environment(tmp_path, monkeypatch)
+    site = build_site(tmp_path / "project", False)
+    monkeypatch.chdir(site.root)
+    code, _, err = run_cli(capsys, RUN_ARGUMENTS)
+    assert code == 1 and "has no rule" in err and "Rule:" in err and "Fix:" in err, f"run must refuse a plan with no rule, got {code} {err!r}"
+    assert load_records(lifecycle_dir(site.root, site.plan)) == (), "a refused run must store no record"

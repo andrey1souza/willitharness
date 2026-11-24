@@ -45,6 +45,16 @@ Feature: Budget, resume, retry, abort and plan lifecycle
     And no run is stored
 
   @L1
+  Scenario: A plan with no rule is refused before any run
+    Given the world is validated
+    And reachability is recorded as "Loaded" for every arm
+    And the plan has no rule
+    When I run the plan
+    Then the command fails with exit code 1
+    And the message states the rule and the fix
+    And no run is stored
+
+  @L1
   Scenario: A reachability result of Unknown still counts as recorded
     Given the world is validated
     And reachability is recorded as "Unknown" for every arm
