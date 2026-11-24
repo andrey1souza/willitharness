@@ -16,7 +16,8 @@ README = (
     "Output:\n```\nplan ok\n```\n"
     "Run the plan.\n```sh\ntoolname run plan.json --runs 3\n```\n\n"
     "## Limits of isolation\nRuns use a `sandbox`.\nThe process is not confined.\n\n"
-    "## Honest limits\n- The spike used toy tasks and one `small` model.\n- The formal part covers the verdict logic,\n  and it does not cover agents.\n\n## Working on it\n- not a limit\n"
+    "## Honest limits\n- The spike used toy tasks and one `small` model.\n- The formal part covers the verdict logic,\n  and it does not cover agents.\n\n## Working on it\n- not a limit\n\n"
+    "## Install\nNeeds python.\n\nInstall from source.\n```sh\nuv sync\n```\n"
 )
 PROJECT = '[project]\nname = "toolname"\n\n[project.urls]\nRepository = "https://example.org/toolname"\n'
 LICENSE = "MIT License\n\nCopyright (c) 2026 Someone\n"

@@ -14,6 +14,7 @@ LIVE_RESULT_FILE = "fixtures/results/g4_4.json"
 LIMITS_HEADING = "## Honest limits"
 COMMANDS_HEADING = "## What works today"
 OFFLINE_HEADING = "## Try it offline"
+INSTALL_HEADING = "## Install"
 ISOLATION_HEADING = "## Limits of isolation"
 QUESTIONS_HEADING = "## 3. The four questions"
 DECISIONS_HEADING = "## 6. Decision table (exact)"
@@ -123,13 +124,13 @@ def shell_blocks(numbered):
     return blocks
 
 
-def offline_data(lines):
-    assert isinstance(lines, list) and lines, f"offline_data needs the README lines, got {lines!r}. Fix: pass read_source_lines output."
-    numbered = section_lines(lines, OFFLINE_HEADING)
-    lead = paragraph_text(numbered[:1], OFFLINE_HEADING)
+def command_section(lines, heading):
+    assert isinstance(lines, list) and lines, f"command_section needs the README lines, got {lines!r}. Fix: pass read_source_lines output."
+    numbered = section_lines(lines, heading)
+    lead = paragraph_text(numbered[:1], heading)
     blocks = shell_blocks(numbered)
-    assert blocks and all(block["text"] for block in blocks), f"{README_FILE} section {OFFLINE_HEADING!r} needs sh code blocks with commands. Rule: the site shows the quick start. Fix: restore them."
-    assert lead["text"], f"{README_FILE} section {OFFLINE_HEADING!r} has no lead sentence, got {lead}. Fix: restore it."
+    assert blocks and all(block["text"] for block in blocks), f"{README_FILE} section {heading!r} needs sh code blocks with commands. Rule: the site shows the commands. Fix: restore them."
+    assert lead["text"], f"{README_FILE} section {heading!r} has no lead sentence, got {lead}. Fix: restore it."
     return {"lead": lead, "blocks": blocks}
 
 
@@ -161,7 +162,8 @@ def readme_data(root):
         "limits": limits,
         "summary": summary_paragraph(lines),
         "commands": command_rows(lines),
-        "offline": offline_data(lines),
+        "offline": command_section(lines, OFFLINE_HEADING),
+        "install": command_section(lines, INSTALL_HEADING),
         "isolation": isolation_data(lines),
     }
     assert data["title"] and data["description"], f"{README_FILE} gave an empty title or description, got {data}. Fix: restore them."

@@ -37,10 +37,14 @@ th { font-family: var(--serif); font-weight: 600; border-bottom: 2px solid var(-
 .bad { color: var(--bad); }
 pre { font: 0.9rem/1.5 var(--mono); border: 1px solid var(--muted); padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0 1rem; }
 pre code { font-size: inherit; }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.compare > div { border: 1px solid var(--muted); padding: 0.25rem 1rem; }
+h3 { font-family: var(--serif); font-size: 1.15rem; }
 ul { padding-left: 1.25rem; }
 li { margin: 0.35rem 0; }
 footer { margin-top: 3rem; color: var(--muted); border-top: 1px solid var(--muted); padding-top: 1rem; }
 @media (max-width: 40rem) {
   h1 { font-size: 2rem; }
+  .compare { grid-template-columns: 1fr; }
   th, td { padding-right: 0.5rem; }
 }
