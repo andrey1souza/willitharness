@@ -52,6 +52,11 @@ def test_a_plan_task_with_no_world_task_is_refused_before_any_run(world):
     assert world["exit_code"] == 1 and OFF_WORLD_TASK in world["message"], f"the run must fail naming {OFF_WORLD_TASK}, got {world['exit_code']} and {world['message']!r}. Rule: L1. Fix: refuse a task the world does not hold."
 
 
+@scenario(BUDGET_FEATURE, "A plan with no rule is refused before any run")
+def test_a_plan_with_no_rule_is_refused_before_any_run(world):
+    assert world["exit_code"] == 1 and "has no rule" in world["message"], f"the run must fail naming the missing rule, got {world['exit_code']} and {world['message']!r}. Rule: L1. Fix: refuse a plan with no rule."
+
+
 @scenario(BUDGET_FEATURE, "A reachability result of Unknown still counts as recorded")
 def test_a_reachability_result_of_unknown_still_counts_as_recorded(world):
     assert "Running" in world["states_seen"], f"the plan must be Running while it runs, saw {world['states_seen']}. Rule: L1. Fix: count Unknown as recorded."
@@ -250,6 +255,14 @@ def plan_lists_an_unheld_task(world):
     plan_path.write_text(json.dumps(data))
 
 
+@given("the plan has no rule")
+def plan_has_no_rule(world):
+    plan_path = world["site"].root / PLAN_FILE_NAME
+    data = json.loads(plan_path.read_text())
+    del data["rule"]
+    plan_path.write_text(json.dumps(data))
+
+
 @given(parsers.parse('reachability is recorded as "{reach}" for every arm'))
 def reachability_for_every_arm(world, reach):
     reach_every_arm(world["site"], Reach(reach))
@@ -335,6 +348,11 @@ def no_run_is_stored(world):
 @then("the message names the task that differs")
 def message_names_the_task(world):
     assert OFF_PLAN_TASK in world["message"] or OFF_WORLD_TASK in world["message"], f"the message must name the task, got {world['message']!r}"
+
+
+@then("the message states the rule and the fix")
+def message_states_rule_and_fix(world):
+    assert "Rule:" in world["message"] and "Fix:" in world["message"], f"the message must state Rule: and Fix:, got {world['message']!r}"
 
 
 @then("the message names the arm with no reachability result")

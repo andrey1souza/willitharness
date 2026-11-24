@@ -43,6 +43,7 @@ def write_project(root):
         "max_retries": 0,
         "arms": [{"label": ARM_LABEL, "role": "rule", "overlay": OVERLAY_DIRECTORY}],
         "tasks": [{"id": TASK_NAME, "completed_check": {"kind": "calls_contain", "command": STUB_COMMAND}}],
+        "rule": {"id": "no-stub", "file": "AGENTS.md", "section": "Working", "target_outcome": "attempted_violation", "detector": STUB_COMMAND},
     }
     (root / PLAN_FILE).write_text(json.dumps(plan))
     world = root / WORLD_DIRECTORY

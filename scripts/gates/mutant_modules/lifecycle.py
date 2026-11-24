@@ -3,6 +3,7 @@ TESTS = (
     'tests/unit/test_lifecycle_ids_unit.py',
     'tests/unit/test_resume_unit.py',
     'tests/unit/test_task_match_unit.py',
+    'tests/unit/test_rule_required_unit.py',
     'tests/gates/test_lifecycle_gate.py',
     'tests/property/test_lifecycle_chaos.py',
     'tests/bdd/test_lifecycle_scenarios.py',
@@ -55,4 +56,7 @@ MUTANTS = (
     ('task-check-names-no-world-task', 'src/willitharness/task_match.py', "{', '.join(absent_in_plan)}\"", "\""),
     ('task-check-names-no-plan-task', 'src/willitharness/task_match.py', "{', '.join(absent_in_world)}\"", "\""),
     ('task-check-sorted-backwards', 'src/willitharness/task_match.py', 'absent_in_plan = sorted(world_tasks - plan_tasks)', 'absent_in_plan = sorted(world_tasks - plan_tasks, reverse=True)'),
+    ('rule-check-skipped', SOURCE, '    if absent_rule:\n        raise LifecycleRefused(absent_rule)', '    if False:\n        raise LifecycleRefused(absent_rule)'),
+    ('rule-check-refuses-every-plan', 'src/willitharness/rule_required.py', 'if plan.rule is not None:', 'if plan.rule is None:'),
+    ('rule-check-states-no-fix', 'src/willitharness/rule_required.py', ' Fix: add a rule object', ' add a rule object'),
 )

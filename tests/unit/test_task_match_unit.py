@@ -1,12 +1,10 @@
 from dataclasses import replace
 
-import pytest
 from files import plant
-from lifecycle_site import STUB_COMMAND, TASK_NAME, TASK_PROMPT, SiteSpec, make_site, reach_every_arm, validate_site
+from lifecycle_site import STUB_COMMAND, TASK_NAME, TASK_PROMPT, SiteSpec, make_site, start_refusal_of, tree_snapshot, validated_and_reached
 
-from willitharness.lifecycle import LifecycleRefused, PlanState, lifecycle_dir, read_state, start_running
+from willitharness.lifecycle import PlanState, lifecycle_dir, read_state, start_running
 from willitharness.plan import CompletedCheck, Task
-from willitharness.vocabulary import Reach
 
 SMALL = SiteSpec(arm_count=2, budget_usd=1.0, run_cap_usd=0.05, reps=1, max_retries=0)
 EXTRA_TASK = "restart-server"
@@ -18,12 +16,6 @@ def plan_task(task_id):
     return Task(task_id, CompletedCheck("calls_contain", STUB_COMMAND))
 
 
-def validated_and_reached(site):
-    validate_site(site)
-    reach_every_arm(site, Reach.LOADED)
-    return site
-
-
 def with_plan_tasks(site, task_ids):
     return replace(site, plan=replace(site.plan, tasks=tuple(plan_task(task_id) for task_id in task_ids)))
 
@@ -33,16 +25,6 @@ def with_world_tasks(site, task_ids):
     for task_id in task_ids:
         plant(site.world_dir / PROMPTS_DIRECTORY, f"{task_id}.txt", TASK_PROMPT)
     return site
-
-
-def tree_snapshot(root):
-    return {str(path.relative_to(root)): path.read_bytes() for path in sorted(root.rglob("*")) if path.is_file()}
-
-
-def start_refusal_of(site):
-    with pytest.raises(LifecycleRefused) as raised:
-        start_running(site)
-    return str(raised.value)
 
 
 def test_T80_a_world_task_with_no_plan_task_is_refused_and_named(tmp_path):

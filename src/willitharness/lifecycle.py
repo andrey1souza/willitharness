@@ -26,6 +26,7 @@ from willitharness.store import (
     run_id_of,
     runs_to_start,
 )
+from willitharness.rule_required import missing_rule
 from willitharness.stream import parse_stream
 from willitharness.task_match import task_mismatch
 from willitharness.vocabulary import Reach
@@ -255,6 +256,9 @@ def start_running(site):
     mismatch = task_mismatch(site.world_dir, site.plan)
     if mismatch:
         raise LifecycleRefused(mismatch)
+    absent_rule = missing_rule(site.plan)
+    if absent_rule:
+        raise LifecycleRefused(absent_rule)
     if state is PlanState.RUNNING:
         refusal = overlay_refusal(site, read_resume(folder))
         if refusal:
