@@ -191,10 +191,13 @@ A guard run carries the hook of its arm in `--settings` and keeps `sandbox-exec`
 rule arm in the same plan carries no hook.
 
 An arm with channel `skill` keeps its skills in `.claude/skills/<name>/SKILL.md` in its
-overlay. The run of that arm has the `Skill` tool, allows `Skill(<name>)` for each skill and
-does not pass `--disable-slash-commands`. The other arms of the plan keep the flag. The
-reachability probe for that arm keeps the `Skill` tool and has no other tool. A run that
-lists a skill outside the overlay of its arm is refused with a rule and a fix.
+overlay. In a plan with a skill arm, every arm has the `Skill` tool and does not pass
+`--disable-slash-commands`, so every arm of a skill plan loads the same built-in skills of Claude Code.
+Only the skill arm allows `Skill(<name>)` for each of its skills. A plan with no skill arm
+keeps the flag and has no `Skill` tool. The reachability probe of every arm of a skill plan
+keeps the `Skill` tool and has no other tool. The `init` event of a run in a skill plan may
+list only the 19 built-in skills pinned for Claude Code 2.1.331 and the skills of the arm.
+Any other skill refuses the run with a rule and a fix, after the transcript is stored.
 
 ## 6. Decision table (exact)
 Decision values: FixLoading, Keep, ReplaceWithGuard, DeleteCandidate,
@@ -442,7 +445,7 @@ spend stays under the stated cap.
 | The `system_prompt` channel is the file `system-prompt.txt` at the top of the overlay, passed with `--append-system-prompt-file` by the run and by the probe; the file is not copied into the workspace and must hold text | The claude CLI reference lists `--append-system-prompt-file` for `-p` runs; the file in the workspace would be a file channel (backlog T64) |
 | A `guard_only` arm blocks commands through a `PreToolUse` hook for Bash that the runner passes with `--settings`; the hook reads `guard-rules.json` at the top of the arm's overlay, copied to the run folder and never into the workspace; a call or a rules file the hook cannot read is blocked; a guard run carries the hook and no Claude sandbox settings | The pilot arms D and D2 used a project hook with exit 2 and the block message on standard error; the Claude hooks reference says exit 2 blocks a `PreToolUse` call and shows Claude that message (backlog T44) |
 | A Bash call is blocked when the tool result with its `tool_use_id` holds `Blocked by guard (`; a blocked call, and a call with no id, never counts for `transcript_contains` | A blocked command did not run, so it is no completion; the guard messages carry that mark (backlog T76) |
-| A skill arm adds `Skill` to `--tools` and drops `--disable-slash-commands`; other arms keep both; a run is refused when its `init` event lists a skill outside the arm overlay | The skill listing travels with the `Skill` tool (spike C); the flag disables all skills; `--setting-sources project,local` should keep user skills out, and only a paid run can confirm it (backlog T77) |
+| In a plan with a skill arm, every arm adds `Skill` to `--tools` and drops `--disable-slash-commands`, and only the skill arm allows `Skill(<name>)`; a run is refused when its `init` event lists a skill outside the 19 built-in skills pinned for Claude Code 2.1.331 and the skills of its arm; a plan with no skill arm keeps both flags | The skill listing travels with the `Skill` tool (spike C); the flag disables all skills; a paid run on 2.1.331 listed the 19 built-in skills and no user or plugin skill, so only arm C would carry 19 extra descriptions (backlog T77, T82) |
 | A cell with W-DENIAL prints its `completed` row as `[informational: permission denials]`, with no verdict and no effect, and G1 reads no completed verdict from it; `attempted_violation` rows are unchanged | A denial of a compound command, a flag or a redirection makes `completed` unreliable; an attempt is sound whether denied or not |
 
 ### Changes from v0.5 to v0.6

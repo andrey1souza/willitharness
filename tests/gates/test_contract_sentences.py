@@ -2,7 +2,7 @@ import repo_checks
 from files import write_tree
 
 
-CONTRACT_GOOD = "Ending a plan needs no validated world. A changed world only blocks starts.\nEach run record carries the hash of the world files at the start of the run (T62, T65).\nEach run record carries the model name (T73).\nA resume names each overlay file that changed.\nA restart of a Running plan checks the overlay files in the same way.\nA task that is missing on either side is refused and named (T80).\n"
+CONTRACT_GOOD = "Ending a plan needs no validated world. A changed world only blocks starts.\nEach run record carries the hash of the world files at the start of the run (T62, T65).\nEach run record carries the model name (T73).\nA resume names each overlay file that changed.\nA restart of a Running plan checks the overlay files in the same way.\nA task that is missing on either side is refused and named (T80).\nIn a skill plan, every arm of a skill plan loads the same built-in skills, the 19 built-in skills pinned for Claude Code 2.1.331.\n"
 
 
 def test_a_contract_without_the_restart_sentence_is_reported(tmp_path):
