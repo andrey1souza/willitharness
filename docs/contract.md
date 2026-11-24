@@ -216,6 +216,9 @@ guard in {GuardMatchesRule, GuardWorse, GuardUntested}.
   gives ReplaceWithGuard.
 - D8 reach = Loaded and effect = RuleLowersViolations and guard in
   {GuardWorse, GuardUntested} gives Keep.
+`decide` reads the guard from the stored transcripts of the usable guard-arm runs and from
+`guard-rules.json` in the overlay of each guard arm. Missing rules or a missing transcript give
+GuardUntested (T83).
 Derived properties:
 - D9 Totality and determinism: the table is a total function on all 45 inputs.
 - D10 ReplaceWithGuard only when guard = GuardMatchesRule and

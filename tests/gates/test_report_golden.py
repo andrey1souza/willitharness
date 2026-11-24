@@ -167,10 +167,10 @@ def test_G6_2_a_delete_candidate_from_a_raised_rate_has_no_measurability_caveat(
     assert "not measurable at this n" not in decision, f"the caveat belongs to NoMeasurableEffect only, got {decision!r}"
 
 
-def test_G6_2_a_plan_with_a_guard_arm_is_refused_with_rule_and_fix(tmp_path, monkeypatch, capsys):
+def test_G6_2_a_plan_with_a_guard_arm_and_no_guard_evidence_reports_guard_untested(tmp_path, monkeypatch, capsys):
     code, out, err = scenario_report(tmp_path, monkeypatch, capsys, Scenario({**FULL_ROLES, "G": "guard_only"}, LOWERS))
-    assert code == EXIT_REFUSED and out == "", f"got {code} {out!r} {err!r}"
-    assert "plan demo has a guard_only arm" in err and "Rule:" in err and "Fix:" in err, f"got {err!r}"
+    assert code == EXIT_OK and "Guard: GuardUntested." in section_of(out, "## Q3 Guard"), f"got {code} {out!r} {err!r}"
+    assert "The plan has no guard arm" not in out, f"the Q3 line says the plan has no guard arm, but it has arm G. Fix: print GUARD_READ_LINE when has_guard_arm is true. Got {out!r}"
 
 
 def test_G6_2_a_missing_plan_file_is_refused_naming_the_file(tmp_path, monkeypatch, capsys):

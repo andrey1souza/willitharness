@@ -4,7 +4,7 @@ from pathlib import Path
 from willitharness.artifacts import RUNS_DIR, TRANSCRIPT_NAME
 from willitharness.component_arms import ARM_COMPONENT, ARM_NOTHING, ARM_PLACEBO, ARM_PROMPT
 from willitharness.counts import Counts
-from willitharness.decide_plan import DecideRefused, decidable_folder
+from willitharness.decide_plan import DecideRefused, three_arm_folder
 from willitharness.detectors import calls_of
 from willitharness.outcomes import TARGET_OUTCOME, cell_counts, outcome_value
 from willitharness.paths import inside
@@ -131,7 +131,7 @@ def three_arm_decision_line(arms):
 def three_arm_decision_lines(root, plan):
     assert isinstance(root, Path), f"three_arm_decision_lines needs a Path root, got {root!r}. Fix: pass the project directory."
     assert is_three_arm(plan), f"plan {plan.name} is not three-arm. Rule: it needs arms {', '.join(THREE_ARMS)}. Fix: add the missing arm."
-    folder = decidable_folder(root, plan)
+    folder = three_arm_folder(root, plan)
     records = load_records(folder)
     lines = tuple(three_arm_decision_line(arms) for arms in task_arms(records, ARM_PROMPT))
     if not lines:
