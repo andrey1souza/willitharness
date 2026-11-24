@@ -11,6 +11,7 @@ MUTANTS = (
     ('linear-threshold-raised', SOURCE, 'LINEAR_THRESHOLD = 0.03928', 'LINEAR_THRESHOLD = 0.5'),
     ('one-direction-only', SOURCE, 'for first, second in ((foreground, background), (background, foreground)):', 'for first, second in ((foreground, background),):'),
     ('minimum-lowered', SOURCE, 'TEXT_MINIMUM = 4.5', 'TEXT_MINIMUM = 3.0'),
-    ('missing-token-skipped', SOURCE, 'if foreground not in tokens:', 'if False:'),
+    ('missing-token-skipped', SOURCE, 'if absent:', 'if False:'),
+    ('fill-pairs-dropped', SOURCE, 'FILL_TOKENS = ("yellow", "orange", "panel")', 'FILL_TOKENS = ()'),
     ('rounding-dropped', SOURCE, 'return round(result, DECIMALS)', 'return result'),
 )

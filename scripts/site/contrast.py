@@ -17,7 +17,9 @@ DECIMALS = 2
 TEXT_MINIMUM = 4.5
 BACKGROUND = "bg"
 TEXT_TOKENS = ("text", "muted", "link", "keep", "warn", "bad")
-PAIRS = tuple((token, BACKGROUND, TEXT_MINIMUM) for token in TEXT_TOKENS)
+FILL_TOKENS = ("yellow", "orange", "panel")
+TEXT_ON_FILL = "text"
+PAIRS = tuple((token, BACKGROUND, TEXT_MINIMUM) for token in TEXT_TOKENS) + tuple((TEXT_ON_FILL, fill, TEXT_MINIMUM) for fill in FILL_TOKENS)
 
 
 def channel_luminance(value):
@@ -60,8 +62,9 @@ def contrast_problems(css):
     problems = []
     assert PAIRS, "no colour pairs are checked. Rule: a check with no pairs proves nothing. Fix: restore PAIRS."
     for foreground, background, minimum in PAIRS:
-        if foreground not in tokens:
-            problems.append(f"the stylesheet has no --{foreground} token. Rule: every text colour is a token. Fix: declare it.")
+        absent = [name for name in (foreground, background) if name not in tokens]
+        if absent:
+            problems += [f"the stylesheet has no --{name} token. Rule: every text colour is a token. Fix: declare it." for name in absent]
             continue
         for first, second in ((foreground, background), (background, foreground)):
             measured = ratio(tokens[first], tokens[second])

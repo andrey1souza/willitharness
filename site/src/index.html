@@ -11,15 +11,55 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-<h1>$title</h1>
+<header class="hero">
+<svg class="waves" aria-hidden="true" focusable="false">
+<defs>
+<pattern id="wave-tile" width="120" height="28" patternUnits="userSpaceOnUse">
+<path class="wave-line" d="M0 14 Q30 0 60 14 T120 14"/>
+</pattern>
+</defs>
+<rect width="100%" height="100%" fill="url(#wave-tile)"/>
+</svg>
+<svg class="icon" viewBox="0 0 120 120" role="img" aria-labelledby="icon-title">
+<title id="icon-title">A red swirl badge</title>
+<circle cx="60" cy="60" r="56" stroke-width="8" class="fill-red stroke-white"/>
+<circle cx="60" cy="60" r="48" fill="none" stroke-width="3" class="stroke-orange"/>
+<path d="M60 60 A5 5 0 0 1 70 60 A10 10 0 0 1 50 60 A15 15 0 0 1 80 60 A20 20 0 0 1 40 60 A25 25 0 0 1 90 60" fill="none" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" class="stroke-white"/>
+</svg>
+<div class="hero-text">
+<p class="kicker">$title</p>
+<h1>Will it harness?</h1>
 <p class="lede">$description</p>
+<p class="actions"><a class="button" href="#install">Install from source</a> <a class="button ghost" href="$repository_url">View on GitHub</a></p>
+</div>
 </header>
 <main>
 <section aria-labelledby="what">
 <h2 id="what">What it is</h2>
 <p>$summary</p>
 <p class="note">Source: <code>$readme_file</code>, under the title.</p>
+</section>
+<section aria-labelledby="flow">
+<h2 id="flow">From rule to decision</h2>
+<svg class="flow" viewBox="0 0 360 400" role="img" aria-labelledby="flow-title flow-desc">
+<title id="flow-title">From rule to decision</title>
+<desc id="flow-desc">A rule goes through four questions and ends as one decision.</desc>
+<rect x="30" y="8" width="300" height="56" rx="8"  stroke-width="4" class="fill-yellow stroke-ink"/>
+<text x="180" y="43" text-anchor="middle" class="flow-text">Your rule</text>
+<path d="M180 64 V96 M170 86 L180 98 L190 86" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" class="stroke-red"/>
+<rect x="30" y="100" width="300" height="140" rx="8"  stroke-width="4" class="fill-white stroke-ink"/>
+<text x="180" y="132" text-anchor="middle" class="flow-text">Four questions</text>
+<text x="180" y="160" text-anchor="middle" class="flow-small">Reach: is it loaded?</text>
+<text x="180" y="181" text-anchor="middle" class="flow-small">Effect: does it change the agent?</text>
+<text x="180" y="202" text-anchor="middle" class="flow-small">Guard: would a script do as well?</text>
+<text x="180" y="223" text-anchor="middle" class="flow-small">Side effects: what else changed?</text>
+<path d="M180 240 V272 M170 262 L180 274 L190 262" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" class="stroke-red"/>
+<rect x="30" y="276" width="300" height="112" rx="8" class="fill-ink"/>
+<text x="180" y="308" text-anchor="middle" class="flow-text flow-light">One decision</text>
+<text x="180" y="338" text-anchor="middle" class="flow-small flow-light">Fix the loading, keep,</text>
+<text x="180" y="362" text-anchor="middle" class="flow-small flow-light">replace with a script, or delete.</text>
+</svg>
+<p class="note">Source: <code>$contract_file</code>. The tables below list each question and each decision.</p>
 </section>
 <section aria-labelledby="before-after">
 <h2 id="before-after">Before and after</h2>
@@ -137,6 +177,7 @@ $limits
 <footer>
 <p>Repository: <a href="$repository_url">$repository_url</a>. License: $license_name. Sources: <code>$project_file</code> and <code>$license_file</code>.</p>
 <p>This page is built by <code>scripts/site/build.py</code> from the files named above. No number on it is typed by hand.</p>
+<p>willitharness is an independent project and is not affiliated with Blendtec.</p>
 </footer>
 </body>
 </html>

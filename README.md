@@ -2,7 +2,7 @@
 
 Check whether the rules you write for a coding agent work.
 
-You write a rule in `AGENTS.md`, such as "Never use `pkill`". You cannot see if the agent loads it. You cannot see if it changes what the agent does. A script that blocks the command might work better.
+You write a rule in `AGENTS.md`, such as "Never use `pkill`". You cannot see if the agent loads it. You cannot see if it changes what the agent does. A script that blocks the command might work better. The name asks the question: will it harness?
 
 `willitharness` answers four questions for each rule. It gives one decision: fix the loading, keep, replace with a script, or delete candidate.
 
@@ -157,3 +157,5 @@ git config core.hooksPath .githooks
 
 ## License
 MIT. See `LICENSE`.
+
+willitharness is an independent project and is not affiliated with Blendtec.

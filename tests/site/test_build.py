@@ -71,7 +71,7 @@ def test_build_writes_the_page_and_the_style(tmp_path, capsys):
     code = build.main(["--root", str(tmp_path)])
     written = sorted(path.name for path in (tmp_path / "build" / "site").iterdir())
     assert code == build.EXIT_BUILT and written == ["index.html", "style.css"], f"got exit {code} and {written}"
-    assert "<h1>toolname</h1>" in (tmp_path / "build" / "site" / "index.html").read_text(), "the page holds the README title"
+    assert "<h1>Will it harness?</h1>" in (tmp_path / "build" / "site" / "index.html").read_text(), "the page holds the headline"
     assert capsys.readouterr().out.startswith('site: built {"index.html": '), "the build prints the sizes"
 
 

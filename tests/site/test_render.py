@@ -15,7 +15,7 @@ def built(tmp_path):
 
 def test_the_page_and_the_style_are_built(built):
     assert sorted(built) == ["index.html", "style.css"], f"a build holds the page and the style, got {sorted(built)}"
-    assert built["index.html"].startswith("<!doctype html>") and "<h1>toolname</h1>" in built["index.html"], f"the page opens with the title from the README; got {built['index.html'][:300]!r}"
+    assert built["index.html"].startswith("<!doctype html>") and "<h1>Will it harness?</h1>" in built["index.html"] and "<p class=\"kicker\">toolname</p>" in built["index.html"], f"the page opens with the title from the README; got {built['index.html'][:300]!r}"
 
 
 def test_question_rows_cite_the_contract_line(built):

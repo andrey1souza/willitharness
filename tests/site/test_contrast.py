@@ -3,8 +3,9 @@ import pytest
 import contrast
 from site_tree import STYLE
 
-TOKENS = ":root { --bg: #FAF8F3; --text: #1B1B1B; --muted: #58584F; --link: #0B4F9C; --keep: #1B6B3A; --warn: #8A4B00; --bad: #A31F34; }"
+TOKENS = ":root { --bg: #FAF8F3; --text: #1B1B1B; --muted: #58584F; --link: #0B4F9C; --keep: #1B6B3A; --warn: #8A4B00; --bad: #A31F34; --yellow: #F8D000; --orange: #F0A818; --panel: #E8E8E8; }"
 LEDGER_RATIOS = {"text": 16.23, "muted": 6.77, "link": 7.57, "keep": 6.16, "warn": 6.41, "bad": 7.06}
+FILL_RATIOS = {"yellow": 12.1, "orange": 8.5, "panel": 14.0}
 
 
 @pytest.mark.parametrize("token", sorted(LEDGER_RATIOS))
@@ -57,3 +58,17 @@ def test_a_bad_colour_literal_fails_loudly():
         contrast.luminance("red")
     assert "'red'" in str(raised.value), f"the failure must show the value, got {raised.value}"
     assert contrast.luminance("#FFFFFF") == pytest.approx(1.0) and contrast.luminance("#000000") == pytest.approx(0.0), "white is 1 and black is 0"
+
+
+@pytest.mark.parametrize("fill", sorted(FILL_RATIOS))
+def test_dark_text_on_each_fill_is_measured_in_both_directions(fill):
+    tokens = contrast.tokens_of(TOKENS)
+    assert contrast.ratio(tokens["text"], tokens[fill]) >= contrast.TEXT_MINIMUM, f"text on {fill} must reach AA"
+    assert contrast.ratio(tokens[fill], tokens["text"]) == contrast.ratio(tokens["text"], tokens[fill]), f"{fill} on text must measure the same"
+
+
+def test_a_pale_fill_fails_and_a_missing_fill_is_reported():
+    problems = contrast.contrast_problems(TOKENS.replace("#F8D000", "#2A2A2A"))
+    assert len(problems) == 2 and problems[0].startswith("--text on --yellow measures"), f"dark on dark fails, got {problems}"
+    missing = contrast.contrast_problems(TOKENS.replace("--orange: #F0A818;", ""))
+    assert missing == ["the stylesheet has no --orange token. Rule: every text colour is a token. Fix: declare it."], f"got {missing}"
