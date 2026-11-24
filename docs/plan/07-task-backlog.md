@@ -572,6 +572,14 @@ As an analyst, I want `run` to refuse early a plan that has no rule, so that a p
 - Given a plan with a rule, then `run` starts as before.
 - IDs: none. Gate: new, defined with the task. Deps: T80.
 
+### T82. Give every arm of a skill plan the same built-in skills (M)
+As an owner of a harness, I want every arm of a plan with a skill arm to run with the same built-in skills, so that arm C differs from the others only by its own skill.
+- Given a plan with an arm of channel skill, then every arm runs with the Skill tool and without `--disable-slash-commands`.
+- Given such a run, then the init event lists only the built-in skills pinned for Claude Code, plus the skills of the arm. A skill outside that set refuses the run, and the transcript is stored first.
+- Given a built-in skill that is not pinned, then the refusal names it and says to pin it after a check.
+- Given a plan with no skill arm, then the command line is unchanged.
+- IDs: none. The contract text on the run environment changes. Gate: `uv run pytest tests/gates/test_skill_arm.py tests/unit/test_claude_agent_unit.py`. Deps: T77.
+
 ### T68. The probe command records its result for a plan arm (S)
 As an analyst, I want `probe` to record its result for an arm of my plan, so that `run` can start with the CLI alone.
 - Given `probe` with `--plan` and `--arm`, then it prints the result, records it for that arm, and prints the arm and the plan state.

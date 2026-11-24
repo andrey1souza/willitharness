@@ -1,4 +1,5 @@
 import json
+from collections import namedtuple
 
 import pytest
 
@@ -174,7 +175,17 @@ def test_a_plan_that_already_ran_refuses_a_new_result(tmp_path, monkeypatch, cap
     assert "reachability is recorded before the first run" in errors and "Fix:" in errors, f"unexpected stderr {errors!r}"
 
 
+ProbedArm = namedtuple("ProbedArm", "label recorded")
+ArmSetup = namedtuple("ArmSetup", "channel rule_text")
+FIRST_ARM = ProbedArm("A", None)
+
+
 def claude_probe_with_arm(tmp_path, monkeypatch, channel, rule_text):
+    return probe_arm(tmp_path, monkeypatch, ArmSetup(channel, rule_text), FIRST_ARM)
+
+
+def probe_arm(tmp_path, monkeypatch, setup, probed):
+    channel, rule_text = setup
     make_site(tmp_path, TWO_ARMS)
     plan_path = tmp_path / "plan.json"
     data = json.loads(plan_path.read_text())
@@ -188,10 +199,10 @@ def claude_probe_with_arm(tmp_path, monkeypatch, channel, rule_text):
     seen = []
 
     def recording_runner(arguments, index):
-        seen.append(arguments.skills if arguments.skills else arguments.system_prompt_file)
+        seen.append(probed.recorded(arguments) if probed.recorded else arguments.skills if arguments.skills else arguments.system_prompt_file)
         return claude_stand_in(arguments, index)
 
-    arguments = ["--agent", "claude", "--directory", str(work), "--runs", str(RUNS), "--target-token", TARGET, "--control-token", CONTROL, "--plan", "plan.json", "--arm", "A"]
+    arguments = ["--agent", "claude", "--directory", str(work), "--runs", str(RUNS), "--target-token", TARGET, "--control-token", CONTROL, "--plan", "plan.json", "--arm", probed.label]
     return cli.probe_command(arguments, {"claude": recording_runner}), seen
 
 
@@ -208,6 +219,21 @@ def test_the_probe_of_a_skill_arm_passes_the_skill_names_of_the_overlay(tmp_path
     code, seen = claude_probe_with_arm(tmp_path, monkeypatch, "skill", None)
     capsys.readouterr()
     assert code == cli.EXIT_OK and seen == [("arm-skill",)] * RUNS, f"got {code} and {seen}"
+
+
+def test_the_probe_of_a_plain_arm_in_a_skill_plan_is_a_skill_plan_probe_with_no_skill_names(tmp_path, monkeypatch, capsys):
+    skill = tmp_path / "A.md" / ".claude" / "skills" / "arm-skill"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text("---\nname: arm-skill\n---\nBody.\n")
+    code, seen = probe_arm(tmp_path, monkeypatch, ArmSetup("skill", None), ProbedArm("B", lambda arguments: (arguments.skill_plan, arguments.skills)))
+    capsys.readouterr()
+    assert code == cli.EXIT_OK and seen == [(True, ())] * RUNS, f"got {code} and {seen}"
+
+
+def test_the_probe_of_a_plain_arm_in_a_plan_with_no_skill_arm_is_not_a_skill_plan_probe(tmp_path, monkeypatch, capsys):
+    code, seen = probe_arm(tmp_path, monkeypatch, ArmSetup("file", "the rule\n"), ProbedArm("B", lambda arguments: arguments.skill_plan))
+    capsys.readouterr()
+    assert code == cli.EXIT_OK and seen == [False] * RUNS, f"got {code} and {seen}"
 
 
 def test_the_probe_of_a_skill_arm_without_a_skill_file_exits_one_before_any_run(tmp_path, monkeypatch, capsys):

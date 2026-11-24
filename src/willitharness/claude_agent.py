@@ -24,6 +24,12 @@ SLASH_COMMANDS_OFF_FLAG = "--disable-slash-commands"
 INIT_EVENT = "system"
 INIT_SUBTYPE = "init"
 SKILLS_FIELD = "skills"
+PINNED_CLAUDE_VERSION = "2.1.331"
+BUILTIN_SKILLS = (
+    "batch", "claude-api", "claude-approvals", "code-review", "dataviz", "debug", "deep-research", "design", "design-sync", "doctor",
+    "fewer-permission-prompts", "loop", "plugin-authoring", "run", "run-skill-generator", "simplify", "update-config", "verify", "workflow-authoring",
+)
+assert BUILTIN_SKILLS == tuple(sorted(set(BUILTIN_SKILLS))), f"the pinned built-in skills {BUILTIN_SKILLS!r} are not unique and sorted"
 
 
 class AgentUnavailable(Exception):
@@ -37,6 +43,7 @@ class ToolPolicy:
     settings: str = ""
     system_prompt_file: str = ""
     skills: tuple = ()
+    skill_plan: bool = False
 
 
 PROBE_POLICY = ToolPolicy("", ())
@@ -52,17 +59,17 @@ def tool_policy(has_guard, commands):
 
 def skill_policy(policy, names):
     assert isinstance(policy, ToolPolicy), f"skill_policy needs a ToolPolicy, got {policy!r}. Fix: use PROBE_POLICY or tool_policy."
-    assert names and all(names) and not isinstance(names, str), f"skill_policy needs the skill names of the arm as a tuple, got {names!r}. Rule: a skill arm names its skills. Fix: pass skill_names output."
+    assert isinstance(names, tuple) and all(names), f"skill_policy needs the skill names of the arm as a tuple, got {names!r}. Rule: a skill plan names the skills of each arm, none for an arm without skills. Fix: pass skill_names output."
     tools = f"{policy.tools},{SKILL_TOOL}" if policy.tools else SKILL_TOOL
     allowed = (*policy.allowed, *(SKILL_ALLOW_PATTERN.format(name=name) for name in sorted(set(names))))
-    result = replace(policy, tools=tools, allowed=allowed, skills=tuple(sorted(set(names))))
+    result = replace(policy, tools=tools, allowed=allowed, skills=tuple(sorted(set(names))), skill_plan=True)
     assert SKILL_TOOL in result.tools.split(","), f"the policy {result!r} lost the {SKILL_TOOL} tool. Rule: the skill listing travels with the {SKILL_TOOL} tool."
     return result
 
 
 def tool_flags(policy):
     assert isinstance(policy, ToolPolicy), f"tool_flags needs a ToolPolicy, got {policy!r}. Fix: use PROBE_POLICY or tool_policy."
-    assert not policy.skills or SKILL_TOOL in policy.tools.split(","), f"the policy {policy!r} names skills but has no {SKILL_TOOL} tool. Rule: a skill arm keeps the {SKILL_TOOL} tool. Fix: build the policy with skill_policy."
+    assert not (policy.skills or policy.skill_plan) or SKILL_TOOL in policy.tools.split(","), f"the policy {policy!r} is in a skill plan but has no {SKILL_TOOL} tool. Rule: every arm of a skill plan keeps the {SKILL_TOOL} tool. Fix: build the policy with skill_policy."
     flags = ["--tools", policy.tools]
     if policy.tools:
         flags += ["--permission-mode", PERMISSION_MODE]
@@ -84,8 +91,8 @@ def system_prompt_flags(policy):
 
 def slash_command_flags(policy):
     assert isinstance(policy, ToolPolicy), f"slash_command_flags needs a ToolPolicy, got {policy!r}. Fix: use PROBE_POLICY or tool_policy."
-    flags = [] if policy.skills else [SLASH_COMMANDS_OFF_FLAG]
-    assert (SLASH_COMMANDS_OFF_FLAG in flags) != bool(policy.skills), f"slash_command_flags built {flags!r} for skills {policy.skills!r}. Rule: only a skill arm reaches the {SKILL_TOOL} tool."
+    flags = [] if policy.skill_plan else [SLASH_COMMANDS_OFF_FLAG]
+    assert (SLASH_COMMANDS_OFF_FLAG in flags) != policy.skill_plan, f"slash_command_flags built {flags!r} for skill plan {policy.skill_plan!r}. Rule: every arm of a skill plan reaches the {SKILL_TOOL} tool, and no other plan does."
     return flags
 
 
@@ -204,7 +211,8 @@ def listed_skills(transcript):
 
 
 def foreign_skills(transcript, names):
-    assert names and not isinstance(names, str), f"foreign_skills needs the skill names of the arm, got {names!r}. Fix: pass skill_names output."
-    foreign = [name for name in listed_skills(transcript) if name not in names]
-    assert not set(foreign) & set(names), f"foreign skills {foreign!r} hold an arm skill from {names!r}"
+    assert isinstance(names, tuple), f"foreign_skills needs the skill names of the arm as a tuple, got {names!r}. Fix: pass skill_names output."
+    allowed = {*BUILTIN_SKILLS, *names}
+    foreign = [name for name in listed_skills(transcript) if name not in allowed]
+    assert not set(foreign) & allowed, f"foreign skills {foreign!r} hold an allowed skill from {sorted(allowed)!r}"
     return foreign

@@ -269,7 +269,7 @@ def test_the_cli_probe_runner_hands_the_system_prompt_file_to_the_agent(tmp_path
     rule.write_bytes(b"cli rule")
     work = tmp_path / "work"
     work.mkdir()
-    arguments = argparse.Namespace(directory=work, label="Verification code", model="haiku", run_budget_usd=0.03, system_prompt_file=str(rule), skills=())
+    arguments = argparse.Namespace(directory=work, label="Verification code", model="haiku", run_budget_usd=0.03, system_prompt_file=str(rule), skills=(), skill_plan=False)
     report = report_of(cli.claude_runner_for_cli(arguments, 0))
     assert flag_value(report["arguments"], "--append-system-prompt-file") == str(rule), f"got {report['arguments']}"
 
@@ -278,6 +278,6 @@ def test_the_cli_probe_runner_gives_a_skill_arm_the_skill_tool(tmp_path, monkeyp
     install_fake_agent_environment(tmp_path, monkeypatch)
     work = tmp_path / "work"
     work.mkdir()
-    arguments = argparse.Namespace(directory=work, label="Verification code", model="haiku", run_budget_usd=0.03, system_prompt_file="", skills=("arm-skill",))
+    arguments = argparse.Namespace(directory=work, label="Verification code", model="haiku", run_budget_usd=0.03, system_prompt_file="", skills=("arm-skill",), skill_plan=True)
     report = report_of(cli.claude_runner_for_cli(arguments, 0))
     assert flag_value(report["arguments"], "--tools") == "Skill" and "--disable-slash-commands" not in report["arguments"], f"got {report['arguments']}"

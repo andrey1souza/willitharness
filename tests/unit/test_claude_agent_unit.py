@@ -109,14 +109,14 @@ def test_a_policy_without_a_system_prompt_file_adds_no_append_flag():
     assert "--append-system-prompt-file" not in build_command("hello", MODEL, BUDGET, PROBE_POLICY), f"the default command must not carry the flag, got {build_command('hello', MODEL, BUDGET, PROBE_POLICY)}"
 
 
-def test_a_command_without_a_skill_arm_is_exactly_the_command_from_before_T77():
+def test_a_command_without_a_skill_plan_is_exactly_the_command_from_before_T77():
     policy = replace(tool_policy(False, ["pkill"]), settings="{}", system_prompt_file="/rule.txt")
     assert build_command("hello", MODEL, BUDGET, policy) == [
         "claude", "-p", "hello", "--model", "haiku", "--setting-sources", "project,local", "--strict-mcp-config",
         "--max-budget-usd", "0.03", "--tools", "Bash", "--permission-mode", "default", "--allowedTools", "Bash(pkill:*)",
         "--settings", "{}", "--append-system-prompt-file", "/rule.txt", "--disable-slash-commands", "--no-session-persistence",
         "--output-format", "stream-json", "--verbose",
-    ], "the command of a plan with no skill arm changed. Rule: T77 touches skill arms only."
+    ], "the command of a plan with no skill arm changed. Rule: T82 touches skill plans only."
 
 
 def test_a_skill_policy_adds_the_skill_tool_and_drops_the_slash_command_flag():
@@ -129,10 +129,17 @@ def test_a_skill_policy_adds_the_skill_tool_and_drops_the_slash_command_flag():
 def test_skill_names_without_the_skill_tool_are_refused():
     with pytest.raises(AssertionError) as raised:
         build_command("hello", MODEL, BUDGET, replace(PROBE_POLICY, skills=("a",)))
-    assert "Rule: a skill arm keeps the Skill tool" in str(raised.value), f"got {raised.value}"
+    assert "Rule: every arm of a skill plan keeps the Skill tool" in str(raised.value), f"got {raised.value}"
 
 
-def test_a_skill_policy_needs_names():
+def test_a_skill_policy_of_an_arm_without_skills_adds_the_skill_tool_and_no_allow_rule():
+    command = build_command("hello", MODEL, BUDGET, skill_policy(tool_policy(False, ["pkill"]), ()))
+    assert command[command.index("--tools") + 1] == "Bash,Skill", f"got {command}"
+    assert command[command.index("--allowedTools") + 1] == "Bash(pkill:*)", f"got {command}"
+    assert "--disable-slash-commands" not in command, f"got {command}"
+
+
+def test_a_skill_policy_needs_the_names_as_a_tuple():
     with pytest.raises(AssertionError) as raised:
-        skill_policy(PROBE_POLICY, ())
-    assert "Rule: a skill arm names its skills" in str(raised.value), f"got {raised.value}"
+        skill_policy(PROBE_POLICY, "abc")
+    assert "Rule: a skill plan names the skills of each arm" in str(raised.value), f"got {raised.value}"

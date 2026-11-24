@@ -12,7 +12,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from willitharness.artifacts import RunArtifacts, artifact_directory, store_artifacts
-from willitharness.claude_agent import build_command, claude_version, foreign_skills, skill_policy, tool_policy
+from willitharness.claude_agent import BUILTIN_SKILLS, PINNED_CLAUDE_VERSION, build_command, claude_version, foreign_skills, skill_policy, tool_policy
 from willitharness.claude_sandbox import NO_DOMAINS, sandbox_settings
 from willitharness.guard import load_rules
 from willitharness.guard_hook import guard_hook_settings
@@ -108,6 +108,13 @@ def skill_names(site, arm):
         )
     assert names == tuple(sorted(set(names))), f"the skill names {names!r} of arm {arm.label} are not unique and sorted"
     return names
+
+
+def has_skill_arm(plan):
+    assert plan.arms, f"plan {plan.name} has no arm. Rule: a plan has arms. Fix: add arms to the plan."
+    found = any(arm.channel == SKILL_CHANNEL for arm in plan.arms)
+    assert isinstance(found, bool), f"has_skill_arm built {found!r}, not a bool. Rule: a plan has a skill arm or none."
+    return found
 
 
 def workspace_base(base):
@@ -319,11 +326,12 @@ def keep_run(site, key, artifacts, environment):
 
 def refuse_foreign_skills(arm, skills, output):
     assert (not skills) or arm.channel == SKILL_CHANNEL, f"arm {arm.label} has skills {skills!r} but channel {arm.channel}. Rule: only a skill arm has skills."
-    foreign = foreign_skills(output.splitlines(), skills) if skills and output else []
+    foreign = foreign_skills(output.splitlines(), skills) if output else []
     if foreign:
         raise PlanError(
-            f"the run of arm {arm.label} listed the skills {foreign!r} next to {skills!r}. "
-            f"Rule: a skill arm loads only its own skills, so no skill from the user, a plugin or Claude Code may load. Fix: remove those skills from the setting sources and the workspace, then run again."
+            f"the run of arm {arm.label} listed the skills {foreign!r} outside the {len(BUILTIN_SKILLS)} built-in skills pinned for Claude Code {PINNED_CLAUDE_VERSION} and the arm skills {skills!r}. "
+            f"Rule: every arm of a skill plan loads the pinned built-in skills and nothing else, so no skill from the user or a plugin may load. "
+            f"Fix: remove a user or plugin skill from the setting sources and the workspace; pin {foreign!r} in BUILTIN_SKILLS in claude_agent.py only after you check that it is a Claude Code built-in; then run again."
         )
     assert not foreign, f"foreign skills {foreign!r} were found but not refused"
 
@@ -339,7 +347,8 @@ def run_cell(runner, cell, rep, attempt):
     policy = tool_policy(guarded, allowed_commands(site.world_dir))
     policy = replace(policy, system_prompt_file=system_prompt_file(site, arm))
     skills = skill_names(site, arm)
-    policy = skill_policy(policy, skills) if skills else policy
+    skill_plan = has_skill_arm(site.plan)
+    policy = skill_policy(policy, skills) if skill_plan else policy
     with tempfile.TemporaryDirectory(prefix=RUN_DIRECTORY_PREFIX, dir=runner.base) as directory:
         run_root = Path(directory).resolve()
         work = build_workspace(site, cell.arm, run_root)
@@ -351,5 +360,6 @@ def run_cell(runner, cell, rep, attempt):
         output = watch(start_agent(command, profile, work, environment), deadline, lifecycle_dir(site.root, site.plan))
         calls = calls_text(run_root)
         keep_run(site, RunKey(cell, rep, attempt), RunArtifacts(output or "", calls), environment)
-    refuse_foreign_skills(arm, skills, output)
+    if skill_plan:
+        refuse_foreign_skills(arm, skills, output)
     return TIMED_OUT if output is None else finished(output.splitlines(), calls)
