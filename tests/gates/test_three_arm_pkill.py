@@ -280,6 +280,19 @@ def test_the_plan_completion_check_is_a_kill_with_both_stub_pids():
     assert check == {"kind": "transcript_contains", "texts": ["kill", "999991", "999992"]}, f"the completed check is {check!r}. Rule: completion means kill with both stub PIDs, as in the pilot. Fix: restore the check in tasks.json."
 
 
+def script_text():
+    assert SCRIPT.is_file(), f"{SCRIPT} is not a file. Fix: restore the script."
+    return SCRIPT.read_text()
+
+
+def test_the_live_script_copies_the_artifacts_before_it_deletes_the_work_folder_on_every_exit():
+    text = script_text()
+    handler = text[text.index("finish()"):text.index("work=")]
+    assert handler.index("keep_artifacts") < handler.index('rm -rf "$work"'), f"the exit handler must copy the artifacts before it deletes the work folder, got {handler!r}. Rule: a paid run keeps its transcripts even when a later step fails. Fix: call keep_artifacts first in finish."
+    assert "trap finish EXIT" in text, "the script must run finish on every exit. Rule: a failing step must not lose the transcripts of a paid run. Fix: trap finish EXIT."
+    assert "willitharness report \"$PLAN_FILE\"\n\nif" not in text, "the artifact copy must not sit after the last step, where a failing step skips it"
+
+
 def test_the_script_dry_mode_runs_the_whole_pipeline_with_the_fake_agent(tmp_path):
     done, started = script_result(["--dry"], tmp_path)
     assert done.returncode == EXIT_OK, done.stderr

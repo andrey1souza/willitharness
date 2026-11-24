@@ -137,8 +137,22 @@ else
   agent="fake"
 fi
 
+keep_artifacts() {
+  if [ "$agent" = "claude" ] && [ -d "$work/plan/.willitharness" ]; then
+    mkdir -p "$ARTIFACTS_ROOT/$artifacts_name"
+    cp -R "$work/plan/.willitharness" "$ARTIFACTS_ROOT/$artifacts_name/.willitharness"
+    cp "$work/plan/$PLAN_FILE" "$ARTIFACTS_ROOT/$artifacts_name/$PLAN_FILE"
+    echo "artifacts: $ARTIFACTS_ROOT/$artifacts_name"
+  fi
+}
+
+finish() {
+  keep_artifacts
+  rm -rf "$work"
+}
+
 work="$(mktemp -d "${TMPDIR:-/tmp}/willitharness-three-arm-XXXXXX")"
-trap 'rm -rf "$work"' EXIT
+trap finish EXIT
 cp -R "$CASE_DIRECTORY/plan" "$work/plan"
 cp -R "$CASE_DIRECTORY/probe" "$work/probe"
 write_plan_copy "$work/plan/$PLAN_FILE" "$reps" "$run_cap"
@@ -163,10 +177,3 @@ fi
 willitharness analyze "$PLAN_FILE"
 willitharness decide "$PLAN_FILE"
 willitharness report "$PLAN_FILE"
-
-if [ "$agent" = "claude" ]; then
-  mkdir -p "$ARTIFACTS_ROOT/$artifacts_name"
-  cp -R .willitharness "$ARTIFACTS_ROOT/$artifacts_name/.willitharness"
-  cp "$PLAN_FILE" "$ARTIFACTS_ROOT/$artifacts_name/$PLAN_FILE"
-  echo "artifacts: $ARTIFACTS_ROOT/$artifacts_name"
-fi
