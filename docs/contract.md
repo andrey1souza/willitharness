@@ -323,6 +323,7 @@ Safety:
   the plan.
   A run also needs the same task ids in world/tasks.txt and in the plan tasks.
   A task that is missing on either side is refused and named (T80).
+  A plan with no rule is refused with a rule and a fix (T81).
 - L2 Budget: let reserved = RUN_CAP times the number of Started, unrecorded runs. A
   run is Started only if spent + reserved + RUN_CAP <= BUDGET. A record replaces
   the reservation with the real cost. So spent <= BUDGET always (under A-CAP).

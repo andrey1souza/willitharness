@@ -566,11 +566,11 @@ As an analyst, I want `run` to refuse early when the tasks of the world and the 
 - Given matching tasks, then `run` starts as before.
 - IDs: none. Gate: `uv run pytest tests/unit/test_task_match_unit.py`. Deps: T78.
 
-### T81. Refuse a run of a plan with no rule (S) not built (T81)
+### T81. Refuse a run of a plan with no rule (S)
 As an analyst, I want `run` to refuse early a plan that has no rule, so that a paid run cannot end with a result that `analyze` cannot read.
 - Given a plan with no rule, then `run` exits 1 before any run, with a rule and a fix.
 - Given a plan with a rule, then `run` starts as before.
-- IDs: none. Gate: new, defined with the task. Deps: T80.
+- IDs: none. Gate: `uv run pytest tests/unit/test_rule_required_unit.py`. Deps: T80.
 
 ### T82. Give every arm of a skill plan the same built-in skills (M)
 As an owner of a harness, I want every arm of a plan with a skill arm to run with the same built-in skills, so that arm C differs from the others only by its own skill.
