@@ -26,6 +26,8 @@ EXPECTED_CLASSES = (
     ("Run `scripts/lint-all.sh`", "not testable by behaviour"),
     ("Keep `README.md` short.", "not testable by behaviour"),
     ("Use `snake_case`", "not testable by behaviour"),
+    ("`npm ci && npx tsc --noEmit`", "command rule, testable candidate"),
+    ("Never push to `main`.", "command rule, testable candidate"),
     ("Write sentences of 20 words", "not testable by behaviour"),
     ("Name things by what they do", "not testable by behaviour"),
 )
@@ -170,3 +172,60 @@ def test_a_missing_folder_is_refused_with_a_rule_and_a_fix(tmp_path, capsys):
     code, out, err = run_cli(capsys, ["audit", str(tmp_path / "missing")])
     assert code == EXIT_REFUSED and out == "" and "Rule:" in err and "Fix:" in err, f"got {code} {out!r} {err!r}"
 
+
+
+HOOK_COMMAND = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/guard-bash.mjs"'
+PLUGIN_HOOKS = {"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": HOOK_COMMAND}]}]}}
+IMPORT_CORE = "import { deny } from './lib/guard-core.mjs';\n"
+DENY_PKILL = "export const DENIED = ['pkill'];\n"
+DENY_OTHER = "export const DENIED = ['rm'];\n"
+PKILL_RULE = "- Never use `pkill`.\n"
+GUARD_FILES = {"CLAUDE.md": PKILL_RULE, "plugin/hooks/hooks.json": json.dumps(PLUGIN_HOOKS), "plugin/hooks/guard-bash.mjs": IMPORT_CORE}
+
+
+def guard_blocks_for(tmp_path, files):
+    write_tree(tmp_path, files)
+    report = build_audit(tmp_path.resolve(), ceiling=tmp_path.resolve())
+    return GUARD_BLOCK.findall(report), report
+
+
+def test_a_hook_whose_imported_code_names_the_command_is_a_guard(tmp_path):
+    blocks, _ = guard_blocks_for(tmp_path, {**GUARD_FILES, "plugin/hooks/lib/guard-core.mjs": DENY_PKILL})
+    assert blocks == [], f"the hook code denies pkill, so no entry is proposed, got {blocks}"
+
+
+def test_a_hook_whose_code_does_not_name_the_command_gets_the_proposal(tmp_path):
+    blocks, _ = guard_blocks_for(tmp_path, {**GUARD_FILES, "plugin/hooks/lib/guard-core.mjs": DENY_OTHER})
+    assert len(blocks) == 1 and json.loads(blocks[0])["name"] == "pkill", f"got {blocks}"
+
+
+def test_a_hook_script_that_names_the_command_itself_is_a_guard(tmp_path):
+    files = {"CLAUDE.md": PKILL_RULE, ".claude/settings.json": json.dumps({"hooks": {"PreToolUse": [{"hooks": [{"type": "command", "command": "node $CLAUDE_PROJECT_DIR/tools/guard.mjs"}]}]}}), "tools/guard.mjs": "const blocked = ['pkill'];\n"}
+    blocks, _ = guard_blocks_for(tmp_path, files)
+    assert blocks == [], f"got {blocks}"
+
+
+def test_imports_are_followed_one_level_only(tmp_path):
+    files = {**GUARD_FILES, "plugin/hooks/lib/guard-core.mjs": "import './deeper.mjs';\n", "plugin/hooks/lib/deeper.mjs": DENY_PKILL}
+    blocks, _ = guard_blocks_for(tmp_path, files)
+    assert len(blocks) == 1, f"a file two imports away is not read, got {blocks}"
+
+
+def test_code_of_a_hook_on_another_event_is_not_a_guard(tmp_path):
+    other = {"hooks": {"PostToolUse": PLUGIN_HOOKS["hooks"]["PreToolUse"]}}
+    blocks, _ = guard_blocks_for(tmp_path, {**GUARD_FILES, "plugin/hooks/hooks.json": json.dumps(other), "plugin/hooks/lib/guard-core.mjs": DENY_PKILL})
+    assert len(blocks) == 1, f"got {blocks}"
+
+
+def test_a_hook_script_outside_the_repo_is_never_read(tmp_path):
+    repo = tmp_path / "repo"
+    write_tree(tmp_path, {"outside.mjs": DENY_PKILL})
+    hooks = {"hooks": {"PreToolUse": [{"hooks": [{"type": "command", "command": "node ../outside.mjs"}]}]}}
+    blocks, _ = guard_blocks_for(repo, {"CLAUDE.md": PKILL_RULE, ".claude/settings.json": json.dumps(hooks)})
+    assert len(blocks) == 1, f"got {blocks}"
+
+
+def test_the_limits_say_hook_code_is_read_as_text_and_never_run(tmp_path):
+    _, report = guard_blocks_for(tmp_path, {"CLAUDE.md": PKILL_RULE})
+    limits = report.split("## Limits")[1]
+    assert "Hook code is read as text" in limits and "never run" in limits, f"got {limits!r}"

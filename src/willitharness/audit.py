@@ -5,12 +5,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from willitharness.flags import parse_action
+from willitharness.hook_code import guard_texts
 from willitharness.load_report import (
     AGENTS_FILES,
     RULE_PATHS_KEY,
     RULES_FOLDER,
     build_load_report,
-    configured_hooks,
     InstructionScan,
     instruction_scan,
     masking_file,
@@ -24,7 +24,6 @@ PREDICTION_LABEL = "predicted, not verified; a paid probe confirms it"
 SHORT_LIMIT = 60
 ELLIPSIS = "..."
 SECTION_HEADINGS = ("## What loads", "## Rules", "## Predictions", "## Proposed changes", "## Limits")
-GUARD_EVENT = "PreToolUse"
 IMPORT_TARGET = "CLAUDE.md"
 NEW_FILE_NAME = "/dev/null"
 LOADS = "yes"
@@ -41,7 +40,9 @@ LIMITS = (
     "Loading is modelled on Claude Code. A paid probe confirms it.",
     "Paid tests are not run. They are a separate step.",
     "The class of a rule comes from its text. Only a behaviour test shows what an agent does.",
-    "Hooks are not run. Skills are counted, not read for rules.",
+    "Hooks are not run. Hook code is read as text and never run.",
+    "A hook guard is found when its command or the code it names mentions the command. Imports are followed one level.",
+    "Skills are counted, not read for rules.",
 )
 
 
@@ -141,11 +142,11 @@ def import_diff(root, targets):
     return diff
 
 
-def guarded(root, program):
-    assert root.is_dir(), f"{root} is not a directory. Fix: pass the project folder."
+def guarded(texts, program):
+    assert isinstance(texts, list), f"guarded needs the list of guard texts, got {texts!r}. Fix: pass guard_texts output."
     assert isinstance(program, str) and program, f"guarded needs a program name, got {program!r}. Fix: pass the program."
     pattern = re.compile(rf"(?<![\w-]){re.escape(program)}(?![\w-])")
-    found = any(hook.event == GUARD_EVENT and pattern.search(hook.command) for hook in configured_hooks(root))
+    found = any(pattern.search(text) for text in texts)
     assert found in (True, False), f"guarded computed {found!r} for {program!r}. Rule: a guard exists or it does not."
     return found
 
@@ -169,6 +170,7 @@ def guard_entry(rule, command):
 def guard_proposals(root, audited):
     assert root.is_dir(), f"{root} is not a directory. Fix: pass the project folder."
     entries, notes = [], []
+    texts = guard_texts(root)
     for item in audited:
         verdict = item.verdict
         if verdict.label != COMMAND or item.loads == MASKED_LOADS:
@@ -180,7 +182,7 @@ def guard_proposals(root, audited):
         entry = guard_entry(item.rule, verdict.command)
         if entry is None:
             notes.append(NO_ENTRY_SHAPE.format(line=location, command=verdict.command))
-        elif not guarded(root, entry["name"]):
+        elif not guarded(texts, entry["name"]):
             entries.append((item.rule, entry))
     assert len(entries) + len(notes) <= len(audited), f"more proposals than rules: {entries!r} {notes!r}"
     return entries, notes

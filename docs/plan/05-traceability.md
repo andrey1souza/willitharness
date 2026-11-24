@@ -109,7 +109,7 @@ decides which tool covers which group. 66 IDs in total.
 | Rule | Feature | Tests | Gate |
 |---|---|---|---|
 | Warnings W-LOWN, W-DENIAL, saturated, AtBound, pooled | `warnings.feature`, `effect-with-noise.feature`, `report.feature` | `test_warnings.py` | G4.6 |
-| `audit` prints one read-only report: every rule, its class, a loading prediction, proposed diffs, limits | none | `test_rule_class_unit.py`, `test_audit.py`, `test_plugin_checks.py` | T83 |
+| `audit` prints one read-only report: every rule, its class, a loading prediction, proposed diffs, limits | none | `test_rule_class_unit.py`, `test_audit.py`, `test_plugin_checks.py` | T84 |
 | Channel per arm (file, skill, hook, system_prompt) | `plan-arms.feature` | `tests/bdd/test_plan_arms.py` | G1.8 |
 | The system_prompt channel is a file flag for the run and the probe | `runner-isolation.feature` | `test_real_runner.py`, `test_agent_tools.py`, `test_probe_command.py` | G3.10 |
 | A `guard_only` arm blocks through a hook in `--settings`; the rules file stays out of the workspace; the repro prints `no difference` for one message | `guard-test.feature` | `test_guard_hook_unit.py`, `test_guard_hook_gate.py`, `test_real_runner.py`, `test_guard_repro_dry.py`, `test_guard_repro_live_path.py` | G3.10, G5.5 |

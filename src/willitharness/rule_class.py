@@ -15,14 +15,17 @@ BULLET = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+(.*)$")
 CONTINUATION = re.compile(r"^\s+\S")
 WORD = re.compile(r"[\w']+")
 FORBID_CUE = re.compile(r"\b(?:never|do not|don't|must not)\b")
-REQUIRE_CUE = re.compile(r"\b(?:always|use|run|prefer)\b")
+REQUIRE_CUE = re.compile(r"\b(?:always|use|run|prefer|push|call|execute|invoke)\b")
+SENTENCE_END = re.compile(r"[.;!?]\s")
+WHOLE_COMMAND = re.compile(r"^`([^`]+)`[.:]?$")
 FORBID_USE = re.compile(r"\b(?:never|do not|don't|must not) (?:use|run|call)$")
-CUE_WINDOW_WORDS = 4
 SPAN_EDGE = "`"
 
 REASON_ENFORCED = "names {path}, which exists in the repo; a script already checks it"
 REASON_COMMAND = "{direction} the command `{command}`; a behaviour test can watch the calls"
 REASON_MISSING_PATH = "names `{path}`, which does not exist in the repo; no script backs it, and no command is named"
+REASON_WHOLE_COMMAND = "the whole rule is the command `{command}`, so it requires that command; a behaviour test can watch the calls"
+REASON_SPAN_NOT_COMMAND = "its backticked text {spans} is not a command the rule forbids or requires; a behaviour test has no call to watch"
 REASON_PROSE = "names no command in backticks and no script that exists; a behaviour test has no call to watch"
 
 
@@ -101,10 +104,19 @@ def script_like_paths(spans):
     return found
 
 
+def clause_before(text, start):
+    assert isinstance(text, str) and 0 <= start <= len(text), f"clause_before needs a start inside the text, got {start!r} for {text!r}. Fix: pass a span start."
+    before = text[:start]
+    ends = [found.end() for found in SENTENCE_END.finditer(before)]
+    clause = before[ends[-1]:] if ends else before
+    assert before.endswith(clause), f"clause_before returned {clause!r}, which does not end {before!r}. Rule: a clause is the tail of the text."
+    return clause
+
+
 def direction_of(text, start, span):
     assert isinstance(text, str) and isinstance(start, int), f"direction_of needs the rule text and a start, got {text!r} and {start!r}. Fix: pass both."
     assert isinstance(span, str) and span, f"direction_of needs a span, got {span!r}. Fix: pass the span text."
-    window = " ".join(WORD.findall(text[:start])[-CUE_WINDOW_WORDS:]).lower()
+    window = " ".join(WORD.findall(clause_before(text, start))).lower()
     bare = len(span.split()) == 1
     if bare:
         direction = FORBIDS if FORBID_USE.search(window) else None
@@ -123,10 +135,15 @@ def classify_rule(text, root):
     scripts = [found for found in (existing_script(root, span) for _, span in spans) if found]
     if scripts:
         return Classification(ENFORCED, REASON_ENFORCED.format(path=scripts[0]), None, None)
+    whole = WHOLE_COMMAND.match(text.strip())
+    command = whole.group(1) if whole else ""
+    if len(command.split()) > 1:
+        return Classification(COMMAND, REASON_WHOLE_COMMAND.format(command=command), REQUIRES, command)
     for start, span in spans:
         direction = direction_of(text, start, span)
         if direction:
             return Classification(COMMAND, REASON_COMMAND.format(direction=direction, command=span), direction, span)
     missing = script_like_paths(spans)
-    reason = REASON_MISSING_PATH.format(path=missing[0]) if missing else REASON_PROSE
+    shown = ", ".join(f"`{span}`" for _, span in spans)
+    reason = REASON_MISSING_PATH.format(path=missing[0]) if missing else REASON_SPAN_NOT_COMMAND.format(spans=shown) if spans else REASON_PROSE
     return Classification(NOT_TESTABLE, reason, None, None)

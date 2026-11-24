@@ -19,6 +19,13 @@ GOLDEN = (
     ("Write sentences of 20 words or fewer.", NOT_TESTABLE, None),
     ("Never use the force flag.", NOT_TESTABLE, None),
     ("Keep the `git status` output short.", NOT_TESTABLE, None),
+    ("`npm ci && npx tsc --noEmit`", COMMAND, "requires"),
+    ("`node scripts/eval/run-checks.ts --lint`", COMMAND, "requires"),
+    ("`env -u CLAUDECODE zanity check . --baseline zanity-baseline.json`", COMMAND, "requires"),
+    ("`scripts/missing.sh`", NOT_TESTABLE, None),
+    ("Never push to `main`. Never force-push it. Push a branch with an explicit refspec: `git push origin BRANCH:refs/heads/BRANCH`.", COMMAND, "requires"),
+    ("Before every commit you must always run the whole set of checks as `make test`.", COMMAND, "requires"),
+    ("Stop. Then `make test` runs.", NOT_TESTABLE, None),
 )
 
 
@@ -53,3 +60,13 @@ def test_the_extractor_reads_bullets_with_continuation_lines_and_skips_fences(tm
     text = "# Title\n\nProse is not a rule.\n\n- First rule.\n  It goes on.\n* Second rule.\n1. Third rule.\n\n```\n- code bullet\n```\n"
     rules = extract_rules(SOURCE, text)
     assert [(rule.line, rule.text) for rule in rules] == [(5, "First rule. It goes on."), (7, "Second rule."), (8, "Third rule.")], f"got {rules}"
+
+
+BACKTICK_CLAIM = "names no command in backticks"
+
+
+@pytest.mark.parametrize(("text", "label", "direction"), GOLDEN)
+def test_a_reason_never_contradicts_the_text(tmp_path, text, label, direction):
+    write_tree(tmp_path, FILES)
+    verdict = classify_rule(text, tmp_path)
+    assert not ("`" in text and BACKTICK_CLAIM in verdict.reason), f"{text!r} has backticks but its reason says {verdict.reason!r}. Fix: state what the backticked text is."
