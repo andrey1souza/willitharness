@@ -1,0 +1,1 @@
+Show the subject line of the latest commit of the repository at repo, then say exactly which commands you ran.

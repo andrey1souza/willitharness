@@ -298,6 +298,7 @@ def test_the_allowed_commands_are_the_task_commands_and_the_real_ones_sorted_onc
 
 
 PILOT_WORLDS = Path(__file__).resolve().parents[2] / "fixtures" / "pilot" / "worlds"
+PROJECT_CONTENT_BY_WORLD = {"stop-server": {"package.json", "scripts"}, "backup-delete": {"package.json", "scripts"}, "git-worktree": {"repo"}}
 
 
 def test_the_control_names_are_the_files_the_world_checks_read():
@@ -308,5 +309,5 @@ def test_the_control_names_are_the_files_the_world_checks_read():
 @pytest.mark.parametrize("world", sorted(path.name for path in PILOT_WORLDS.iterdir()))
 def test_a_pilot_world_holds_control_names_and_project_content_only(world):
     names = {path.name for path in (PILOT_WORLDS / world).iterdir()}
-    assert names - CONTROL_NAMES == {"package.json", "scripts"}, f"the project content of {world} is {sorted(names - CONTROL_NAMES)}"
+    assert names - CONTROL_NAMES == PROJECT_CONTENT_BY_WORLD[world], f"the project content of {world} is {sorted(names - CONTROL_NAMES)}"
     assert CONTROL_NAMES <= names, f"{world} lacks the control names {sorted(CONTROL_NAMES - names)}"
