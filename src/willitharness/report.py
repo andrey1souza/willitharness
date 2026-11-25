@@ -4,13 +4,13 @@ from pathlib import Path
 from willitharness.agent_line import read_agent_line
 from willitharness.analysis import Analysis, AnalysisInput, analyze_plan
 from willitharness.artifacts import RUNS_DIR, TRANSCRIPT_NAME
-from willitharness.decide_plan import RuleDecision, decidable_folder, decision_line, rule_decisions
+from willitharness.decide_plan import RuleDecision, decision_line, rule_decisions, three_arm_folder
 from willitharness.detectors import calls_of
 from willitharness.lifecycle import ANALYZE_AFTER_ABORT, FINAL_STATES, PlanState, lifecycle_dir, read_reach, read_state
 from willitharness.world_facts import world_facts
 from willitharness.outcomes import COMPLETED_OUTCOME, TARGET_OUTCOME, cell_counts
 from willitharness.paths import inside
-from willitharness.plan import Plan
+from willitharness.plan import Plan, has_guard_arm
 from willitharness.side_effects import MIN_ARMS, side_effect_report_lines
 from willitharness.store import RunState, latest_by_run, load_records, spent
 from willitharness.three_arm_report import is_three_arm, three_arm_sections
@@ -27,6 +27,7 @@ COUNTS_MEANING = "The counts are attempts, not executed commands. An attempt is 
 NOT_MEASURABLE_LINE = "The effect is not measurable at this n."
 SIDE_EFFECTS_NEVER_DECIDE = "Side effects never change the decision."
 GUARD_LINE = f"Guard: {GuardResult.GUARD_UNTESTED}. The plan has no guard arm, so no guard was run."
+GUARD_READ_LINE = "Guard: {guard}. The result reads the runs of the guard arms of the plan."
 LIMIT_COUNT = 3
 LIMITS = (
     "The result covers one model. Other models can behave differently.",
@@ -144,10 +145,13 @@ def effect_lines(analysis):
     return lines
 
 
-def guard_lines():
-    assert GUARD_LINE.startswith("Guard: "), f"GUARD_LINE lost its fixed start: {GUARD_LINE!r}. Fix: restore the line."
-    lines = ["## Q3 Guard", "", f"{BULLET}{GUARD_LINE}"]
-    assert str(GuardResult.GUARD_UNTESTED) in lines[-1], f"guard_lines lost the guard value: {lines!r}"
+def guard_lines(plan, decisions):
+    assert isinstance(plan, Plan), f"guard_lines needs a Plan, got {plan!r}. Fix: load the plan."
+    assert decisions, "guard_lines needs decisions. Fix: build them with rule_decisions."
+    guard = decisions[0].guard
+    line = GUARD_READ_LINE.format(guard=guard) if has_guard_arm(plan) else GUARD_LINE
+    lines = ["## Q3 Guard", "", f"{BULLET}{line}"]
+    assert str(guard) in lines[-1], f"guard_lines lost the guard value: {lines!r}"
     return lines
 
 
@@ -197,7 +201,7 @@ def report_text(data):
         runs_lines(data),
         reach_lines(data.decisions),
         effect_lines(data.analysis),
-        guard_lines(),
+        guard_lines(data.plan, data.decisions),
         side_effect_section(data.side_effects),
         decision_lines(data.decisions, saturated_by_rule(data.analysis)),
         warning_lines(data.analysis),
@@ -233,7 +237,7 @@ def three_arm_report_text(root, plan):
     assert is_three_arm(plan), f"three_arm_report_text needs a three-arm plan, got {plan!r}. Fix: check is_three_arm first."
     folder = lifecycle_dir(root, plan)
     check_reportable(folder)
-    decidable_folder(root, plan)
+    three_arm_folder(root, plan)
     records = load_records(folder)
     summary = [f"# Report for plan {plan.name}", "", read_agent_line(root, plan), f"Total cost: ${spent(records):.2f}.", COUNTS_MEANING]
     runs = ["## Usable runs per cell", "", *(f"{BULLET}arm {cell.arm}, task {cell.task}: {counts.runs}" for cell, counts in sorted(cell_counts(records, TARGET_OUTCOME).items()))]

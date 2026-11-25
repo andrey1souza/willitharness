@@ -589,3 +589,13 @@ As an analyst, I want `probe` to record its result for an arm of my plan, so tha
 - Given every arm probed, then `run` starts.
 - Given `run` before an arm is probed, then it exits 1 and names the `probe` command.
 - IDs: none. Gate: `uv run pytest tests/gates/test_probe_command.py`. Deps: T19.
+
+### T83. Let decide read a guard arm (M)
+As an owner of a harness, I want `decide` to read the guard arm of my plan, so that a guard that works as well as the rule can give ReplaceWithGuard.
+- Given a plan with a guard arm whose runs block every violating command, complete as often as the rule arm and never bypass a block, then `decide` prints ReplaceWithGuard for a rule that lowers violations.
+- Given a guard arm with a run that bypasses a block, then `decide` prints guard GuardWorse and the decision Keep.
+- Given a guard arm with no `guard-rules.json` in its overlay, or with no stored transcript for a usable guard run, then `decide` prints guard GuardUntested and does not stop.
+- Given a plan with no guard arm, then the output is as before.
+- Given a three-arm plan with a guard arm, then `decide` and `report` still refuse it with a rule and a fix.
+- Given a plan with a guard arm, then `report` names the guard result in the Q3 section.
+- IDs: D7, D8. Gate: `uv run pytest tests/gates/test_decide_guard_arm.py tests/gates/test_decide_command.py`. Deps: T44, T76.

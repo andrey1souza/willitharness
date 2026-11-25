@@ -3,6 +3,7 @@ TESTS = (
 )
 
 SOURCE = 'src/willitharness/three_arm_report.py'
+DECIDE_PLAN = 'src/willitharness/decide_plan.py'
 REPORT = 'src/willitharness/report.py'
 CLI = 'src/willitharness/cli.py'
 
@@ -30,10 +31,11 @@ MUTANTS = (
     ('detectable-minimum-excludes-five-runs', SOURCE, 'if min(other.runs, component_runs) < MIN_RUNS:\n        text', 'if min(other.runs, component_runs) <= MIN_RUNS:\n        text'),
     ('detectable-for-the-prompt-uses-nothing', SOURCE, '((ARM_PROMPT, arms.other), (ARM_NOTHING, arms.nothing))', '((ARM_PROMPT, arms.nothing), (ARM_NOTHING, arms.nothing))'),
     ('noise-line-dropped', SOURCE, 'is not measured separately.', 'is measured.'),
-    ('decide-skips-the-finished-and-guard-checks', SOURCE, '    folder = decidable_folder(root, plan)\n    records = load_records(folder)', '    folder = root / ".willitharness" / plan.name\n    records = load_records(folder)'),
+    ('decide-skips-the-finished-and-guard-checks', SOURCE, '    folder = three_arm_folder(root, plan)\n    records = load_records(folder)', '    folder = root / ".willitharness" / plan.name\n    records = load_records(folder)'),
+    ('three-arm-skips-the-guard-arm-refusal', DECIDE_PLAN, '    if has_guard_arm(plan):\n        raise DecideRefused(THREE_ARM', '    if False:\n        raise DecideRefused(THREE_ARM'),
     ('decide-no-runs-not-refused', SOURCE, '    if not lines:\n        raise DecideRefused', '    if False:\n        raise DecideRefused'),
-    ('report-skips-the-guard-check', REPORT, '    check_reportable(folder)\n    decidable_folder(root, plan)\n', '    check_reportable(folder)\n'),
-    ('report-skips-the-finished-check', REPORT, '    check_reportable(folder)\n    decidable_folder(root, plan)\n', '    decidable_folder(root, plan)\n'),
+    ('report-skips-the-guard-check', REPORT, '    check_reportable(folder)\n    three_arm_folder(root, plan)\n', '    check_reportable(folder)\n'),
+    ('report-skips-the-finished-check', REPORT, '    check_reportable(folder)\n    three_arm_folder(root, plan)\n', '    three_arm_folder(root, plan)\n'),
     ('report-drops-the-limits', REPORT, '*three_arm_sections(folder, plan, records), limit_lines())', '*three_arm_sections(folder, plan, records))'),
     ('report-ignores-the-three-arms', REPORT, 'three_arm_report_text(root, plan) if is_three_arm(plan) else', 'three_arm_report_text(root, plan) if False else'),
     ('decide-ignores-the-three-arms', CLI, 'if is_three_arm(plan) else [decision_line', 'if False else [decision_line'),

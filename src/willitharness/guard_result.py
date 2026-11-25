@@ -1,11 +1,17 @@
 from dataclasses import dataclass
 
+from pathlib import Path
+
+from willitharness.artifacts import RUNS_DIR, TRANSCRIPT_NAME
 from willitharness.bypass import bypass_counts
 from willitharness.counts import Counts
-from willitharness.guard import GuardRule, coverage_of, evaluate
+from willitharness.detectors import calls_of
+from willitharness.guard import GuardRule, coverage_of, evaluate, load_rules
 from willitharness.outcomes import COMPLETED_OUTCOME, cell_counts
+from willitharness.paths import inside
 from willitharness.plan import KIND_FORBIDDEN, ROLE_GUARD_ONLY, ROLE_RULE, Plan
 from willitharness.store import RunState, latest_by_run
+from willitharness.stubs import GUARD_RULES_NAME
 from willitharness.verdict import verdict_of
 from willitharness.vocabulary import Coverage, GuardResult, Verdict
 
@@ -43,9 +49,44 @@ def completed_verdict(plan: Plan, records: tuple) -> Verdict | None:
     return result
 
 
-def guard_runs(plan: Plan, records: tuple, calls_by_run: dict) -> tuple:
+def usable_guard_records(plan: Plan, records: tuple) -> list:
+    assert plan.arms, f"plan {plan.name} has no arms. Rule: a plan needs arms. Fix: load the plan with load_plan."
+    assert all(record.run_id for record in records), f"usable_guard_records needs stored records, got {records!r}. Fix: use load_records."
     guards = labels_with_role(plan, ROLE_GUARD_ONLY)
     usable = [run for run in latest_by_run(records).values() if run.arm in guards and run.state is RunState.RECORDED_USABLE]
+    assert all(run.arm in guards and run.state is RunState.RECORDED_USABLE for run in usable), f"usable_guard_records kept a run it should drop: {usable!r}"
+    return usable
+
+
+def stored_guard_calls(folder: Path, plan: Plan, records: tuple) -> dict:
+    assert folder.is_dir(), f"{folder} is not a directory. Rule: stored transcripts live in the plan folder. Fix: use lifecycle_dir."
+    assert plan.arms, f"plan {plan.name} has no arms. Rule: a plan needs arms. Fix: load the plan with load_plan."
+    usable = usable_guard_records(plan, records)
+    found = {}
+    for run in usable:
+        transcript = inside(folder, f"{RUNS_DIR}/{run.arm}/{run.task}/{run.rep}/{TRANSCRIPT_NAME.format(attempt=run.attempt)}")
+        if transcript.is_file():
+            found[run.run_id] = calls_of(transcript.read_text().splitlines())
+    assert set(found) <= {run.run_id for run in usable}, f"stored_guard_calls invented runs: {sorted(found)}"
+    assert len(found) <= len(usable), f"stored_guard_calls found {len(found)} runs for {len(usable)} usable guard runs"
+    return found
+
+
+def guard_arm_rules(root: Path, plan: Plan) -> tuple[GuardRule, ...]:
+    assert root.is_dir(), f"{root} is not a directory. Rule: overlays resolve under the project directory. Fix: pass the project directory."
+    assert plan.arms, f"plan {plan.name} has no arms. Rule: a plan needs arms. Fix: load the plan with load_plan."
+    overlays = [inside(root, arm.overlay) for arm in plan.arms if arm.role == ROLE_GUARD_ONLY]
+    try:
+        rules = tuple(rule for overlay in overlays for rule in load_rules(overlay, GUARD_RULES_NAME))
+    except (AssertionError, ValueError, KeyError):
+        rules = ()
+    assert all(isinstance(rule, GuardRule) for rule in rules), f"guard_arm_rules built a non-rule: {rules!r}"
+    assert not rules or overlays, f"guard_arm_rules found rules {rules!r} for a plan with no guard arm"
+    return rules
+
+
+def guard_runs(plan: Plan, records: tuple, calls_by_run: dict) -> tuple:
+    usable = usable_guard_records(plan, records)
     missing = [run.run_id for run in usable if run.run_id not in calls_by_run]
     assert not missing, f"no calls for usable guard runs {missing}. Rule: bypass reads each usable guard-arm run. Fix: pass the calls of every run."
     runs = tuple(calls_by_run[run.run_id] for run in usable)

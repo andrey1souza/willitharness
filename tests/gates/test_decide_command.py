@@ -69,12 +69,11 @@ def test_G5_4_a_plan_that_has_not_run_is_refused_with_rule_and_fix(tmp_path, mon
     assert "plan demo is ReachabilityChecked" in err and RULE_MARKER in err and err.rstrip().endswith("run decide again."), f"got {err!r}"
 
 
-def test_G5_4_a_plan_with_a_guard_arm_is_refused_with_rule_and_fix(tmp_path, monkeypatch, capsys):
+def test_G5_4_a_plan_with_a_guard_arm_and_no_guard_evidence_gets_guard_untested(tmp_path, monkeypatch, capsys):
     roles = {**FULL_ROLES, "G": "guard_only"}
     complete_site(tmp_path, monkeypatch, roles, LOWERS)
     code, out, err = run_cli(capsys, DECIDE)
-    assert code == EXIT_REFUSED and out == "", f"got {code} {out!r} {err!r}"
-    assert "plan demo has a guard_only arm" in err and RULE_MARKER in err and FIX_MARKER in err, f"got {err!r}"
+    assert code == EXIT_OK and out.splitlines() == [KEEP_LINE], f"got {code} {out!r} {err!r}"
 
 
 def test_G5_4_a_plan_with_no_rule_arm_is_refused_with_rule_and_fix(tmp_path, monkeypatch, capsys):
