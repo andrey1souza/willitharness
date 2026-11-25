@@ -77,7 +77,7 @@ Each mutant breaks one rule. TLC must report the matching invariant. A mutant th
 
 ### Replay against the code
 The v0 replay (`formal/tla/replay_traces.py`) walks the model and applies each action to the real lifecycle code.
-Verified on 2026-11-25: `uv run python formal/tla/replay_traces.py` prints "152 walks, 1829 states compared, 11972 refusal probes, 18.3 s".
+`uv run python formal/tla/replay_traces.py` prints the walks, states and refusal probes it compared. The task gate reads that line.
 The same pattern needs a pipeline that has explicit stages in code. Task T94 first extracts that state machine from the audit command.
 If the extraction costs more than the box of task T94, the replay becomes its own task. Until then TLC alone checks the model.
 
@@ -104,7 +104,7 @@ The function is `recommend`. Its inputs and values:
 
 The evidence values are the values of the three-arm verdict in section 6a of the contract.
 The output values: Keep, Remove, ReplaceByScript, Shrink, Undecided.
-The domain has 4 x 2 x 2 x 6 = 96 inputs. The table holds one row for each.
+The domain is the product of the value counts of the four inputs. The table holds one row for each input.
 
 ### The rule, first match wins
 | Rule | Condition | Value | ID |
@@ -118,19 +118,19 @@ The domain has 4 x 2 x 2 x 6 = 96 inputs. The table holds one row for each.
 | 7 | usage is TooFewSessions or NotObservable | Undecided | RC7 |
 | 8 | usage is Used | Keep, marked "free signal" | RC8 |
 
-Evidence NotTested and Inconclusive fall through to rule 4. Both mean no measurement.
+Evidence NotTested and Inconclusive fall through to the duplicate rule. Both mean no measurement.
 The table is a policy, like INSURANCE_MAX_RATE. It is not a measurement. The report says so.
 
 ### Golden-table pattern
 | Part | Existing example | New work |
 |---|---|---|
 | Lean definition and theorems | `formal/lean/Willitharness/ThreeArm.lean` (TA1 to TA8) | A new Lean file for `recommend`, one theorem per rule |
-| Exhaustive check | `TA1_allArmInputs_complete` | `RC1_allRecommendInputs_complete`, by `decide` over 96 inputs |
+| Exhaustive check | `TA1_allArmInputs_complete` | `RC1_allRecommendInputs_complete`, by `decide` over every input |
 | Export | `lake exe export_table arms` | A new case `recommendation` that prints the table as JSON |
 | Table file | `formal/lean/arms_table.json` | A new table file for the recommendation (new) |
 | Independent reading | `check_lean.py` reads the contract text again in Python | A second reading of the table in Python, compared row by row |
 | Wrong variants | `formal/lean/WrongVariants.lean` | The variants below. Each must fail to build |
-| Python conformance | `tests/golden` compares code to the tables | The Python `recommend` equals the table on all 96 rows |
+| Python conformance | `tests/golden` compares code to the tables | The Python `recommend` equals the table on every row |
 
 ### Wrong variants that must fail
 | Variant | The false claim | Why it matters |
@@ -146,7 +146,7 @@ The table is a policy, like INSURANCE_MAX_RATE. It is not a measurement. The rep
 | Step | Output | Gate |
 |---|---|---|
 | 1 | Lean definition, theorems RC1 to RC8, the exhaustive check | `python3 formal/lean/check_lean.py` builds, no `sorry`, `#print axioms` clean |
-| 2 | Export case and table file with 96 rows | The Python reading and the Lean table agree on every row |
+| 2 | Export case and table file with one row per input | The Python reading and the Lean table agree on every row |
 | 3 | Wrong variants | `check_lean.py` reports each variant failing to build |
 | 4 | The Python `recommend` conforms | A golden test fails when one row is edited |
 | 5 | The Lean README states the contract version it proves | Gate of task T85 |

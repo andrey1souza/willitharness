@@ -1,14 +1,14 @@
 # 04. Simulation spike: go or no-go
 
 This is a spike. It is not a commitment. It has a time box, a question and numbers that end it.
-Task T97 runs it. A no-go deletes the spike code and keeps one dated note.
+Task T97 runs it. The owner decided that the spike runs, with the time box and the go and no-go numbers below. A no-go deletes the spike code and keeps one dated note.
 
 ## What exists today
 | Item | What it does | Evidence |
 |---|---|---|
 | Seeded fake agent | A run draws from a random generator seeded with the seed and the run index. The same seed gives the same run | Verified: `src/willitharness/fakeagent.py` (`random.Random(f"{behavior.seed}:{run_index}")`) |
 | Monte Carlo gate | Draws counts for two arms and checks the false-positive rate and the power of the verdict function. It does not run the runner | Verified: `scripts/gates/simulate.py`, run by the `simulate` target of the Makefile with a fixed seed |
-| Trace replay | TLC takes seeded random walks of the lifecycle model. Each action is applied to the real lifecycle code | Verified on 2026-11-25: `uv run python formal/tla/replay_traces.py` printed "total: 152 walks, 1829 states compared, 11972 refusal probes, 18.3 s" |
+| Trace replay | TLC takes seeded random walks of the lifecycle model. Each action is applied to the real lifecycle code | Verified: `uv run python formal/tla/replay_traces.py` prints a total line with walks, states compared and refusal probes. It replays the walks of the stored fixtures |
 | Live run | A real agent run that costs money. It is the non-deterministic check | Verified: `scripts/gates/three_arm_live.sh` |
 
 Inferred: the fake agent covers the run loop of the lifecycle. It does not cover a repository scan, a transcript read or a hook file.
@@ -18,26 +18,26 @@ The dossier said the same: it did not check how much of the real runner the fake
 | New surface | Why the current checks do not reach it |
 |---|---|
 | Reading a repository: files, symlinks, odd encodings, huge files | The lifecycle model has no file system |
-| Reading session transcripts: 4822 files and 2351121904 bytes on this machine (Verified, `01-goals-and-scope.md`) | The lifecycle model has no input data |
+| Reading session transcripts: thousands of files and gigabytes on this machine (see `01-goals-and-scope.md`) | The lifecycle model has no input data |
 | Reading hook files in more than one format (the overwatch `hooks.json` is a module registry, not the Claude Code layout) | The v0 audit reads one layout |
 | A budget across several plans in one audit | The lifecycle budget covers one plan |
-| A runner that can be denied or can time out | Verified: the auto-mode classifier denied a paid run in an earlier session (dossier, `willitharness-session-retrospective`, raw:L3657). The fake agent never denies |
+| A runner that can be denied or can time out | Verified: the auto-mode classifier denied a paid run in an earlier session (dossier `willitharness-session-retrospective`). The fake agent never denies |
 | The promise that nothing is written to the audited folder | A test checks fixtures. No check explores fault combinations |
 
 ## What the dossiers say
 The user wrote these notes in the commonsense repository. They are evidence, not orders.
 
 What the stream says, quoted from `tigerbeetle-resonate-deterministic-simulation-testing-stream.dossier.txt`:
-- "if you seed yet another universe with the same seed, it unfolds exactly the same way" (raw:L709-711).
-- "Minimize surface area of the interface, make it very narrow." (raw:L1353-1355).
-- "DST doesn't promise that. It just gives you confidence that as far as you're as far as you are exploring the state space" (raw:L402-405).
-- "took 3 weeks to actually create the first version of our Whopper simulator" (raw:L1475-1477).
-- A non-deterministic run is "like a canary because you should never be finding bugs there" (raw:L1727-1728).
+- "if you seed yet another universe with the same seed, it unfolds exactly the same way".
+- "Minimize surface area of the interface, make it very narrow.".
+- "DST doesn't promise that. It just gives you confidence that as far as you're as far as you are exploring the state space".
+- The first version of the TigerBeetle simulator took weeks to write. The dossier gives the number.
+- A non-deterministic run is "like a canary because you should never be finding bugs there".
 
 What the dossier warned:
 - "The talk gives no data on how often deterministic simulation finds bugs a normal test suite misses."
 - "the speakers are the vendors of the two products they describe", and every number is their own report from memory.
-- The first simulator of TigerBeetle took three weeks. The box below is one day. The spike tests a much smaller thing.
+- The first simulator of TigerBeetle took weeks. The time box below is far shorter. The spike tests a much smaller thing.
 
 What the dossier decided for this repository:
 - `project=willitharness verdict=drop strength=moderate evaluated_at=2026-11-24`.
@@ -85,50 +85,50 @@ Each fault is a seeded event. A run draws zero or more faults.
 - Name: S-SIM. Task T97.
 - Smallest simulator: one script and one fixture tree (both new). The script runs the free audit and one paid step with the four ports faked. A seed in gives a trace out. After each run it checks the invariants RO1, RO2, SC1, SC3, SC4 and SC5.
 - Question: does the simulator find a defect that the current gates miss, planted or real?
-- Time box: 8 working hours. The spike stops at the box, whatever its state.
+- Time box: 8 working hours. The spike stops at the box, whatever its state. [param]
 
 ### Method
-1. Write 5 planted defects in a scratch copy of the pipeline. Each defect shows only under a fault. Proposed list:
+1. Write 5 planted defects in a scratch copy of the pipeline. Each defect shows only under a fault. Proposed list: [param]
    - a timed-out run is charged 0, not the run cap;
    - a denied run raises and the free report is lost;
    - the free report reads a cached paid result;
    - a missing transcript folder makes the audit create it inside the audited folder;
    - a symlink in the folder is followed and its text enters the report.
 2. Run the existing gates on each defect: the unit tests, the mutation modules, the trace gate, the repo checks and the TLA+ replay. Record which gates fail. This is the "gates miss" count.
-3. Run the simulator on 1000 seeds for each defect. Record which defects it finds and the first seed that shows each.
-4. Check determinism: run the same seed twice for 100 seeds and compare the trace hash.
-5. Time the 1000-seed run.
+3. Run the simulator on 1000 seeds for each defect. Record which defects it finds and the first seed that shows each. [param]
+4. Check determinism: run the same seed twice for 100 seeds and compare the trace hash. [param]
+5. Time the 1000-seed run. [param]
 
 ### Go criteria
 All must hold.
 | Criterion | Number |
 |---|---|
-| The simulator finds planted defects that the existing gates all miss | at least 3 of 5 |
+| The simulator finds planted defects that the existing gates all miss | at least 3 of 5 [param] |
 | Each counted defect needs two or more faults in one run. A one-fault defect has a cheaper unit test and does not count | every counted defect |
-| Determinism: the same seed gives the same trace hash | 100 of 100 reruns |
-| The run of 1000 seeds ends in | at most 60 seconds on this machine |
-| The simulator script is at most | 400 lines |
-| The invariants and ports above are enough, with no port added | 4 ports |
+| Determinism: the same seed gives the same trace hash | 100 of 100 reruns [param] |
+| The run of 1000 seeds ends in | at most 60 seconds on this machine [param] |
+| The simulator script is at most | 400 lines [param] |
+| The invariants and ports above are enough, with no port added | 4 ports [param] |
 
 ### No-go criteria
 Any one ends the spike with no-go.
 | Criterion | Number |
 |---|---|
-| The simulator finds fewer than 3 defects that the gates miss | fewer than 3 of 5 |
-| The pipeline cannot reach the world through 4 ports without a rewrite larger than the box | over 8 hours |
-| Determinism fails once | 1 divergence in 100 reruns |
-| The 1000-seed run is slower than | 60 seconds |
-| The existing gates already find 3 or more of the 5 defects | the gates are enough |
+| The simulator finds fewer than 3 defects that the gates miss | fewer than 3 of 5 [param] |
+| The pipeline cannot reach the world through 4 ports without a rewrite larger than the box | over 8 hours [param] |
+| Determinism fails once | 1 divergence in 100 reruns [param] |
+| The 1000-seed run is slower than | 60 seconds [param] |
+| The existing gates already find 3 or more of the 5 defects | the gates are enough [param] |
 
 ### What each result decides
 | Result | Decision |
 |---|---|
 | Go | Add the simulator to `make check` as one more target. Keep the ports. Open a task to widen the fault list |
-| No-go with gates missing 1 or 2 defects | Add one failing-first test for each missed defect class. Delete the simulator |
-| No-go with gates catching 3 or more | Delete the simulator. Record that the gates are enough |
+| No-go with gates missing 1 or 2 defects | Add one failing-first test for each missed defect class. Delete the simulator [param] |
+| No-go with gates catching 3 or more | Delete the simulator. Record that the gates are enough [param] |
 
 The result goes in a dated note in this folder. It states the counts and the first seed of each find.
-Compare the baseline cost: the full gates run took 13 minutes 17 seconds on 2026-11-25 (make check, on a busy machine; the tests alone took 141 seconds).
+The baseline cost is the seconds of the full check target of the Makefile. The spike measures it first and reports it.
 
 ## Limits
 - Five planted defects are written by the plan author. They may fit the simulator. A real defect found counts above a planted one.

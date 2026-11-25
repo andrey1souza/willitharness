@@ -8,12 +8,12 @@ These are the owner's words.
 | G1 | For each thing audited (rule, hook, skill, plugin component), is it helping, or the same as just prompting? Unused and worthless components must be findable. |
 | G2 | How to reduce the prose of what is audited. |
 | G3 | Plug and play: "scan this repo, test every rule, give me a report". The front end is a Claude Code plugin with a skill. The free scan and report come first. Paid tests are a second, opt-in step that the user of the plugin pays for. The tool never writes to the audited repo. Changes appear only as proposals in the report. |
-| G4 | README, GitHub Pages and all docs are always up to date. A bad doc is worse than none. Every doc claim is checked by a script against code or gate output. Delete what no script can check. Fix first the stale headers: the TLA+ README says contract v0.4, the Lean README says v0.3, `check_lean.py` pins v0.3, and the contract is v0.7. |
+| G4 | README, GitHub Pages and all docs are always up to date. A bad doc is worse than none. Every doc claim is checked by a script against code or gate output. Delete what no script can check. Fix first the stale headers: the TLA+ README and the Lean README name old contract versions, and `check_lean.py` pins an old one. The contract is v0.7. |
 
 ## The known gap
 The free audit reads instruction files only. A repo that ships a plugin, hooks or skills shows no rules.
 Verified on 2026-11-25 with `uv run willitharness load-report ~/Develop/overwatch` and the same command on `~/Develop/zanity`.
-Both reports list one file only: `~/CLAUDE.md`, 5276 characters, "above the project". Neither repo has an instruction file.
+Both reports list one file only: `~/CLAUDE.md`, marked "above the project". Neither repo has an instruction file.
 Verified on the same day: the report for `~/Develop/gated-delivery` lists no skill, and that repo holds a plugin folder with skills.
 The source says why. `src/willitharness/load_report.py` sets `NOT_COUNTED` to "plugin skills and user-level skills".
 It reads skills from `.claude/skills` only. It reads hooks from `.claude/settings.json` only.
@@ -38,14 +38,14 @@ Task T90 must separate repo files from user-level files in every number.
 | Running a hook or a skill in the free scan | Repo hooks are code. The free scan runs no code of the repo | Only the existing flag `--run-hooks`, which stays off |
 | Other agents than Claude Code | Transcript format and isolation flags are agent specific | After v1 |
 | A usage signal for git hooks | No transcript event names a git hook (Inferred: the event list below has none) | If a log of git hook runs appears |
-| Many models in one plan | Sonnet costs about 14 times haiku per run (`../06-risks.md`) | After v1 |
+| Many models in one plan | Sonnet costs much more than haiku per run (`../06-risks.md`) | After v1 |
 | A web UI | A Markdown report is enough | If users ask |
 
 ## The transcript format
 Verified on 2026-11-25 by reading real sessions under `~/.claude/projects`. Every line is one JSON object.
 Each session is one `.jsonl` file under a folder named after the working directory.
 There are two roots on this machine: `~/.claude/projects` and `~/.claude-thoughtworks/projects`.
-Together they hold 4822 session files, 2351121904 bytes (command: a Python walk over both roots).
+Together they hold thousands of session files and gigabytes of text. The reader must stream them.
 
 | Event | Where it is | What it gives |
 |---|---|---|

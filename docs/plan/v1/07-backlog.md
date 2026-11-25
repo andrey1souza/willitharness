@@ -2,7 +2,8 @@
 
 Tasks in dependency order. The format follows `../07-task-backlog.md`: a BDD story with Given and Then lines, the IDs it covers, a gate and its dependencies.
 Sizes: S under half a day, M about a day, L two or three days. A task is done when its gate passes with its bad input rejected.
-Numbering: the last ID on main is T83. The audit story is T84 on the branch `feat/audit-command`. v1 starts at T85. Task T84 must merge first.
+Numbering: the last ID on main is T83. The audit story T84 is on the branch `feat/audit-command` and is the base of v1. v1 starts at T85.
+Order, decided by the owner: merge T84 first, then T85 to T89, then the features.
 A path marked "(new)" does not exist yet. The IDs named here are proposed. Each task adds its own IDs to the contract (see `02-contract-v0.8.md`).
 No task pushes to a remote. A paid run is never part of `make check`.
 
@@ -10,9 +11,9 @@ No task pushes to a remote. A paid run is never part of `make check`.
 
 ### T85. Fail the build when a formal doc names an old contract version (S)
 As a maintainer, I want each formal doc to state its contract version, so that no header lags.
-- Given the repo today, then the new check fails. The TLA+ README says v0.4. The Lean README says v0.3. `check_lean.py` pins v0.3. The contract is v0.7.
+- Given the repo today, then the new check fails. The two formal READMEs and `check_lean.py` name older contract versions. The contract is v0.7.
 - Given the check, then it is written and seen failing before any fix.
-- Given a copy with the contract title at v0.9, then the check exits 1 and names each file that differs.
+- Given a copy with a different contract title, then the check exits 1 and names each file that differs.
 - Given the headers fixed, then the check passes.
 - Given the fix, then `make formal` ran first. Its result is in the change text.
 - Given a Lean or TLA+ table that differs from the contract, then the task lists the difference. It does not bump the version.
@@ -21,7 +22,7 @@ As a maintainer, I want each formal doc to state its contract version, so that n
 
 ### T86. Check numbers and file lists of the formal docs (M)
 As a maintainer, I want each count and file name in the formal READMEs checked, so that none goes stale.
-- Given a README that says 111 theorems while the Lean files hold fewer, then the check exits 1.
+- Given a README with a wrong theorem count, then the check exits 1.
 - Given a README row for a missing file, such as `last_run.txt` today, then the check exits 1.
 - Given such a row that says the file is generated and ignored by git, then the check passes.
 - Given a stated row count of a golden table that differs from its JSON file, then the check exits 1.
@@ -40,8 +41,8 @@ As a maintainer, I want a documented command checked by its full name, so that a
 
 ### T88. Rebuild the Pages site on every merge to main (S)
 As a maintainer, I want the site rebuilt on each merge, so that it never shows an old README.
-- Given the Pages workflow today, then a README change does not trigger it. The new check fails first.
-- Given the workflow with no `paths` filter on push, then each merge rebuilds the site.
+Decided by the owner: the `paths` filter of the Pages workflow is removed. The plan change that records this decision also removes it.
+- Given the workflow, then it has no `paths` filter on push, so each merge rebuilds the site.
 - Given a copy of the workflow with a filter that omits README.md, then the check exits 1.
 - Given the change, then the task reports the seconds of one build. The cost is one Linux job per merge. The gain is a site that is never stale.
 - IDs: none. Gate: a check in `scripts/gates/repo_checks.py` and one test. Deps: none.
@@ -51,6 +52,9 @@ As a maintainer, I want the v1 plan folder checked, so that the plan cannot go s
 - Given a "(new)" path that exists while its task entry stands, then the gate exits 1.
 - Given an ID with different text in this plan and in the contract, then the gate exits 1.
 - Given a task entry with no gate line, then the gate exits 1.
+- Given a number in a v1 plan file, then it needs a tag. IDs, versions, dates, list markers and file names need none. Exit codes and the numbers 0 and 1 need none. [param] marks a plan decision. [check:name] marks a number that the gate computes from a file or a command output.
+- Given an untagged number, then the gate exits 1 and names the line. The gate extends `docs_freshness.py`, or is a new gate with a failing-first test.
+- Given a [check:name] tag with no registered check, then the gate exits 1.
 - IDs: none. Gate: test file tests/gates/test_plan_v1.py (new). Deps: T85.
 - Creates: tests/gates/test_plan_v1.py (new).
 
@@ -143,8 +147,9 @@ As a maintainer, I want each proposed ID in the contract once its code exists. T
 
 ### T97. Spike: a deterministic simulator of the audit pipeline (M, time-boxed)
 As an owner, I want to know if a simulator finds defects that the gates miss. I add it only if it pays.
-- Given the method of `04-simulation-spike.md`, then the spike stops at 8 hours.
-- Given 5 planted defects, then the result lists which the gates catch and which the simulator catches.
+Decided by the owner: the spike runs, with the 8-hour box and the numeric criteria of `04-simulation-spike.md`. [param]
+- Given the method of `04-simulation-spike.md`, then the spike stops at 8 hours. [param]
+- Given 5 planted defects, then the result lists which the gates catch and which the simulator catches. [param]
 - Given the go criteria, then the result states go or no-go with the numbers.
 - Given no-go, then the simulator code is deleted and a dated note stays.
 - Given go, then the simulator joins `make check` as one target.
@@ -165,7 +170,7 @@ As an owner of a harness, I want one gate for "scan this repo". The free promise
 
 ### T99. Add the paid step with opt-in and a required cap (M)
 As an owner of a harness, I want a second command that spends only with my cap. The free scan can never spend.
-- Given the paid step as a separate command, then the free audit has no path to it. The task sets the name.
+- Given the paid step, then it is its own command and not a flag of the free audit (SC1). The free audit has no path to it. The task sets the name.
 - Given no `--cap-usd` in the command, then it exits 2 before any run (SC1).
 - Given a config file with a cap, then it is ignored. There is no default cap (SC1).
 - Given a cap below the worst case, then it refuses and prints the worst case (SC2).
@@ -183,7 +188,7 @@ As a user of the plugin, I want the skill to scan free first and ask before any 
 - Given the skill text, then it tells the agent to run the free audit first and show the whole report.
 - Given the skill text, then it names no command that writes to the audited folder.
 - Given a paid step, then the skill asks for a cap and shows the worst case before it runs anything.
-- Given each sentence of the skill, then it has 20 words or fewer. The check exists in `plugin_checks.py` on the audit branch.
+- Given each sentence of the skill, then it has 20 words or fewer. The check exists in `plugin_checks.py` on the audit branch. [param]
 - Given the plugin manifest, then it holds name, version and description.
 - Given the tools the skill may use, then the check lists them. The task reads the Claude Code documentation first.
 - Given a frontmatter field for tool limits, then the gate checks it. Inferred: such a field exists. Verify before use.

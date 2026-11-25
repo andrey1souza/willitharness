@@ -10,7 +10,7 @@ The proposal lives in `02-contract-v0.8.md`. It does not edit the contract.
 ## Base
 The free audit command is built on the local branch `feat/audit-command` (backlog task T84).
 Main has no audit command. Verified: `ls src/willitharness/audit.py` finds no file on this branch of main.
-This plan builds on that branch. Task T84 must merge before task T85 starts.
+This plan builds on that branch. The owner decided the order: merge T84 first, then T85 to T89, then the features.
 
 ## Size
 This README keeps no count. A hand-kept count goes stale (rule of task T79).
@@ -47,6 +47,6 @@ The paid spend is the sum of the worst cases in `05-experiments.md`. No paid run
 | Any push or remote write | The owner. This plan never plans one |
 
 ## Honest limits
-- Every number about the owner repositories is a dated snapshot. It carries its command.
+- A number stays only with a [param] tag (a plan decision) or a [check:name] tag (a gate computes it). Task T89 enforces that.
 - The dossiers in the commonsense repository are evidence. A spike decides, not a dossier.
 - The paid steps are not run. Their costs are worst cases from a formula, not measurements.
