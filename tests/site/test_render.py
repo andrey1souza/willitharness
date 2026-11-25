@@ -15,7 +15,7 @@ def built(tmp_path):
 
 def test_the_page_and_the_style_are_built(built):
     assert sorted(built) == ["index.html", "style.css"], f"a build holds the page and the style, got {sorted(built)}"
-    assert built["index.html"].startswith("<!doctype html>") and "<h1>toolname</h1>" in built["index.html"], f"the page opens with the title from the README; got {built['index.html'][:300]!r}"
+    assert built["index.html"].startswith("<!doctype html>") and "<h1>Will it harness?</h1>" in built["index.html"] and "<p class=\"kicker\">toolname</p>" in built["index.html"], f"the page opens with the title from the README; got {built['index.html'][:300]!r}"
 
 
 def test_question_rows_cite_the_contract_line(built):
@@ -143,3 +143,10 @@ def test_a_command_block_escapes_markup(tmp_path):
     write_tree(tmp_path, {**site_files(), "README.md": site_files()["README.md"].replace("toolname run plan.json --runs 3", "toolname run <plan.json> && echo done")})
     page = render.render_site(tmp_path, extract.site_data(tmp_path))["index.html"]
     assert "<code>toolname run &lt;plan.json&gt; &amp;&amp; echo done</code>" in page, f"markup in a command is escaped; got {page!r}"
+
+
+def test_before_and_after_and_install_come_from_the_data(built):
+    page = built["index.html"]
+    assert '<span class="status bad">Rule removed</span> 6 of 20 runs used a banned command.' in page, f"the before arm shows its hits from the live data; got {page!r}"
+    assert '<span class="status keep">Rule loaded</span> 0 of 20 runs used a banned command.' in page, f"the after arm shows its hits from the live data; got {page!r}"
+    assert '<h2 id="install">Install</h2>\n<p>Needs python.</p>\n<p>Install from source.</p>\n<pre tabindex="0"><code>uv sync' in page, f"the install section shows the README block; got {page!r}"

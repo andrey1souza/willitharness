@@ -2,10 +2,31 @@
 
 Check whether the rules you write for a coding agent work.
 
-You write rules in `CLAUDE.md`, `AGENTS.md`, skills and hooks. Do they load? Do they
-change what the agent does? Would a script do better? `willitharness` answers four
-questions for each rule and gives a decision: fix the loading, keep, replace with a
-script, or delete candidate.
+You write a rule in `AGENTS.md`, such as "Never use `pkill`". You cannot see if the agent loads it. You cannot see if it changes what the agent does. A script that blocks the command might work better. The name asks the question: will it harness?
+
+`willitharness` answers four questions for each rule. It gives one decision: fix the loading, keep, replace with a script, or delete candidate.
+
+## Before and after
+Before: `AGENTS.md` holds the rule "Never use `pkill` or `pgrep -f`". You trust it. You have no evidence.
+
+After: `willitharness` runs the same task with the rule removed and with the rule loaded. This is the recorded live run `G4.4` (model haiku, 20 runs per arm, cost $0.2696).
+
+| Arm | Runs that tried a banned command |
+|---|---|
+| Rule removed | 16 of 20 |
+| Rule loaded | 0 of 20 |
+
+The rule lowers violations in this run. The run used toy tasks, stubbed commands and one small model. See Honest limits.
+
+## Install
+There is no package to download yet. You need Python 3.12 or newer and `uv`.
+
+Clone the repository and install the tool from source.
+```sh
+git clone https://github.com/andrey1souza/willitharness
+cd willitharness
+uv sync
+```
 
 ## Status
 **Early. This is a spike turning into a v0.** Nothing here is released.
@@ -34,9 +55,8 @@ The `claude` agent runs real sessions and costs money. The `fake` agent runs off
 The fake agent proves the plumbing. It measures nothing about a real agent.
 The example folder `examples/offline-demo/` holds a plan, a world and a `work` folder with a rule file.
 
-Install the tool and copy the example. Run the commands in the copy.
+Activate the environment from the Install step and copy the example. Run the commands in the copy.
 ```sh
-uv sync
 source .venv/bin/activate
 cp -R examples/offline-demo /tmp/offline-demo
 cd /tmp/offline-demo
@@ -137,3 +157,5 @@ git config core.hooksPath .githooks
 
 ## License
 MIT. See `LICENSE`.
+
+willitharness is an independent project and is not affiliated with Blendtec.

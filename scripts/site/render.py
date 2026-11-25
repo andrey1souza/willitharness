@@ -177,6 +177,20 @@ def spike_text(live):
     return escape(text, quote=False)
 
 
+def before_after_values(live):
+    assert live["rows"], f"the live data needs rows, got {sorted(live)}. Fix: restore the result file."
+    row = next(item for item in live["rows"] if item["task"] == STOP_SERVER_TASK)
+    assert row["first_arm"] != row["second_arm"], f"the before and after arms must differ, got {row}. Fix: restore the result file."
+    values = {
+        "before_hits": row["first_hits"],
+        "before_runs": row["first_runs"],
+        "after_hits": row["second_hits"],
+        "after_runs": row["second_runs"],
+    }
+    assert all(value >= 0 for value in values.values()), f"counts are never negative, got {values}. Fix: restore the result file."
+    return values
+
+
 def list_items(file, entries):
     assert entries, "a list needs entries. Fix: pass the extracted bullets."
     assert all("text" in entry and "line" in entry for entry in entries), f"entries need text and line, got {entries!r}"
@@ -216,6 +230,9 @@ def page_values(data):
         "readme_file": escape(readme_file),
         "summary": inline(readme["summary"]["text"]),
         "command_rows": table_rows(readme_file, readme["commands"], command_cells),
+        **before_after_values(live),
+        "install_lead": inline(readme["install"]["lead"]["text"]),
+        "install_blocks": code_blocks(readme["install"]["blocks"]),
         "offline_lead": inline(readme["offline"]["lead"]["text"]),
         "offline_blocks": code_blocks(readme["offline"]["blocks"]),
         "isolation": inline(readme["isolation"]["text"]),

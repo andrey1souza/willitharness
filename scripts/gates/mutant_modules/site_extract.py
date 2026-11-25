@@ -33,7 +33,7 @@ MUTANTS = (
     ('open-block-accepted', SOURCE, 'assert current is None,', 'assert True,'),
     ('unlabelled-block-accepted', SOURCE, 'assert label and not label.startswith(FENCE),', 'assert True,'),
     ('empty-block-accepted', SOURCE, 'assert blocks and all(block["text"] for block in blocks),', 'assert True,'),
-    ('lead-takes-more-lines', SOURCE, 'lead = paragraph_text(numbered[:1], OFFLINE_HEADING)', 'lead = paragraph_text(numbered[:3], OFFLINE_HEADING)'),
+    ('lead-takes-more-lines', SOURCE, 'lead = paragraph_text(numbered[:1], heading)', 'lead = paragraph_text(numbered[:3], heading)'),
     ('paragraph-cites-its-last-line', SOURCE, 'return {"line": filled[0][0],', 'return {"line": filled[-1][0],'),
     ('empty-paragraph-accepted', SOURCE, 'assert filled, f"the section', 'assert True, f"the section'),
     ('commands-heading-renamed', SOURCE, 'COMMANDS_HEADING = "## What works today"', 'COMMANDS_HEADING = "## Status"'),

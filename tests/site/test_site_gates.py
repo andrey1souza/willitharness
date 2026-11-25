@@ -219,7 +219,7 @@ def test_status_document_and_counts_must_name_the_same_gates(tmp_path, site):
 
 def test_site_problems_collects_every_gate(tmp_path, site):
     data, files = site
-    broken = {**files, "index.html": files["index.html"].replace("<h1>toolname</h1>", "<h1>toolname</h1><h1>again</h1><!-- why -->").replace("toy tasks", "toy tasks, proven")}
+    broken = {**files, "index.html": files["index.html"].replace("<h1>Will it harness?</h1>", "<h1>Will it harness?</h1><h1>again</h1><!-- why -->").replace("toy tasks", "toy tasks, proven")}
     (tmp_path / "site" / "extra.md").write_text("x")
     problems = gates.site_problems(tmp_path, broken, data, {**GOOD_COUNTS, "Tests": 9})
     joined = "\n".join(problems)
