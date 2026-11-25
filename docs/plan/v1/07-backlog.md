@@ -82,7 +82,8 @@ As an owner of a harness, I want each component's calls counted in my sessions. 
 - Given each count, then it equals the count of an independent reader in the test (K2).
 - Given a line that is not JSON, then it counts as one unreadable line and the audit goes on (US4).
 - Given a message that holds a planted secret string, then the report never holds the string (US3).
-- Given a session whose folder is outside the audited folder, then it is not counted.
+- Given a skill that an installed plugin ships, then calls from sessions in every project folder count, because the plugin runs in other projects.
+- Given a skill that the audited repository defines for itself, then only calls from sessions in that repository count. This is Inferred and not tested. EX2 tests it.
 - Given every folder that holds transcripts, then the report reads each one and lists each folder it read and each it did not read, with the reason (US1). The Cursor folder `~/.cursor/projects` is listed as not read.
 - Given a call id that appears more than once, then the report counts it once (US1).
 - Given a skill run by a slash command and by a Skill call, then the report counts the two kinds apart (US1).
