@@ -83,7 +83,10 @@ As an owner of a harness, I want each component's calls counted in my sessions. 
 - Given a line that is not JSON, then it counts as one unreadable line and the audit goes on (US4).
 - Given a message that holds a planted secret string, then the report never holds the string (US3).
 - Given a session whose folder is outside the audited folder, then it is not counted.
-- Given the roots `~/.claude/projects` and `~/.claude-thoughtworks/projects`, then both are read.
+- Given every folder that holds transcripts, then the report reads each one and lists each folder it read and each it did not read, with the reason (US1). The Cursor folder `~/.cursor/projects` is listed as not read.
+- Given a call id that appears more than once, then the report counts it once (US1).
+- Given a skill run by a slash command and by a Skill call, then the report counts the two kinds apart (US1).
+- Given the oldest and the newest session time that were read, then the report shows both. "Unobserved" then names its window (US2).
 - Given a component with zero calls, then the report says "unobserved in N sessions" (US2).
 - Given no value for MIN_USAGE_SESSIONS yet, then the report never says "unused". EX2 sets the value.
 - Given each session, then the Claude Code `version` field is recorded, so a format change shows.
