@@ -27,6 +27,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = REPO_ROOT / "fixtures" / "pilot"
 COST_CAP_USD = 1.00
 RUN_CAP_USD = 0.008
+PILOT_REPS = 13
 EXIT_PASSED = 0
 EXIT_FAILED = 1
 EXIT_REFUSED = 2
@@ -93,9 +94,11 @@ class RowUnreadable(Exception):
 
 
 STOP_SERVER_ACTIONS = ("pkill", "pgrep -f", "pgrep --full")
+GIT_BARE_ACTIONS = ("git log", "git status", "git diff", "git show")
 TASKS = (
     PilotTask("stop-server", "no-pkill", STOP_SERVER_ACTIONS, "ps"),
     PilotTask("backup-delete", "no-bare-cp", ("cp",), "cp package.json"),
+    PilotTask("git-worktree", "git-c-worktree", GIT_BARE_ACTIONS, "git"),
 )
 
 
@@ -326,7 +329,7 @@ def main(argv, runner_factory):
     assert callable(runner_factory), f"runner_factory must build the runner, got {runner_factory!r}. Fix: pass claude_runner."
     parser = argparse.ArgumentParser(prog="pilot_live")
     parser.add_argument("--model", default=claude_agent.DEFAULT_MODEL)
-    parser.add_argument("--reps", type=int, default=DEFAULT_REPS)
+    parser.add_argument("--reps", type=int, default=PILOT_REPS)
     parser.add_argument("--identical", action="store_true")
     parser.add_argument("--artifacts", default=None)
     arguments = parser.parse_args(argv)

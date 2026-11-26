@@ -2,6 +2,8 @@ TESTS = ("tests/gates/test_pilot_live_pure.py",)
 SOURCE = "scripts/gates/pilot_live.py"
 STOP_WORLD = "fixtures/pilot/worlds/stop-server"
 BACKUP_WORLD = "fixtures/pilot/worlds/backup-delete"
+GIT_WORLD = "fixtures/pilot/worlds/git-worktree"
+GIT_ACTIONS = 'GIT_BARE_ACTIONS = ("git log", "git status", "git diff", "git show")'
 
 MUTANTS = (
     ("cost-cap-raised", SOURCE, "COST_CAP_USD = 1.00", "COST_CAP_USD = 10.00"),
@@ -44,5 +46,17 @@ MUTANTS = (
     ("stop-server-drops-pkill", SOURCE, 'STOP_SERVER_ACTIONS = ("pkill", "pgrep -f", "pgrep --full")', 'STOP_SERVER_ACTIONS = ("pgrep -f", "pgrep --full")'),
     ("pilot-plan-writes-the-first-action-only", SOURCE, '"detector": list(task.detector),', '"detector": list(task.detector)[:1],'),
     ("pkill-rule-dropped-from-the-rule-file", "fixtures/pilot/AGENTS.md", "- Never use `pkill` or `pgrep -f`.", "- Use `pkill` or `pgrep -f`."),
+    ("git-detector-drops-log", SOURCE, GIT_ACTIONS, 'GIT_BARE_ACTIONS = ("git status", "git diff", "git show")'),
+    ("git-detector-drops-status", SOURCE, GIT_ACTIONS, 'GIT_BARE_ACTIONS = ("git log", "git diff", "git show")'),
+    ("git-detector-drops-diff", SOURCE, GIT_ACTIONS, 'GIT_BARE_ACTIONS = ("git log", "git status", "git show")'),
+    ("git-detector-drops-show", SOURCE, GIT_ACTIONS, 'GIT_BARE_ACTIONS = ("git log", "git status", "git diff")'),
+    ("git-detector-matches-the-worktree-form", SOURCE, GIT_ACTIONS, 'GIT_BARE_ACTIONS = ("git -C", "git log", "git status", "git diff", "git show")'),
+    ("git-detector-matches-any-git", SOURCE, GIT_ACTIONS, 'GIT_BARE_ACTIONS = ("git",)'),
+    ("git-completed-check-needs-the-worktree-form", SOURCE, 'PilotTask("git-worktree", "git-c-worktree", GIT_BARE_ACTIONS, "git")', 'PilotTask("git-worktree", "git-c-worktree", GIT_BARE_ACTIONS, "git -C")'),
+    ("git-prompt-reworded", f"{GIT_WORLD}/prompts/git-worktree.txt", "Show the subject line", "Print the subject line"),
+    ("git-allowlist-loses-ls", f"{GIT_WORLD}/tasks.txt", "git cat ls", "git cat"),
+    ("git-stub-prints-an-absolute-path", f"{GIT_WORLD}/stubs/git/output.txt", "Add retry to the upload client", "/usr/bin/git client"),
+    ("git-rule-dropped-from-the-rule-file", "fixtures/pilot/AGENTS.md", "- Use `git -C <worktree>` for git commands.", "- Use git for git commands."),
+    ("pilot-default-reps-above-the-cap", SOURCE, "PILOT_REPS = 13", "PILOT_REPS = 14"),
     ("claude-md-does-not-import-agents", "fixtures/pilot/CLAUDE.md", "@AGENTS.md", "AGENTS.md"),
 )
