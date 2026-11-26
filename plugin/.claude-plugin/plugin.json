@@ -1,0 +1,5 @@
+{
+  "name": "willitharness",
+  "version": "0.0.0",
+  "description": "Scan a repository and report every rule an agent loads. Free and read-only."
+}

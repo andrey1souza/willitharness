@@ -580,6 +580,22 @@ As an owner of a harness, I want every arm of a plan with a skill arm to run wit
 - Given a plan with no skill arm, then the command line is unchanged.
 - IDs: none. The contract text on the run environment changes. Gate: `uv run pytest tests/gates/test_skill_arm.py tests/unit/test_claude_agent_unit.py`. Deps: T77.
 
+### T84. Audit a repository with one command (M)
+As an owner of a harness, I want to say "scan this repo and test every rule of it", so that I get one report with no setup and no cost.
+- Given a repository directory, `willitharness audit DIR` prints one report that lists every rule in the files a session loads, says for each rule whether a behaviour test could measure it, predicts whether its text loads, shows proposed changes as diffs, and writes nothing to DIR.
+- Given a rule that names a backticked script that exists, then its class is "enforced by a script".
+- Given a rule that forbids or requires a command in backticks, then its class is "command rule, testable candidate". A prose rule never gets this class.
+- Given a backticked path that does not exist, then the rule does not count as script-backed.
+- Given an AGENTS.md that load-report says is masked, then the report proposes a CLAUDE.md line `@AGENTS.md` as a diff. The diff is never applied.
+- Given a forbidden command with no guard that names it, then the report proposes an entry in the format of `fixtures/guard/rules.json`. It proposes nothing else.
+- Given a bullet that is only one backticked command, then its class is "command rule, testable candidate" and its reason names the command.
+- Given a hook that runs a script inside the repo, then the audit reads that script and the files it imports one level down as text. A command that this code names has a guard, so no entry is proposed. The code is never run.
+- Given the loading verdict, then the report labels it "predicted, not verified; a paid probe confirms it".
+- Given the end of the report, then a Limits section says the scan predicts, does not measure, and runs no paid test.
+- Given a copy of a fixture repository, then the hash of every file and the file list are equal before and after the audit. A helper that writes a file is caught by the same check.
+- Given the plugin folder `plugin/`, then its manifest is valid JSON, its skill has a name and a description, and the skill names `willitharness audit`.
+- IDs: none. Gate: `uv run pytest tests/unit/test_rule_class_unit.py tests/gates/test_audit.py tests/gates/test_plugin_checks.py`. Deps: none. Paid tests on the audited rules are a later task.
+
 ### T68. The probe command records its result for a plan arm (S)
 As an analyst, I want `probe` to record its result for an arm of my plan, so that `run` can start with the CLI alone.
 - Given `probe` with `--plan` and `--arm`, then it prints the result, records it for that arm, and prints the arm and the plan state.
