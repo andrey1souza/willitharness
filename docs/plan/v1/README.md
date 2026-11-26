@@ -8,9 +8,9 @@ Source of truth: `../../contract.md` (v0.7). This plan proposes version 0.8 of t
 The proposal lives in `02-contract-v0.8.md`. It does not edit the contract.
 
 ## Base
-The free audit command is built on the local branch `feat/audit-command` (backlog task T84).
-Main has no audit command. Verified: `ls src/willitharness/audit.py` finds no file on this branch of main.
-This plan builds on that branch. The owner decided the order: merge T84 first, then T85 to T89, then the features.
+The free audit command is on main (backlog task T84, pull request 58).
+Verified: `ls src/willitharness/audit.py` finds the file on main.
+This plan builds on it. The owner decided the order: T85 to T89 first, then the features.
 
 ## Size
 This README keeps no count. A hand-kept count goes stale (rule of task T79).
@@ -33,7 +33,7 @@ The paid spend is the sum of the worst cases in `05-experiments.md`. No paid run
 - Each non-obvious claim carries a tag. Verified names the file or the command. Inferred means not checked.
 - A proposed ID is not in the contract yet. The implementing task adds it to the contract in the same change.
 - A path of a file that does not exist yet is written without code marks and ends with "(new)".
-- Task IDs continue the backlog of `../07-task-backlog.md`. The last ID on main is T83. The audit story is T84 on its branch. v1 starts at T85.
+- Task IDs continue the backlog of `../07-task-backlog.md`. The last ID on main is T84. v1 starts at T85.
 - A gate has a good input that must pass and a bad input that must be rejected. A gate with no bad input does not count.
 - Sizes: S under half a day, M about a day, L two or three days.
 - Costs: a paid worst case is arms x reps x tasks x run cap, plus probes. The formula is the one of `scripts/gates/three_arm_live.sh`.

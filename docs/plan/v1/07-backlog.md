@@ -2,8 +2,8 @@
 
 Tasks in dependency order. The format follows `../07-task-backlog.md`: a BDD story with Given and Then lines, the IDs it covers, a gate and its dependencies.
 Sizes: S under half a day, M about a day, L two or three days. A task is done when its gate passes with its bad input rejected.
-Numbering: the last ID on main is T83. The audit story T84 is on the branch `feat/audit-command` and is the base of v1. v1 starts at T85.
-Order, decided by the owner: merge T84 first, then T85 to T89, then the features.
+Numbering: the last ID on main is T84. The audit story T84 is the base of v1. v1 starts at T85.
+Order, decided by the owner: T85 to T89 first, then the features.
 A path marked "(new)" does not exist yet. The IDs named here are proposed. Each task adds its own IDs to the contract (see `02-contract-v0.8.md`).
 No task pushes to a remote. A paid run is never part of `make check`.
 
