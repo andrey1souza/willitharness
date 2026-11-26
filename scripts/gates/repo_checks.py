@@ -10,6 +10,7 @@ from pathlib import Path
 
 import docs_freshness
 import hook_checks
+import plugin_checks
 import leak_check
 import message_check
 import mutant_tables
@@ -443,6 +444,7 @@ CHECKS = {
     "failure-messages": failure_message_errors,
     **workflow_checks.CHECKS,
     **hook_checks.CHECKS,
+    **plugin_checks.CHECKS,
 }
 
 

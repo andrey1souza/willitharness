@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from willitharness import claude_agent, fakeagent
+from willitharness.audit import build_audit
 from willitharness.claude_agent import AgentUnavailable
 from willitharness.load_report import HOOK_TIMEOUT_SECONDS, LoadRefused, build_load_report, project_folder
 from willitharness.decide_plan import DecideRefused, decision_line, rule_decisions
@@ -47,7 +48,7 @@ EXIT_BUDGET_STOPPED = 4
 USAGE = (
     "usage: willitharness plan check <plan.json> | willitharness world check <world-dir> "
     "| willitharness probe --agent fake|claude --directory D --runs N --target-token T --control-token C [--boundary B --seed S] [--model M] [--plan P --arm A] "
-    "| willitharness run <plan.json> --agent fake|claude [--timeout-seconds S] [--model M] | willitharness abort <plan.json> | willitharness analyze <plan.json> | willitharness decide <plan.json> | willitharness report <plan-dir or plan.json> | willitharness load-report [project-dir] [--run-hooks] | willitharness build-plan --skill NAME or --hook EVENT --run-hook --detector FILE --task-file FILE --out DIR --budget-usd B --run-cap-usd R [--project DIR --name N --placebo]"
+    "| willitharness run <plan.json> --agent fake|claude [--timeout-seconds S] [--model M] | willitharness abort <plan.json> | willitharness analyze <plan.json> | willitharness decide <plan.json> | willitharness report <plan-dir or plan.json> | willitharness load-report [project-dir] [--run-hooks] | willitharness audit DIR | willitharness build-plan --skill NAME or --hook EVENT --run-hook --detector FILE --task-file FILE --out DIR --budget-usd B --run-cap-usd R [--project DIR --name N --placebo]"
 )
 EXIT_CODES = (EXIT_OK, EXIT_DOMAIN_FAILURE, EXIT_USAGE, EXIT_AGENT_MISSING, EXIT_BUDGET_STOPPED)
 FAKE_RUN_COST_USD = 0.01
@@ -363,6 +364,22 @@ def load_report_command(argv):
     return EXIT_OK
 
 
+def audit_command(argv):
+    assert isinstance(argv, list), f"audit_command needs a list of arguments, got {argv!r}. Fix: pass the arguments after audit."
+    assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
+    parser = argparse.ArgumentParser(prog="willitharness audit")
+    parser.add_argument("directory")
+    arguments = parser.parse_args(argv)
+    try:
+        text = build_audit(project_folder(Path.cwd(), arguments.directory))
+    except LoadRefused as refusal:
+        print(refusal, file=sys.stderr)
+        return EXIT_DOMAIN_FAILURE
+    sys.stdout.write(text)
+    assert text.endswith("\n"), f"an audit report ends with a newline, got {text[-20:]!r}"
+    return EXIT_OK
+
+
 def build_plan_command(argv):
     assert isinstance(argv, list), f"build_plan_command needs a list of arguments, got {argv!r}. Fix: pass the arguments after build-plan."
     assert all(isinstance(item, str) for item in argv), f"every argument must be text, got {argv!r}"
@@ -417,9 +434,11 @@ def main(argv):
         return report_command(rest)
     if command == ["load-report"]:
         return load_report_command(rest)
+    if command == ["audit"]:
+        return audit_command(rest)
     if command == ["build-plan"]:
         return build_plan_command(rest)
-    print(f"unknown command {argv!r}. Rule: v0 has plan check, world check, probe, run, abort, analyze, decide, report, load-report and build-plan so far. Fix: {USAGE}", file=sys.stderr)
+    print(f"unknown command {argv!r}. Rule: v0 has plan check, world check, probe, run, abort, analyze, decide, report, load-report, audit and build-plan so far. Fix: {USAGE}", file=sys.stderr)
     return EXIT_USAGE
 
 

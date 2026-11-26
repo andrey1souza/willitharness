@@ -46,6 +46,7 @@ A planned feature shows the id of its task in `docs/plan/07-task-backlog.md`.
 | `willitharness decide <plan.json>` | Prints one decision for each task and rule of a finished plan. | works |
 | `willitharness report <plan-dir or plan.json>` | Prints a Markdown report of an analyzed plan: the answer to each question, the decision, the warnings and the limits. | works |
 | `willitharness load-report [project-dir]` | Lists the instruction files, rules, skills and hooks a session loads, with character counts. | works |
+| `willitharness audit DIR` | Scans a repository, lists every rule in the files a session loads, says whether a behaviour test could measure it, predicts whether its text loads, and shows proposed changes as diffs. It is free and writes nothing to DIR. | works |
 | `willitharness build-plan --skill NAME` or `--hook EVENT --run-hook` | Builds a plan of arms N, N2, P and C from a skill or a hook, with the detector from `--detector FILE` and the tasks from `--task-file FILE`. `--placebo` adds arm PL. | works |
 | Reporting the verdict of a skill or hook against its text as a plain prompt | `decide` and `report` read a plan of arms C, P and N and print one verdict. The trigger rate is measured for skills only. | works |
 
@@ -136,6 +137,7 @@ Delete everything with `rm -r .willitharness`. Delete one plan with `rm -r .will
 | `docs/research/` | Findings and corrections from the spike. Read `04-findings-and-corrections.md`. |
 | `docs/mistakes-to-rules.md` | Each mistake and the check that now rules out its category. |
 | `src/willitharness/` | The Python package. |
+| `plugin/` | The Claude Code plugin. Its skill `audit-rules` runs `willitharness audit`. |
 
 ## For contributors
 Every section from here to the license is for contributors.
